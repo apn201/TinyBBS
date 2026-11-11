@@ -98,6 +98,33 @@ removed from the INI files, so nothing on the card pretends to work.
 Done when: rename a conference and add a bulletin on the card, run `RELOAD`
 (or reboot), and both show up without reflashing.
 
+### Slice 3b: an invented board clock
+
+The board has no real-time clock, so it invents one. The board clock is a
+date and time in the 1990s that only runs while the stick has power. When it
+is unplugged, time stops. When it is plugged in again, time continues from
+where it left off.
+
+- The start date is set in `SYSTEM.INI`, for example `epoch=1997-03-14 21:00`.
+- The clock is saved to `/BBS/DATA/STATE/CLOCK.DAT` every few minutes and on
+  every write that carries a timestamp, so a power cut loses at most a few
+  minutes.
+- Optional browser sync (`clock_sync=browser` in `SYSTEM.INI`): when a
+  browser connects, it sends the phone's local time. The board shifts it back
+  to the configured era year (2026 becomes 1997, for example) and moves the
+  board clock forward to that point if it is behind. The clock never moves
+  backwards, so message and caller order stays correct. Day of week and
+  time of day then match the visitor's evening, which looks right.
+- Messages, last-call times, file dates for uploads, the caller log and the
+  `S` system info screen all use the board clock instead of `UP hh:mm:ss`.
+- The Legend of Kouvola daily turns can then reset at board midnight instead
+  of waiting for the SysOp.
+
+Done when: post a message, unplug the stick for ten minutes, plug it in, and
+the next message is stamped a minute or two after the first, not ten minutes
+later and not back at the epoch. With browser sync on, connect from a phone
+at 21:30 and the board clock shows 21:30 on a 1990s date.
+
 ### Slice 4: file areas from folders
 
 Every folder in `/BBS/FILES` is a file area, sorted by its number prefix.
