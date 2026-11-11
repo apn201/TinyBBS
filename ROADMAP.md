@@ -77,6 +77,33 @@ network view); typing feels immediate; a Telnet caller keeps working while
 the browser downloads a multi-megabyte file; and a captive-portal popup on
 iOS and Android still reaches a working terminal.
 
+### Slice 1b: SysOp file manager in the browser
+
+Taking the SD card out of the stick is cumbersome. So the SysOp gets an
+admin mode that breaks out of the period look on purpose: a plain HTML file
+manager for the card, served by the board.
+
+- Opened from the SysOp menu in the browser terminal (`Z` then `F`). The
+  terminal hands the page a one-time admin token tied to the logged-in
+  level-255 SysOp session. No separate password, and no admin page for
+  anybody else. Telnet does not offer it.
+- Browse `/BBS`, upload files (several at once, drag and drop), create and
+  rename folders, delete with confirmation, download, and edit text files
+  (`.INI`, `.ANS` as raw text, `.TXT`, `FILES.BBS`, `DESCRIPT.ION`) in a
+  textarea.
+- `/BBS/DATA` and `/BBS/LOGS` are read-only here, so live users and messages
+  cannot be broken by accident.
+- Changes take effect at once for file areas and art, and through `RELOAD`
+  for INI files (slice 3).
+
+This also makes the later slices quicker to test: new art, areas and
+messages go on the card without unplugging anything.
+
+Done when: as SysOp on a phone, open the file manager, upload a folder of
+images into `/BBS/FILES`, edit `SYSTEM.INI`, delete a test file, and a
+normal user's terminal has no way into the page. Calling the admin URL
+without a valid token returns nothing useful.
+
 ### Slice 2: reconnect
 
 The browser keeps its node token. If the connection drops or the phone
