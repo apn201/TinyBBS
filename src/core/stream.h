@@ -42,7 +42,9 @@ static bool streamChunk(StreamJob &j, String &out, size_t want) {
     // Archive files: only the ANSI drawing subset passes, DOS glyphs become UTF-8.
     if (b == 27) { readArchiveEscape(f, j.end, out, j.ansi); continue; }
     if (b == '\r' || b == '\n') {
-      if (b == '\r' && f.position() < j.end && f.peek() == '\n') f.read();
+      // A bare CR returns to column 1 so art can draw over the same line.
+      if (b == '\r' && !(f.position() < j.end && f.peek() == '\n')) { out += '\r'; j.column = 0; continue; }
+      if (b == '\r') f.read();
       out += "\r\n";
       j.column = 0;
       continue;
@@ -51,8 +53,11 @@ static bool streamChunk(StreamJob &j, String &out, size_t want) {
       do { out += ' '; ++j.column; } while (j.column < j.width && j.column % 8);
       continue;
     }
+    if (j.ansi && b < 32 && b != 0 && b != 7 && b != 8) { appendDosGlyph(out, b); continue; }
     if (b < 32 || b == 127) continue;
-    if (j.column >= j.width) { out += "\r\n"; j.column = 0; }
+    // ANSI art moves the cursor around, so the terminal does the wrapping at
+    // column 80, as it did on DOS. Plain text is wrapped here.
+    if (!j.ansi && j.column >= j.width) { out += "\r\n"; j.column = 0; }
     ++j.column;
     if (b < 128) out += char(b);
     else if (!j.utf8) appendDosGlyph(out, b);

@@ -20,8 +20,15 @@ static constexpr uint16_t kCp437[] = {
   0x00b0,0x2219,0x00b7,0x221a,0x207f,0x00b2,0x25a0,0x00a0
 };
 
+// Bytes 1-31 were glyphs too on a DOS screen: smileys, card suits, arrows.
+static constexpr uint16_t kCp437Low[] = {
+  0x0020,0x263a,0x263b,0x2665,0x2666,0x2663,0x2660,0x2022,
+  0x25d8,0x25cb,0x25d9,0x2642,0x2640,0x266a,0x266b,0x263c,
+  0x25ba,0x25c4,0x2195,0x203c,0x00b6,0x00a7,0x25ac,0x21a8,
+  0x2191,0x2193,0x2192,0x2190,0x221f,0x2194,0x25b2,0x25bc
+};
 static void appendDosGlyph(String &out, uint8_t byte) {
-  const uint16_t cp = kCp437[byte - 0x80];
+  const uint16_t cp = byte < 0x20 ? kCp437Low[byte] : kCp437[byte - 0x80];
   if (cp < 0x800) out += char(0xc0 | (cp >> 6));
   else {
     out += char(0xe0 | (cp >> 12));
@@ -83,7 +90,7 @@ static void readArchiveEscape(File &file, uint32_t end, String &out, bool ansi) 
         unsigned value = 0;
         for (size_t i = 0; i < size; ++i) {
           value = params[i] == ';' ? 0 : value * 10 + (params[i] - '0');
-          if (value > 80) return;
+          if (value > 999) return;  // ESC[255D (to column 1) is common in art
         }
       }
       out += "\x1b[";

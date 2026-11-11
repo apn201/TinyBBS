@@ -29,9 +29,14 @@ static void input(Session &s, const String &bytes) {
     bool space = false, other = false;
     for (size_t i = 0; i < bytes.length(); ++i) {
       char c = bytes[i];
+      // Telnet sends Enter as CR NUL or CR LF. The CR started the picture;
+      // its NUL or LF can arrive a moment later and must not skip it.
+      if (c == 0) continue;
+      if (c == '\n' && s.ignoreNextLf) { s.ignoreNextLf = false; continue; }
       if (c == ' ') space = true;
-      else if (c != '\r' && c != '\n') other = true;
+      else other = true;
     }
+    if (!space && !other) return;
     if (space && !other) s.paused = !s.paused;
     else { if (bytes.indexOf('\r') >= 0) s.ignoreNextLf = true; skipStream(s); }
     return;
