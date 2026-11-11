@@ -13,12 +13,15 @@ struct User {
   bool locked = false, ratioEnforced = false;
   String handle, normalized, realName, location, salt, hash, flags;
 };
-static bool parseUser(const String &line, User &u) {
+static bool parseUser(const String &raw, User &u) {
+  // A stray CR (a record once ended in CRLF) would land inside a field and
+  // send the cursor back to column 0 when the field is shown.
+  String line = raw; line.replace("\r", "");
   if (!line.length()) return false;
   u = User();
   u.id = field(line, 0).toInt(); u.handle = dec(field(line, 1)); u.normalized = field(line, 2);
   u.realName = dec(field(line, 3)); u.location = dec(field(line, 4)); u.salt = field(line, 5); u.hash = field(line, 6);
-  u.level = field(line, 7).toInt(); u.calls = field(line, 8).toInt(); u.minutes = field(line, 9).toInt(); u.messages = field(line, 10).toInt(); u.flags = field(line, 11);
+  u.level = field(line, 7).toInt(); u.calls = field(line, 8).toInt(); u.minutes = field(line, 9).toInt(); u.messages = field(line, 10).toInt(); u.flags = cleanFlags(field(line, 11));
   u.locked = field(line, 12).toInt() != 0; u.ratioEnforced = field(line, 13).toInt() != 0;
   u.uploadBytes = strtoul(field(line, 14).c_str(), nullptr, 10);
   u.downloadBytes = strtoul(field(line, 15).c_str(), nullptr, 10);

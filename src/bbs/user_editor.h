@@ -9,7 +9,9 @@ static constexpr uint8_t USERS_PER_PAGE = 15;
 static String sizeText(uint32_t bytes) {
   if (bytes < 1024) return String(bytes) + " B";
   if (bytes < 1048576) return String((bytes + 512) / 1024) + " KB";
-  char b[16]; snprintf(b, sizeof(b), "%.1f MB", bytes / 1048576.0); return String(b);
+  char b[16];
+  if (bytes >= 1073741824UL) snprintf(b, sizeof(b), "%.1f GB", bytes / 1073741824.0);
+  else snprintf(b, sizeof(b), "%.1f MB", bytes / 1048576.0); return String(b);
 }
 // "500", "64K", "1.5M", "2MB" -> bytes.
 static bool readSize(String v, uint32_t &out) {
@@ -97,7 +99,7 @@ static void sysopUsers(Session &s) {
 static void fieldLine(Session &s, uint8_t n, const String &name, const String &value) {
   String dots = " ";
   for (int i = name.length(); i < 18; ++i) dots += '.';
-  say(s, " \x1b[1;33m[" + String(n) + "]\x1b[0m " + name + dots + " \x1b[1;37m" + value + "\x1b[0m");
+  say(s, String(n < 10 ? " " : "") + "\x1b[1;33m[" + String(n) + "]\x1b[0m " + name + dots + " \x1b[1;37m" + value + "\x1b[0m");
 }
 static void showRecord(Session &s, const User &u) {
   s.state = SYSOP_USER_EDIT; s.editId = u.id; s.editHandle = u.normalized; s.hideInput = false;
@@ -106,7 +108,6 @@ static void showRecord(Session &s, const User &u) {
   say(s, "");
   say(s, "\x1b[1;35m== USER #" + String(u.id) + "  " + u.handle + " ==\x1b[0m  " +
          (u.locked ? "\x1b[1;31mLOCKED\x1b[0m" : "\x1b[1;32mACTIVE\x1b[0m") + (sessionOnline(u.id) ? "  \x1b[1;36mONLINE\x1b[0m" : ""));
-  say(s, "     Real name: " + (u.realName.length() ? u.realName : String("-")) + "   From: " + (u.location.length() ? u.location : String("-")));
   say(s, "     Calls " + String(u.calls) + "   Messages " + u.messages + "   Uploads " + u.uploads + " (" + sizeText(u.uploadBytes) +
          ")   Downloads " + u.downloads + " (" + sizeText(u.downloadBytes) + ")");
   say(s, "");
@@ -118,6 +119,8 @@ static void showRecord(Session &s, const User &u) {
   fieldLine(s, 6, "Ratio", u.ratioEnforced ? "1:" + String(u.ratio) + ", may download " + u.ratio + "x what they upload" : String("off"));
   fieldLine(s, 7, "Password", "set a new one");
   fieldLine(s, 8, "Forest fights", String(q.fights) + " left today (Legend of Kouvola)");
+  fieldLine(s, 9, "Real name", u.realName.length() ? u.realName : String("-"));
+  fieldLine(s, 10, "Location", u.location.length() ? u.location : String("-"));
   say(s, "");
   say(s, " \x1b[1;33m[N]\x1b[0m Next user  \x1b[1;33m[P]\x1b[0m Previous  \x1b[1;33m[D]\x1b[0m Delete  \x1b[1;33m[Q]\x1b[0m User list");
   prompt(s, "Field # or command: ");
@@ -155,6 +158,8 @@ static void openField(Session &s, uint8_t field) {
     case 5: prompt(s, "Credits, e.g. 100K (now " + sizeText(u.credits) + "): "); break;
     case 6: prompt(s, "Bytes they may download per byte uploaded, 1-999, or OFF (now " + ratioText(u) + "): "); break;
     case 7: s.hideInput = true; prompt(s, "New password, 6+ characters (ENTER cancels): "); break;
+    case 9: prompt(s, "Real name (now " + (u.realName.length() ? u.realName : String("empty")) + ", - clears): "); break;
+    case 10: prompt(s, "Location (now " + (u.location.length() ? u.location : String("empty")) + ", - clears): "); break;
     case 8: loadQuest(u.id, q); prompt(s, "Forest fights left today, 0-255 (now " + String(q.fights) + "): "); break;
     default: showRecord(s, u);
   }
@@ -202,6 +207,12 @@ static void fieldValue(Session &s, const String &line) {
       else say(s, "Use a number from 1 to 999, or OFF.");
       what = "RATIO";
       break;
+    case 9: case 10: {
+      String text = v == "-" ? String() : clean(v, 40);
+      if (s.editField == 9) { u.realName = text; what = "NAME"; } else { u.location = text; what = "LOCATION"; }
+      ok = true;
+      break;
+    }
     case 8: {
       if (!readNumber(v, n) || n > 255) { say(s, "Forest fights is a number from 0 to 255."); break; }
       Session *live = nullptr;
@@ -249,8 +260,8 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
       say(s, "\x1b[1;31mDelete " + u.handle + " for good? Their messages stay.\x1b[0m");
       prompt(s, "Type YES to delete: "); return true;
     }
-    if (readNumber(cmd, n) && n >= 1 && n <= 8) { openField(s, n); return true; }
-    say(s, "Pick a field 1-8, or N, P, D, Q.");
+    if (readNumber(cmd, n) && n >= 1 && n <= 10) { openField(s, n); return true; }
+    say(s, "Pick a field 1-10, or N, P, D, Q.");
     prompt(s, "Field # or command: "); return true;
   }
   if (s.state == SYSOP_USER_FIELD) { fieldValue(s, line); return true; }

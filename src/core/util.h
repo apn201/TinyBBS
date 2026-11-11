@@ -103,14 +103,21 @@ static String afterTokens(String text, uint8_t count) {
   while (count--) { int cut = text.indexOf(' '); if (cut < 0) return ""; text = text.substring(cut + 1); text.trim(); }
   return text;
 }
+// "sysop, backroom,SYSOP" -> "SYSOP,BACKROOM": upper case, no junk, no repeats.
 static String cleanFlags(const String &in) {
-  String out; bool comma = true;
-  for (uint16_t i = 0; i < in.length() && out.length() < 63; ++i) {
+  String out, word;
+  auto take = [&]() {
+    if (word.length() && ("," + out + ",").indexOf("," + word + ",") < 0 && out.length() + word.length() < 63)
+      out += (out.length() ? "," : "") + word;
+    word = "";
+  };
+  for (uint16_t i = 0; i < in.length(); ++i) {
     char c = in[i];
-    if (isalnum((unsigned char)c) || c == '_') { out += (char)toupper((unsigned char)c); comma = false; }
-    else if (c == ',' && !comma) { out += ','; comma = true; }
+    if (isalnum((unsigned char)c) || c == '_') word += (char)toupper((unsigned char)c);
+    else if (c == ',') take();
   }
-  if (out.endsWith(",")) out.remove(out.length() - 1); return out;
+  take();
+  return out;
 }
 static uint32_t numberAt(const String &line, uint8_t position) { return strtoul(tokenAt(line, position).c_str(), nullptr, 10); }
 static bool readNumber(const String &value, uint32_t &out) {
