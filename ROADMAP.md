@@ -200,7 +200,13 @@ The display name comes from the folder name (`014_BACKROOM_IMAGES` becomes
 "Backroom Images") unless an optional `AREA.INI` in the folder sets name,
 security level, required flag, and whether downloads and uploads are
 allowed. Folders inside an area are browsable sub-directories. Folders
-starting with `_` or `.` are hidden. `FILEAREAS.INI` goes away.
+starting with `_` or `.` are hidden. `FILEAREAS.INI` goes away. Sub-folders
+nest as deep as the card has them, so the SysOp can sort a big area into
+folders without making new areas.
+
+The viewer gets `[N]ext` and `[P]rev`: after viewing a file with `V`, they
+open the next or previous viewable file in the same folder, so a caller can
+flip through a folder of ANSI art without going back to the list each time.
 
 Descriptions are part of this slice, because a listing without them does not
 look like a BBS. In order of preference: `FILES.BBS` or `DESCRIPT.ION` in the
@@ -211,7 +217,8 @@ Done when: copy `014_BACKROOM_IMAGES` with its nested folders onto the card,
 reboot, and it appears as an area. Its sub-folders can be entered and left.
 Add an `AREA.INI` with `required_flag=BACKROOM` and it disappears for a
 normal user and reappears for one with the flag. A ZIP with a `FILE_ID.DIZ`
-shows its description in the listing.
+shows its description in the listing. View an ANSI file in a folder of
+several and step through them with `N` and `P`.
 
 After this slice the SysOp adds more ANSI and ASCII art straight on the card.
 
@@ -245,7 +252,9 @@ files.
 - Everything else: download only, in the browser.
 - Ratios still show in the user stats, but new users start with enough
   credits (from `SYSTEM.INI`) that a one-minute visitor can download
-  something.
+  something. Credits are earned by uploads and by posting messages, both
+  amounts set in `SYSTEM.INI` (`credits_per_upload_kb`,
+  `credits_per_message`). Setting one to 0 turns that way of earning off.
 
 Done when: open a BMP from the back room in the browser viewer, page a text
 file from Telnet, download a ZIP from the browser, and confirm Telnet shows
