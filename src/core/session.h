@@ -34,6 +34,7 @@ struct StreamJob {
   bool lineStart = true;
   bool paced = false;      // released at modem speed (ANSI files opened with V)
   uint8_t inEsc = 0, utfLeft = 0;  // art: don't end a chunk inside these
+  bool crop = false;       // plain text art wider than the screen: cut, don't wrap
   String after;
 };
 struct Session {

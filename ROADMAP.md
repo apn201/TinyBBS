@@ -330,6 +330,10 @@ nerds, but no visitor will use them.
 
 - QWK offline mail packets.
 - ZMODEM downloads over Telnet.
+- A port to an Apache-hosted server, for when the board should be on the
+  Internet: the same browser terminal, the same `/BBS` folder and data, the
+  server's own clock. Keep the core transport-independent and the content on
+  the card so that stays possible.
 - ATASCII animations, like the
   [Break Into Chat ATASCII collection](https://breakintochat.com/collections/atascii/).
   Needs an ATASCII font and timed playback in the browser terminal.

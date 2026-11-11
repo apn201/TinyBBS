@@ -338,6 +338,14 @@ static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   uint8_t sample[768];
   size_t got = file.read(sample, min(bytes, sizeof(sample)));
   if (memchr(sample, 0, got)) { file.close(); if (!quiet) prompt(s, "Binary file. File command? "); return false; }
+  // Text that is mostly not letters is ASCII art: lines wider than the screen
+  // are cut instead of wrapped, so the picture keeps its shape.
+  size_t letters = 0, marks = 0;
+  for (size_t i = 0; i < got; ++i) {
+    if (isalpha(sample[i])) letters++;
+    else if (sample[i] > ' ' && (sample[i] < 0x80 || sample[i] >= 0xc0)) marks++;
+  }
+  const bool artLike = upper.endsWith(".ASC") || marks > letters;
   auto &view = s.viewer;
   view.number = number;
   view.path = path;
@@ -358,7 +366,7 @@ static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   file.close();
   StreamJob job;
   job.path = path; job.offset = view.offset; job.end = view.end;
-  job.ansi = s.ansi && ansi; job.utf8 = view.utf8; job.width = job.ansi ? 80 : 78;
+  job.ansi = s.ansi && ansi; job.utf8 = view.utf8; job.width = 80; job.crop = !ansi && artLike;
   job.paced = job.ansi;
   write(s, "\x1b[0m\r\n");
   if (!ansi) say(s, clean(name, 65) + "\r\n");

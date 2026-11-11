@@ -57,7 +57,13 @@ static bool streamChunk(StreamJob &j, String &out, size_t want) {
     if (b < 32 || b == 127) continue;
     // ANSI art moves the cursor around, so the terminal does the wrapping at
     // column 80, as it did on DOS. Plain text is wrapped here.
-    if (!j.ansi && j.column >= j.width) { out += "\r\n"; j.column = 0; }
+    if (!j.ansi && j.column >= j.width) {
+      if (j.crop) {  // skip the rest of the line, including UTF-8 tails
+        if (j.utf8 && b >= 0xc0) { uint8_t tail = utf8Tail(b); while (tail-- && f.position() < j.end && (f.peek() & 0xc0) == 0x80) f.read(); }
+        continue;
+      }
+      out += "\r\n"; j.column = 0;
+    }
     ++j.column;
     if (b < 128) out += char(b);
     else if (!j.utf8) appendDosGlyph(out, b);
