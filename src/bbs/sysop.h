@@ -19,6 +19,12 @@ static bool downloadAllowed(const User &u, size_t bytes, String &reason) {
   return true;
 }
 static void sysopUsers(Session &s);  // bbs/user_editor.h
+// W for the SysOp: who is on, and a node number disconnects that caller.
+static void nodeMonitor(Session &s, State back) {
+  who(s);
+  s.nodesBack = back; s.state = SYSOP_NODES; activity(s, "NODE MONITOR");
+  prompt(s, "Node # to disconnect, M <node|ALL> <text> to message (ENTER = back): ");
+}
 static uint16_t showUserList(Session &s, bool sysopView) {
   const uint8_t PAGE = 10; uint16_t visible = 0, shown = 0, start = s.userPage * PAGE;
   say(s, sysopView ? "\x1b[1;35m#     Handle           Access Lock Calls Location\x1b[0m" : "\x1b[1;36m#     Handle           Calls  Location\x1b[0m");

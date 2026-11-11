@@ -7,8 +7,8 @@ static bool sysopCommand(Session &s, String &line, const String &cmd) {
     if (cmd == "Q" || !cmd.length()) { mainMenu(s); return true; }
     if (cmd == "U") { sysopUsers(s); return true; }
     if (cmd == "D") { sysopDoors(s); return true; }
-    if (cmd == "W") who(s);
-    else if (cmd == "R" || cmd == "RELOAD") {
+    if (cmd == "W") { nodeMonitor(s, SYSOP_MENU); return true; }
+    if (cmd == "R" || cmd == "RELOAD") {
       say(s, "Settings reloaded: " + loadSettings() + ".");
       say(s, "Network settings take effect after a restart.");
     }

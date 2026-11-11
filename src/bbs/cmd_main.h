@@ -50,6 +50,7 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
   if (s.state == BULLETIN) { mainMenu(s); return true; }
   if (s.state == MAIN) {
     if (cmd == "B") { bulletinMenu(s); }
+    else if (cmd == "W" && isSysop(s)) { nodeMonitor(s, MAIN); }
     else if (cmd == "W") { who(s); prompt(s, "Press ENTER: "); s.state = BULLETIN; }
     else if (cmd == "U") { s.userPage = 0; userList(s); }
     else if (cmd == "M") { messageArea(s); }

@@ -230,6 +230,39 @@ static void fieldValue(Session &s, const String &line) {
 }
 
 static bool userEditorCommand(Session &s, String &line, const String &cmd) {
+  if (s.state == SYSOP_NODES) {
+    uint32_t n;
+    auto back = [&]() { if (s.nodesBack == SYSOP_MENU) sysopMenu(s); else mainMenu(s); };
+    if (!cmd.length() || cmd == "Q") { back(); return true; }
+    // M <node|ALL> <text>: a one-way message that pops up on the caller's screen.
+    if (tokenAt(cmd, 0) == "M") {
+      String to = tokenAt(cmd, 1), text = textLine(afterTokens(line, 2), 200);
+      uint32_t node = 0;
+      bool all = to == "ALL";
+      if (!text.length() || (!all && (!readNumber(to, node) || !sessionByNode(node)))) {
+        prompt(s, "Use M <node> <text> or M ALL <text>: "); return true;
+      }
+      uint8_t sent = 0;
+      for (auto &o : sessions) {
+        if (!o.used || &o == &s || o.state == DEAD || o.state == GOODBYE || (!all && o.node != node)) continue;
+        say(o, "\r\n\x1b[1;33m*** Message from the SysOp: " + text + " ***\x1b[0m");
+        sent++;
+      }
+      event("SYSOP_BROADCAST", (all ? String("ALL") : "node " + String(node)) + ": " + text);
+      say(s, "Message sent to " + String(sent) + " caller" + (sent == 1 ? "" : "s") + ".");
+      prompt(s, "Node # to disconnect, M <node|ALL> <text> to message (ENTER = back): "); return true;
+    }
+    Session *t = readNumber(cmd, n) && n <= 255 ? sessionByNode(n) : nullptr;
+    if (!t) { prompt(s, "No caller on that node. Node # (ENTER = back): "); return true; }
+    if (t == &s) { prompt(s, "That is you. Node # (ENTER = back): "); return true; }
+    String who = t->user.handle.length() ? t->user.handle : String("a caller logging in");
+    event("SYSOP_KICK", s.user.handle + " disconnected " + who + " on node " + t->node);
+    t->hideInput = false;
+    say(*t, "\r\n\x1b[1;31mThe SysOp has disconnected you. NO CARRIER\x1b[0m");
+    t->state = GOODBYE;  // closes once the line above has gone out
+    say(s, "\x1b[1;32mNode " + String(n) + " (" + who + ") disconnected.\x1b[0m");
+    back(); return true;
+  }
   if (s.state == SYSOP_USERS) {
     User u;
     uint32_t n;
