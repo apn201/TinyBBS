@@ -14,7 +14,6 @@ static void handleLine(Session &s, String line) {
   }
   if (s.authenticated && !canJoinConference(s.user, s.conference)) {
     s.conference = 0;
-    s.lastRead = 0;
     mainMenu(s);
     return;
   }

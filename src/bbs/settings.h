@@ -4,7 +4,8 @@
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
 struct Conference { uint8_t id = 0; String name, description, flag; uint8_t level = 0; };
-struct Bulletin { String title, path, flag; uint8_t level = 0; bool mandatory = false; };
+// A bulletin is an art file (path=) or a quick line of text (text=, | breaks lines).
+struct Bulletin { String title, path, text, flag; uint8_t level = 0; bool mandatory = false; };
 struct BoardSettings {
   String name = "KOUVOSTO BBS", location, sysop = "SYSOP";
   uint8_t maxNodes = MAX_NODES, newUserLevel = 20;
@@ -68,7 +69,8 @@ static String loadSettings() {
       Bulletin bl;
       bl.title = iniGet(ini, sec, "title", "Bulletin " + sec);
       bl.path = boardPath(iniGet(ini, sec, "path"), "");
-      if (!bl.path.length()) continue;
+      bl.text = iniGet(ini, sec, "text");
+      if (!bl.path.length() && !bl.text.length()) continue;
       bl.flag = iniGet(ini, sec, "required_flag");
       bl.level = iniLevel(ini, sec);
       bl.mandatory = iniGet(ini, sec, "mandatory", "0").toInt() != 0;
@@ -81,6 +83,13 @@ static String loadSettings() {
          board.maxNodes + " nodes, " + (board.baud ? String(board.baud) + " baud" : String("no speed limit"));
 }
 
+static void showBulletin(Session &s, const Bulletin &b) {
+  if (b.path.length()) { art(s, b.path.c_str(), b.title); return; }
+  say(s, "\r\n\x1b[1;36m" + b.title + "\x1b[0m");
+  String text = b.text;
+  text.replace("|", "\r\n");
+  say(s, "\x1b[1;37m" + text + "\x1b[0m");
+}
 static bool hasFlag(const User &u, const String &flag) { return ("," + up(u.flags) + ",").indexOf("," + up(flag) + ",") >= 0; }
 static bool canSee(const User &u, uint8_t level, const String &flag) {
   return u.level >= level && (!flag.length() || hasFlag(u, flag));

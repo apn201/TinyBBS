@@ -2,20 +2,6 @@
 // Message reading, menus, login and node allocation.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-static void showMessages(Session &s, bool onlyNew) {
-  if (!sdReady) { say(s, "Message base unavailable."); return; }
-  File f = SD_MMC.open("/BBS/DATA/MSGS/MESSAGES.DAT", FILE_READ); uint8_t shown = 0;
-  say(s, "\x1b[1;36m#     From             To               Subject\x1b[0m");
-  while (f && f.available() && shown < 20) { Message m; if (!parseMessage(f.readStringUntil('\n'), m) || m.conference != s.conference || (onlyNew && m.id <= s.lastRead)) continue; char row[120]; snprintf(row, sizeof(row), "%-5lu %-16s %-16s %s", (unsigned long)m.id, m.from.c_str(), m.to.length() ? m.to.c_str() : "All", m.subject.c_str()); say(s, row); shown++; }
-  if (f) f.close(); if (!shown) say(s, onlyNew ? "No new messages." : "No messages in this area.");
-}
-static bool readMessage(Session &s, uint32_t id) {
-  if (!sdReady) return false; File f = SD_MMC.open("/BBS/DATA/MSGS/MESSAGES.DAT", FILE_READ); Message m; bool found = false;
-  while (f && f.available()) { Message candidate; if (parseMessage(f.readStringUntil('\n'), candidate) && candidate.id == id && candidate.conference == s.conference) { m = candidate; found = true; break; } } if (f) f.close();
-  if (!found) return false; if (m.to.length() && up(m.to) != up(s.user.handle) && s.user.level < 255) { say(s, "Private message. Access denied."); return true; }
-  say(s, ""); say(s, "\x1b[1;33mMsg #: " + String(m.id) + "\x1b[0m"); say(s, "From : " + m.from); say(s, "To   : " + (m.to.length() ? m.to : "ALL")); say(s, "Subj : " + m.subject); say(s, "Date : " + m.when); say(s, ""); say(s, m.body); say(s, "");
-  s.lastRead = max(s.lastRead, m.id); savePointer(s); return true;
-}
 static void mainMenu(Session &s) {
   s.state = MAIN; activity(s, "MAIN MENU");
   const char *fallback = "[M] Messages  [N] New scan   [C] Chat   [W] Who\r\n"
@@ -66,7 +52,7 @@ static void finishLogin(Session &s) {
   // Mandatory bulletins from BULLETINS.INI are shown at every login.
   bool shown = false;
   for (const auto &b : board.bulletins)
-    if (b.mandatory && canSee(s.user, b.level, b.flag)) { art(s, b.path.c_str(), b.title); shown = true; }
+    if (b.mandatory && canSee(s.user, b.level, b.flag)) { showBulletin(s, b); shown = true; }
   if (!shown) say(s, "Welcome to " + board.name + ".");
   s.state = BULLETIN; prompt(s, "Press ENTER for Main Board: ");
 }

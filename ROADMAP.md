@@ -150,6 +150,22 @@ removed from the INI files, so nothing on the card pretends to work.
 Done when: rename a conference and add a bulletin on the card, run `RELOAD`
 (or reboot), and both show up without reflashing.
 
+### Slice 3c: a message reader that flows
+
+Conferences are the message areas, as on PCBoard or Wildcat. `M` opens the
+current area with its message count and new count, and `[A]` (or `J` from
+the main board) changes area. Messages are read one at a time with
+`[N]ext [P]rev [R]eply [T]hread [Q]uit`, ENTER for next. Replies are linked
+to the message they answer; the header shows "Reply to #n" and "Replies:".
+`T` shows the whole thread on one screen, oldest first, like an e-mail
+chain. Messages are written with a line editor (`/S` saves, `/A` aborts).
+Messages addressed to someone are public unless the writer says private.
+Last-read pointers are kept per area. Bulletins can be a line of text
+(`text=` in `BULLETINS.INI`) instead of an art file.
+
+Done when: post, reply to the reply, read the thread with `T`, step through
+an area with ENTER and `P`, and see a text bulletin at login.
+
 ### Slice 3b: an invented board clock
 
 The board has no real-time clock, so it invents one. The board clock is a
@@ -206,18 +222,8 @@ colours: file areas, conferences, bulletins and doors. The art stays in the
 `.ANS` files on the card. The list comes from what actually exists and what
 the caller may use.
 
-Conferences and message bases are one thing to the caller today, but they
-look like two: `J` switches conference, `M` reads and posts only in the
-current one, and nothing shows where you are. Fold them together: `M` opens a
-generated list of the message bases the caller may use (from
-`CONFERENCES.INI`), picking one opens its read/scan/post menu, and the
-current base is shown in the prompts (`Main Board Command [General]?`). `J`
-stays as a shortcut to the same list. A file-areas-per-conference split, as
-on PCBoard, is not needed at this size.
-
 Done when: adding a file area folder or a conference changes the menu with no
-ANSI editing, a normal user's menus show no Back Room or SysOp entries, and a
-new caller can tell which message base they are in.
+ANSI editing, and a normal user's menus show no Back Room or SysOp entries.
 
 ### Slice 6: file listings that look the part
 
