@@ -37,7 +37,7 @@ const row=()=>Array.from({length:cols},blank);
 let screen=Array.from({length:rows},row);
 let node=0,token='',connected=false,busy=false,secret=false,frame=0,failures=0;
 // streamOn: key mode from the board. 1 = a picture is streaming, keys skip
-// or pause it. 2 = the text pager, every key goes to the board at once.
+// or pause it. 2 = the reader, every key goes to the board at once.
 // history/viewOff: lines that scrolled off the top, and how far back we look.
 let streamOn=0,history=[],viewOff=0;
 let pending=null,timer=0;

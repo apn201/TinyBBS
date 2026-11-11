@@ -323,7 +323,8 @@ static bool viewableName(const String &name) {
   for (const char *e : exts) if (ext == e) return true;
   return false;
 }
-static void openPager(Session &s);
+static bool fileReaderKey(Session &s, const String &k);
+static void fileReaderQuit(Session &s);
 static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   String path, name;
   size_t bytes;
@@ -365,17 +366,18 @@ static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
         file.read(sample, 5) == 5 && memcmp(sample, "COMNT", 5) == 0) view.end -= comment;
   }
   file.close();
-  if (!ansi) { s.pagerCrop = artLike; openPager(s); return true; }  // text: the pager
-  StreamJob job;
-  job.path = path; job.offset = view.offset; job.end = view.end;
-  job.ansi = s.ansi && ansi; job.utf8 = view.utf8; job.width = 80; job.crop = !ansi && artLike;
-  job.paced = job.ansi;
-  write(s, "\x1b[0m\r\n");
-  if (!ansi) say(s, clean(name, 65) + "\r\n");
-  s.jobs.push_back(job);
-  write(s, "\x1b[0m\r\n" + clean(name, 40) + "  [N] Next  [P] Prev  [R] Replay  [Q] File list: ");
-  s.state = FILE_VIEW;
-  activity(s, "VIEWING FILE");
+  // Text and pictures open in the reader. Pictures play at once (any key
+  // stops them in the reader); text starts on its first page.
+  Reader &r = s.reader;
+  r = Reader();
+  r.path = path; r.start = view.offset; r.end = view.end; r.utf8 = view.utf8;
+  r.title = clean(name, 24);
+  r.hint = "SPACE page  B back  \x18\x19 line  S play  N/P file  Q quit";
+  r.onKey = fileReaderKey; r.onQuit = fileReaderQuit;
+  if (ansi && s.ansi) { r.kind = READER_ANSI; renderAnsi(r); }
+  else { r.kind = READER_TEXT; r.crop = artLike; indexText(r); }
+  activity(s, (ansi ? "VIEWING " : "READING ") + clean(name, 30));
+  openReader(s, ansi);
   return true;
 }
 // N and P in the viewer: the next or previous file in the folder that can be viewed.
@@ -389,132 +391,13 @@ static bool stepViewer(Session &s, bool forward) {
   return false;
 }
 
-// ---------- the text pager ---------------------------------------------------------
-// Text files open in a pager like less: a screen at a time, scrolling both
-// ways. Keys act at once: Telnet sends them one by one, the browser switches
-// to key mode while the pager is open.
-static constexpr uint8_t PAGE_LINES = 23;  // plus the status line: fits a 24-row terminal
-
-// One screen line from f's position: up to 80 columns, or to the end of the
-// source line. Wide lines wrap (the next screen line starts where this one
-// stopped) or, for ASCII art, are cut. With out == nullptr it only advances.
-// Returns false at the end of the file.
-static bool pagerLine(File &f, uint32_t end, bool utf8, bool crop, String *out) {
-  if (f.position() >= end) return false;
-  uint8_t col = 0;
-  while (f.position() < end) {
-    int b = f.peek();
-    if (b < 0 || b == 0x1a) { f.seek(end); break; }
-    if (b == '\r' || b == '\n') {
-      f.read();
-      if (b == '\r' && f.position() < end && f.peek() == '\n') f.read();
-      return true;
-    }
-    if (col >= 80) { if (!crop) return true; f.read(); continue; }
-    f.read();
-    if (b == 27) { String sink; readArchiveEscape(f, end, sink, false); continue; }
-    if (b == '\t') { do { if (out) *out += ' '; } while (++col < 80 && col % 8); continue; }
-    if (b == 0 || b == 7 || b == 8 || b == 127) continue;
-    col++;
-    if (utf8 && b >= 0xc0) {
-      char glyph[4] = {char(b)};
-      uint8_t tail = utf8Tail(b), got = 0;
-      while (got < tail && f.position() < end && (f.peek() & 0xc0) == 0x80) glyph[++got] = char(f.read());
-      if (out) { if (tail && got == tail) out->concat(glyph, got + 1); else *out += '?'; }
-      continue;
-    }
-    if (!out) continue;
-    if (b < 32 || (b >= 128 && !utf8)) appendDosGlyph(*out, b);  // DOS glyphs, as TYPE showed them
-    else if (b < 128) *out += char(b);
-    else *out += '?';
-  }
+// ---------- the reader's file keys -----------------------------------------------------
+// N and P open the next or previous viewable file; Q goes back to the list.
+static bool fileReaderKey(Session &s, const String &k) {
+  if (k != "n" && k != "N" && k != "p" && k != "P") return false;
+  bool forward = k == "n" || k == "N";
+  // openFileViewer() only touches the reader once a file opens.
+  if (!stepViewer(s, forward)) showPage(s, forward ? "Last file in this folder" : "First file in this folder");
   return true;
 }
-static void showPage(Session &s, const String &note = "") {
-  auto &v = s.viewer;
-  uint32_t total = s.pagerLines.size();
-  uint32_t maxTop = total > PAGE_LINES ? total - PAGE_LINES : 0;
-  if (s.pagerTop > maxTop) s.pagerTop = maxTop;
-  String out = "\x1b[0m\x1b[2J\x1b[H";
-  File f = SD_MMC.open(v.path, FILE_READ);
-  for (uint32_t i = 0; i < PAGE_LINES; ++i) {
-    uint32_t n = s.pagerTop + i;
-    if (f && n < total && f.seek(s.pagerLines[n])) { String line; pagerLine(f, v.end, v.utf8, s.pagerCrop, &line); out += line; }
-    out += "\r\n";
-  }
-  if (f) f.close();
-  uint32_t last = min(s.pagerTop + PAGE_LINES, total);
-  String where = total ? String(s.pagerTop + 1) + "-" + last + "/" + total + (last >= total ? " END" : "  " + String(last * 100 / total) + "%") : String("empty");
-  String status = " " + clean(v.name, 24) + "  " + where + "  " + (note.length() ? note : String("SPACE page  B back  \x18\x19 line  N/P file  Q quit"));
-  String bar;
-  for (size_t i = 0; i < status.length() && i < 79; ++i) { uint8_t c = status[i]; if (c < 32) appendDosGlyph(bar, c); else bar += (char)c; }
-  for (size_t i = status.length(); i < 79; ++i) bar += ' ';
-  write(s, out + "\x1b[0;30;46m" + bar + "\x1b[0m");
-}
-static void openPager(Session &s) {
-  auto &v = s.viewer;
-  s.pagerLines.clear(); s.pagerTop = 0; s.keyEsc = "";
-  File f = SD_MMC.open(v.path, FILE_READ);
-  if (f && f.seek(v.offset)) {
-    while (s.pagerLines.size() < 20000) {
-      uint32_t at = f.position();
-      if (!pagerLine(f, v.end, v.utf8, s.pagerCrop, nullptr)) break;
-      s.pagerLines.push_back(at);
-    }
-  }
-  if (f) f.close();
-  s.state = FILE_PAGER;
-  activity(s, "READING " + clean(v.name, 30));
-  showPage(s);
-}
-static void closePager(Session &s) {
-  s.pagerLines.clear(); s.pagerLines.shrink_to_fit(); s.keyEsc = "";
-  write(s, "\x1b[0m\x1b[2J\x1b[H");
-  listArea(s);
-}
-// One key in the pager: a character, or a cursor key's escape sequence.
-static void pagerKey(Session &s, const String &k) {
-  int32_t top = s.pagerTop, total = s.pagerLines.size();
-  int32_t maxTop = total > PAGE_LINES ? total - PAGE_LINES : 0;
-  if (k == " " || k == "f" || k == "F" || k == "\r" || k == "\x1b[6~") {
-    if (top >= maxTop) { showPage(s, "END - Q quits, N next file"); return; }
-    top += PAGE_LINES;
-  }
-  else if (k == "b" || k == "B" || k == "-" || k == "\x1b[5~") top -= PAGE_LINES;
-  else if (k == "j" || k == "J" || k == "\x1b[B") top += 1;
-  else if (k == "k" || k == "K" || k == "\x1b[A") top -= 1;
-  else if (k == "g" || k == "<" || k == "\x1b[H" || k == "\x1b[1~") top = 0;
-  else if (k == "G" || k == ">" || k == "\x1b[F" || k == "\x1b[4~") top = maxTop;
-  else if (k == "q" || k == "Q") { closePager(s); return; }
-  else if (k == "n" || k == "N" || k == "p" || k == "P") {
-    bool forward = k == "n" || k == "N";
-    write(s, "\x1b[0m\x1b[2J\x1b[H");
-    if (!stepViewer(s, forward)) showPage(s, forward ? "Last file in this folder" : "First file in this folder");
-    return;
-  }
-  else { showPage(s); return; }
-  s.pagerTop = constrain(top, (int32_t)0, maxTop);
-  showPage(s);
-}
-// Raw bytes while the pager is open. Cursor keys arrive as ESC [ A and so on,
-// possibly split across calls.
-static void pagerInput(Session &s, const String &bytes) {
-  for (size_t i = 0; i < bytes.length() && s.state == FILE_PAGER; ++i) {
-    char c = bytes[i];
-    if (c == 0) continue;
-    if (c == '\n') { if (s.ignoreNextLf) { s.ignoreNextLf = false; continue; } c = '\r'; }
-    s.ignoreNextLf = c == '\r';
-    if (s.keyEsc.length() || c == 27) {
-      s.keyEsc += c;
-      size_t n = s.keyEsc.length();
-      if (n == 2 && c != '[' && c != 'O') s.keyEsc = "";
-      else if (n >= 3 && (isalpha((unsigned char)c) || c == '~')) {
-        String k = s.keyEsc; s.keyEsc = "";
-        if (k[1] == 'O') k.setCharAt(1, '[');
-        pagerKey(s, k);
-      } else if (n > 8) s.keyEsc = "";
-      continue;
-    }
-    pagerKey(s, String(c));
-  }
-}
+static void fileReaderQuit(Session &s) { listArea(s); }

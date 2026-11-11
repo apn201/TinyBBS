@@ -122,6 +122,41 @@ static void listMessages(Session &s) {
 static void readerPrompt(Session &s) {
   prompt(s, "\x1b[1;33m[N]\x1b[0mext \x1b[1;33m[P]\x1b[0mrev \x1b[1;33m[R]\x1b[0meply \x1b[1;33m[T]\x1b[0mhread \x1b[1;33m[Q]\x1b[0muit (ENTER = next): ");
 }
+// Message text as screen rows, wrapped at 79 columns (UTF-8 aware).
+static void bodyRows(std::vector<String> &rows, const String &body) {
+  int start = 0;
+  while (start <= (int)body.length()) {
+    int nl = body.indexOf('\n', start);
+    if (nl < 0) nl = body.length();
+    String line = body.substring(start, nl), row;
+    uint8_t cols = 0;
+    for (size_t i = 0; i < line.length(); ++i) {
+      uint8_t c = line[i];
+      if ((c & 0xc0) != 0x80) { if (cols == 79) { rows.push_back(row); row = ""; cols = 0; } cols++; }
+      row += (char)c;
+    }
+    rows.push_back(row);
+    start = nl + 1;
+  }
+}
+static bool msgReaderKey(Session &s, const String &k);
+static void msgReaderQuit(Session &s) { messageArea(s); }
+// Rows that fit on one screen are printed with the reader prompt below them;
+// longer ones open in the reader.
+static void showRows(Session &s, std::vector<String> &rows, const String &title) {
+  if (rows.size() <= 20) {
+    for (auto &r : rows) say(s, r);
+    s.state = MSG_VIEW;
+    readerPrompt(s);
+    return;
+  }
+  Reader &r = s.reader;
+  r = Reader();
+  r.kind = READER_ROWS; r.rows.swap(rows); r.title = title;
+  r.hint = "SPACE page  B back  \x18\x19 line  N/P msg  R reply  T thread  Q quit";
+  r.onKey = msgReaderKey; r.onQuit = msgReaderQuit;
+  openReader(s, false);
+}
 static void showMessage(Session &s, uint32_t id) {
   Message m;
   if (!getMessage(id, m) || m.conference != s.conference || !canRead(s, m)) {
@@ -131,22 +166,23 @@ static void showMessage(Session &s, uint32_t id) {
   }
   String replies;
   eachMessage([&](const Message &r) { if (r.replyTo == m.id && canRead(s, r)) replies += " #" + String(r.id); return true; });
-  say(s, "");
+  std::vector<String> rows;
   uint32_t at = parseClock(m.when);
-  say(s, "\x1b[1;36m" + confName(m.conference) + "\x1b[0m   \x1b[1;33mMsg #" + String(m.id) + "\x1b[0m   \x1b[1;37m" +
-         (at ? clockText(at, true) : m.when) + "\x1b[0m");
-  say(s, "From : " + m.from);
-  say(s, "To   : " + (m.to.length() ? m.to : String("ALL")) + (m.priv ? "  \x1b[1;31m(private)\x1b[0m" : ""));
-  say(s, "Subj : " + m.subject);
-  if (m.replyTo) say(s, "\x1b[0;36mReply to #" + String(m.replyTo) + "\x1b[0m");
-  say(s, "\x1b[0;34m------------------------------------------------------------------------------\x1b[0m");
-  sayBody(s, m.body);
-  if (replies.length()) say(s, "\x1b[0;36mReplies:" + replies + "  (T shows the thread)\x1b[0m");
-  say(s, "");
+  rows.push_back("");
+  rows.push_back("\x1b[1;36m" + confName(m.conference) + "\x1b[0m   \x1b[1;33mMsg #" + String(m.id) + "\x1b[0m   \x1b[1;37m" +
+                 (at ? clockText(at, true) : m.when) + "\x1b[0m");
+  rows.push_back("From : " + m.from);
+  rows.push_back("To   : " + (m.to.length() ? m.to : String("ALL")) + (m.priv ? "  \x1b[1;31m(private)\x1b[0m" : ""));
+  rows.push_back("Subj : " + m.subject);
+  if (m.replyTo) rows.push_back("\x1b[0;36mReply to #" + String(m.replyTo) + "\x1b[0m");
+  rows.push_back("\x1b[0;34m------------------------------------------------------------------------------\x1b[0m");
+  bodyRows(rows, m.body);
+  if (replies.length()) rows.push_back("\x1b[0;36mReplies:" + replies + "  (T shows the thread)\x1b[0m");
+  rows.push_back("");
   s.msgId = m.id;
   markRead(s, m.conference, m.id);
-  s.state = MSG_VIEW; activity(s, "READING MESSAGES");
-  readerPrompt(s);
+  activity(s, "READING MESSAGES");
+  showRows(s, rows, "Msg #" + String(m.id));
 }
 // The whole conversation the current message belongs to, oldest first, like
 // an e-mail chain.
@@ -166,17 +202,43 @@ static void showThread(Session &s) {
   };
   uint32_t root = rootOf(s.msgId);
   uint8_t shown = 0;
-  say(s, "\r\n\x1b[1;36mTHREAD\x1b[0m");
+  std::vector<String> rows;
+  rows.push_back("");
+  rows.push_back("\x1b[1;36mTHREAD\x1b[0m");
   eachMessage([&](const Message &m) {
     if (m.conference != s.conference || !canRead(s, m) || rootOf(m.id) != root) return true;
-    say(s, "\x1b[1;33m-- #" + String(m.id) + "  " + m.from + " -> " + (m.to.length() ? m.to : String("ALL")) + "  " + m.when +
-           (m.replyTo ? "  (re #" + String(m.replyTo) + ")" : String()) + "\x1b[0m");
-    if (!m.replyTo) say(s, "\x1b[1;37m" + m.subject + "\x1b[0m");
-    sayBody(s, m.body);
-    say(s, "");
+    rows.push_back("\x1b[1;33m-- #" + String(m.id) + "  " + m.from + " -> " + (m.to.length() ? m.to : String("ALL")) + "  " + m.when +
+                   (m.replyTo ? "  (re #" + String(m.replyTo) + ")" : String()) + "\x1b[0m");
+    if (!m.replyTo) rows.push_back("\x1b[1;37m" + m.subject + "\x1b[0m");
+    bodyRows(rows, m.body);
+    rows.push_back("");
     return ++shown < 40;
   });
-  readerPrompt(s);
+  showRows(s, rows, "Thread of #" + String(root));
+}
+// Message keys in the reader: N and P step through the area (SPACE at the end
+// goes on to the next message, like ENTER in the plain reader), R replies,
+// T shows the thread.
+static void startReply(Session &s);
+static bool msgReaderKey(Session &s, const String &k) {
+  bool next = k == "n" || k == "N" || ((k == " " || k == "\r") && readerAtEnd(s));
+  if (next || k == "p" || k == "P") {
+    uint32_t id = stepMessage(s, s.msgId, next);
+    if (!id) { showPage(s, next ? "Last message in this area" : "First message in this area"); return true; }
+    s.reader = Reader();
+    write(s, "\x1b[0m\x1b[2J\x1b[H");
+    s.state = MSG_VIEW;
+    showMessage(s, id);
+    return true;
+  }
+  if (k == "r" || k == "R" || k == "t" || k == "T") {
+    s.reader = Reader();
+    write(s, "\x1b[0m\x1b[2J\x1b[H");
+    s.state = MSG_VIEW;
+    if (k == "r" || k == "R") startReply(s); else showThread(s);
+    return true;
+  }
+  return false;
 }
 
 // N: start reading at the first new message of the current area.

@@ -8,12 +8,13 @@
 
 // True while a paced file is playing: keys then skip or pause it.
 static bool streaming(const Session &s) {
+  if (s.reader.playing) return true;
   for (const auto &j : s.jobs) if (j.paced) return true;
   return false;
 }
 // Key mode for the browser: 0 = line input, 1 = a file is streaming (keys skip
-// or pause it), 2 = the text pager (every key goes to the board at once).
-static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == FILE_PAGER ? 2 : 0; }
+// or pause it), 2 = the reader (every key goes to the board at once).
+static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == READER ? 2 : 0; }
 static bool outputDone(const Session &s) { return s.jobs.empty() && !s.pending.length() && !s.output.length(); }
 
 // Append up to `want` bytes of the job's file to `out`. Returns true when the
@@ -96,12 +97,16 @@ static size_t utf8Cut(const String &s, size_t want) {
 // Move bytes from pending (and queued files) to the transport buffer. Paced
 // files go at the session's speed; everything else goes at once. Called for
 // every session on every loop pass.
+// The reader's play (core/reader.h) feeds rows into the same pipeline.
+static uint32_t readerCount(const Reader &r);
+static String readerRow(const Reader &r, uint32_t row);
+static void readerStopped(Session &s);
 static void pace(Session &s, uint32_t now) {
   uint32_t elapsed = now - s.paceAt;
   s.paceAt = now;
   if (s.paused) return;
   size_t budget;
-  bool paced = !s.jobs.empty() && s.jobs.front().paced && s.cps;
+  bool paced = ((!s.jobs.empty() && s.jobs.front().paced) || (s.jobs.empty() && s.reader.playing)) && s.cps;
   if (!paced) { budget = 4096; s.paceCredit = 0; }
   else {
     s.paceCredit = min<uint32_t>(s.paceCredit + min<uint32_t>(elapsed, 1000) * s.cps, 128000);
@@ -111,6 +116,12 @@ static void pace(Session &s, uint32_t now) {
   size_t moved = 0;
   while (moved < budget) {
     if (!s.pending.length()) {
+      if (s.jobs.empty() && s.reader.playing) {
+        Reader &r = s.reader;
+        if (r.playRow < readerCount(r)) s.pending += readerRow(r, r.playRow++) + "\r\n";
+        else readerStopped(s);  // played to the end: back to paging
+        continue;
+      }
       if (s.jobs.empty()) break;
       StreamJob &j = s.jobs.front();
       size_t want = min<size_t>(max<size_t>(budget - moved, 256), 2048);
@@ -132,6 +143,7 @@ static void pace(Session &s, uint32_t now) {
 // A key while a file streams: drop the rest of the file(s), keep what was
 // written after them (menus, prompts), and show what is already queued now.
 static void skipStream(Session &s) {
+  if (s.reader.playing && s.jobs.empty()) { s.pending = ""; s.paused = false; readerStopped(s); return; }
   String tail;
   for (auto &j : s.jobs) tail += "\x1b[0m\r\n" + j.after;
   s.jobs.clear();

@@ -233,6 +233,11 @@ After this slice the SysOp adds more ANSI and ASCII art straight on the card.
 
 ### Slice 4c: one reader for everything
 
+Built, in `src/core/reader.h`. Pictures play when opened (any key stops them
+in the reader), text opens on its first page, messages use the reader only
+when longer than a screen. Telnet has no modem speed, so pictures open on
+their first page there.
+
 Text files open in a pager (built), ANSI pictures play at modem speed, and
 messages scroll past. One reader replaces all three:
 
@@ -349,6 +354,9 @@ nerds, but no visitor will use them.
 
 - QWK offline mail packets.
 - ZMODEM downloads over Telnet.
+- Swappable tools: the reader, editor and similar parts behind a small
+  interface, picked in the config, so others could bring their own as
+  plugins. Only worth it if this became a real product.
 - A port to an Apache-hosted server, for when the board should be on the
   Internet: the same browser terminal, the same `/BBS` folder and data, the
   server's own clock. Keep the core transport-independent and the content on

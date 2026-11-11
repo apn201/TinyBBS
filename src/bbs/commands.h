@@ -25,7 +25,7 @@ static void handleLine(Session &s, String line) {
 static void input(Session &s, const String &bytes) {
   // While a picture or file is streaming, keys belong to the stream: space
   // pauses and resumes, anything else skips to the end.
-  if (s.state == FILE_PAGER && !streaming(s)) { pagerInput(s, bytes); return; }
+  if (s.state == READER && !streaming(s)) { readerInput(s, bytes); return; }
   if (streaming(s)) {
     bool space = false, other = false;
     for (size_t i = 0; i < bytes.length(); ++i) {
