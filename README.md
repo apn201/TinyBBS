@@ -148,10 +148,21 @@ and live duels between two callers on different nodes. There is no clock, so
 when forest fights run out you ask the SysOp for more. It does not run or
 include the original LORD.
 
-**VolaMUD** is a small room-based MUD with persistent characters, shared
-rooms, movement, room chat and a training fight. The world is a C++ port of
-the GoMud tutorial zone. See [`VOLA_MUD.md`](VOLA_MUD.md) and
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+**VolaMUD** is a native C++ MUD door with a fixed Vola City hub and an
+endless deterministic wilderness. City locals provide directions, trading,
+banking and a few deliberate tasks. Wilderness rooms are usually empty, but
+can contain a fixed seeded monster, a rare traveller, or a short-lived random
+skeleton, orc or goblin encounter. Enemies are announced before `FIGHT` can
+engage them; `FIGHT NPC` is possible but intentionally unwise.
+
+Characters persist their position, task, gold and equipment. `INV`, `WEAR`
+and `SELL` cover the current small inventory: boots, blade, shield, rings,
+amulet and the Black Crown. Worn loot changes HP or combat. The Black Crown
+of Kouvosto is a real archive task, held by seeded Lord Korja at `13,-8`.
+Gold and bank funds are one shared purse across VolaMUD, Legend of Kouvola
+and the dice cabinet. It is a playable vertical slice rather than a deep MUD:
+there is no inventory UI, trading economy, party system, NPC memory or
+multi-stage quest engine yet. See [`VOLA_MUD.md`](VOLA_MUD.md).
 
 ### LCD
 
@@ -163,7 +174,9 @@ caller or page.
 
 1. Install PlatformIO with the Espressif32 platform.
 2. Build and flash: `pio run -t upload`. On Windows,
-   `tools\build-platformio.cmd` does the same.
+   `tools\build-platformio.cmd` does the same. The proven physical target is
+   the ESP32-S3 N16R8V profile in `platformio.flash.ini`; see **Flash and
+   recovery** below before substituting a generic DevKitC profile.
 3. Format a microSD card as FAT32. Extract `TinyBBS_SD_CARD_EMPTY_TREE.zip`
    to the card root, then copy this repository's `sd/BBS` into the card's
    `BBS` folder. Or run:
@@ -172,8 +185,9 @@ caller or page.
    .\tools\prepare-sd.ps1 -CardRoot X:\
    ```
 
-   Add `-PresentationOnly` to update only screens and config on a card that
-   already has users and messages. The script does not format the card.
+   Add `-PresentationOnly` to update screens, static door data and VolaMUD's
+   seed configuration on a card that already has users and messages. The
+   script does not format the card.
 4. Insert the card and power the board from USB.
 5. Join `THE_BOARD`. Press DIAL in the browser, or Telnet to
    `192.168.4.1:23`.
@@ -183,6 +197,36 @@ caller or page.
 AP name, password, channel and WiFi client limit are in
 `sd/BBS/CONFIG/NETWORK.INI`. Board name and default levels are in
 `SYSTEM.INI` next to it.
+
+## Flash and recovery
+
+The verified board is an N16R8V: Quad flash, Octal PSRAM, 16 MB flash and
+8 MB PSRAM. Use the board profile `esp32-s3-devkitc1-n16r8`. Its runtime image
+uses the board's QIO/OPI arrangement, but the serial write must use **DIO**.
+Do not force QIO in a direct `esptool` command: the ROM can reset before the
+bootloader loads, producing repeated USB connect/disconnect sounds.
+
+If a normal PlatformIO upload stalls because Windows cannot print ESP32 upload
+glyphs, build without uploading and use the direct, hash-verifying recovery
+path below. Replace `COM10` with the actual port. It rewrites only firmware
+regions; it does not touch the SD card.
+
+```powershell
+pio run -c platformio.flash.ini
+$env:PYTHONIOENCODING = 'utf-8'
+& "$env:USERPROFILE\.platformio\penv\Scripts\esptool.exe" --chip esp32s3 --port COM10 --baud 921600 `
+  write-flash --flash-mode dio --flash-freq 80m --flash-size 16MB `
+  0x0 .pio-tinybbs-flash\tinybbs_s3\bootloader.bin `
+  0x8000 .pio-tinybbs-flash\tinybbs_s3\partitions.bin `
+  0xe000 "$env:USERPROFILE\.platformio\packages\framework-arduinoespressif32\tools\partitions\boot_app0.bin" `
+  0x10000 .pio-tinybbs-flash\tinybbs_s3\firmware.bin
+```
+
+`Hash of data verified` for every segment and a reset without repeating USB
+chimes are the expected result. Confirm that `THE_BOARD` appears as a 2.4 GHz
+SSID before trying browser or Telnet tests. The ESP ROM loader remains
+reachable over USB even after a bad application flash; do not erase the chip
+as a first response.
 
 ## SD card layout
 
@@ -237,7 +281,8 @@ More in [`ROADMAP.md`](ROADMAP.md). The full 1.0 target is in
 ## Credits
 
 Dial-up sound: [Oona Raisanen, "The sound of the dialup, pictured"](https://www.windytan.com/2012/11/the-sound-of-dialup-pictured.html).
-VolaMUD tutorial world: ported from [GoMud](https://github.com/GoMudEngine/GoMud), MIT.
+GoMud was evaluated as a mechanics/world reference. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Licence
 

@@ -16,8 +16,10 @@ in `TinyBBS_READY_TO_CODE_SPEC.md`.
   status.
 - SD-hosted ANSI, ASCII, bulletins, configuration and modem audio.
 - Paged ANSI and text views, plus a browser-only listed-file download route.
-- Separate native Legend of Kouvola and VolaMUD doors. VolaMUD currently has
-  persistent characters, rooms, movement, room chat and shared presence.
+- Separate native Legend of Kouvola and VolaMUD doors. VolaMUD has a static
+  city hub, an SD-defined deterministic wilderness, visible seeded/random
+  encounters, persistent equipment, NPC talk, trading and small tasks. Its
+  gold and bank are shared with Legend and the dice cabinet.
 
 The browser download route should be treated as an early convenience feature.
 Uploads, approval queues, archive indexing, Telnet transfer protocols and
@@ -34,9 +36,9 @@ hardware performance checks still need work.
    ratio tests. Do not expose SD paths.
 4. Add QWK export and reply import as streamed SD work, with checkpoints and
    at least one desktop-reader interoperability test.
-5. Extract the native doors into a common door interface, then add combat,
-   NPCs, inventory and world data to VolaMUD one part at a time. Do not claim
-   DOS-door compatibility.
+5. Extract the native doors into a common door interface, then add richer task
+   chains, NPC state, a proper equipment/trading screen and more VolaMUD world data one part at a
+   time. Do not claim DOS-door compatibility.
 6. Only after the local board is profiled, consider explicit AP plus station
    mode, LAN access, SSH feasibility or modem protocols.
 

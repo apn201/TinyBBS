@@ -1,0 +1,192 @@
+; VolaMUD world dictionary. Values must not contain a pipe character.
+; ROOM|x|y|title|description|named NPC|local task hook
+ROOM|0|0|Vola City Gate|Copper lamp posts mark the last safe stones before the roads dissolve into myth and static.|Gate Warden Sigrid|Sigrid knows the safe roads and insists on proper boots.
+ROOM|0|-1|Packet Square|Couriers, sprites and old callers cross the square beneath a banner reading NO CARRIER LEFT BEHIND.|Courier Pasi|Pasi can point travellers toward the tavern, archive or northern road.
+ROOM|-1|-1|Temple of the Last Packet|Blue lamps burn before an altar built from a sacred 2400 baud modem.|Sister Bytea|The temple offers a quiet warning: carry a spare candle and a better password.
+ROOM|1|-1|Tinker's Yard|A yard of copper coils, battered terminals and half-awake clockwork beasts hums softly.|Mikko the Tinker|Mikko buys salvage and sells trail boots and rations.
+ROOM|-2|-1|Training Academy|Wooden targets lean beside a chalkboard listing ORCS, BUGS and BAD PASSWORDS.|Master Olli|Master Olli judges stances, bruises and overly confident new callers.
+ROOM|2|-1|Armory of the Copper Byte|Shields, boot disks and polished swords crowd a room that smells of oil and ozone.|Quartermaster Leena|Leena sells a plain iron byteblade and a copper shield.
+ROOM|0|-2|Copper Wire Tavern|The tavern keeper pours dark ale under a ceiling tangled with old network cable.|Rami Behind the Bar|Rami trades rumours for stories and warns against fighting city folk.
+ROOM|-1|-2|Bank of Kouvosto|A sober vault of stone and relay switches guards purses from all three doors of the board.|Banker Anja|Your gold and bank balance are shared here, in Legend of Kouvola and at the dice cabinet.
+ROOM|1|-2|BBS Archive|Dusty binders and floppy disks hold maps nobody has fully explored.|Archivist Tero|Tero maintains the Crown-Bearer file and pays well for the Black Crown.
+ROOM|0|-3|North Road|The paving ends here. Beyond it the same seed grows a wilderness for every caller.|Road Scout Ilmi|Take a task before leaving if you want your expedition remembered.
+ROOM|-1|-3|Old Ferry Lane|A dry canal cuts through the city wall, lined with faded handles painted on stone.|Ferrywoman Kaisa|Kaisa gives directions to the quiet crossings and asks no questions.
+ROOM|1|-3|Guild of Night Sysops|A narrow tower glows with monitor light, its guild board covered in pin-fed paper.|Sysop Harri|A posted job waits for a caller who can map beyond the lamps.
+
+PLACE|a windswept heath of pale grass
+PLACE|the mossy edge of an old packet road
+PLACE|a birch hollow where the air smells of rain
+PLACE|a black-pine ridge above silent valleys
+PLACE|the remains of a roadside BBS exchange
+PLACE|a low field of silver reeds
+PLACE|a ruined relay station overgrown with ivy
+PLACE|a stony ford beneath a broken moon
+PLACE|a fern-dark glade with no obvious owner
+PLACE|the ash-grey shoulder of a sleeping hill
+PLACE|a peat bog crossed by cracked boardwalks
+PLACE|the shadow of a collapsed data tower
+PLACE|a high meadow full of old antenna bones
+PLACE|a lichen-covered mile marker on the north road
+PLACE|the narrow throat of a foggy ravine
+PLACE|a willow marsh where lanterns drift unaided
+PLACE|a field of rusted mailbox standards
+PLACE|an orchard grown wild around abandoned cabins
+PLACE|the foothills of the Dialtone Mountains
+PLACE|a cold beach beside an inland sea
+PLACE|a ravine where discarded keyboards clatter in the wind
+PLACE|the overgrown service path to nowhere in particular
+PLACE|a ring of standing stones marked with ASCII runes
+PLACE|a frozen clearing under a blue electric sky
+PLACE|the old king's road, reduced to two wagon ruts
+
+BIOME|The land rolls away in dark green folds under a wide northern sky.
+BIOME|A patient forest gathers around the path, its trunks slick with mist.
+BIOME|Low clouds press over open ground and make every distant hill look near.
+BIOME|The earth is sandy here, scattered with quartz that catches the light like pixels.
+BIOME|Tall grass moves in waves, hiding the shape of the old road.
+BIOME|Rain has darkened the ground and filled every boot print with mirror water.
+BIOME|The wilderness is quiet except for a far-off mechanical chirp.
+BIOME|Pines close ranks around a clearing that feels deliberately forgotten.
+BIOME|A cold wind comes off the hills carrying smoke and the smell of wet iron.
+BIOME|The ground rises in stony steps, each one softened by moss.
+BIOME|A grey bog spreads under the reeds, beautiful enough to be dangerous.
+BIOME|The road crosses a shallow valley where every sound travels too far.
+BIOME|Old birches lean above the track, their white bark bright against the dusk.
+BIOME|Heather and thorn bushes claim the open slopes in every direction.
+BIOME|The path narrows between boulders marked by years of rain and lichen.
+BIOME|A hidden stream turns the soil black and keeps the air unnaturally cool.
+BIOME|The northern wilderness opens here, vast and unfinished by any human hand.
+BIOME|The horizon is broken by low ridges, each promising another long walk.
+BIOME|Night seems to arrive early beneath the canopy.
+BIOME|The road is old but stubborn, holding its line through a wilderness that wants it gone.
+
+SCENE|A raven watches from a dead branch, then speaks a burst of perfect modem noise.
+SCENE|Someone has tied a strip of pin-fed paper to a nearby tree as a trail marker.
+SCENE|A cracked lantern swings from a post although there is no wind.
+SCENE|Fresh wagon tracks cross the mud and vanish into bracken.
+SCENE|A tiny blue status light blinks from inside a hollow stump.
+SCENE|Three hooded figures have made camp here, but their fire is still warm and they are gone.
+SCENE|A stone cairn carries a scratched warning: NO CARRIER BEYOND THIS POINT.
+SCENE|A fox slips through the grass with a floppy disk clenched in its teeth.
+SCENE|An ancient phone booth stands beside the road, its receiver humming softly.
+SCENE|Half-buried cables emerge from the earth and point toward the horizon.
+SCENE|The remains of a market cart rattle whenever the wind changes.
+SCENE|A tiny shrine of buttons and polished stones has been left at the crossroads.
+SCENE|A broken sign promises a scenic route to a place no map remembers.
+SCENE|A tower of stones has been arranged into the shape of a smiling skull.
+SCENE|The birds fall silent for a moment, as if listening to somebody log in.
+SCENE|A row of old boots hangs from a branch, all facing east.
+SCENE|A candle burns inside a lantern made from a transparent disk case.
+SCENE|The road is marked with chalk arrows that disagree with one another.
+SCENE|A distant bell rings once, then the sound becomes a dial tone.
+SCENE|A pair of eyes reflects green from the far side of the clearing.
+
+DETAIL|The dust is patterned with boot prints, paw prints and one trail that looks like a dragged keyboard.
+DETAIL|Every stone bears a faint etched number, perhaps coordinates from an older world.
+DETAIL|The air tastes faintly of copper and woodsmoke.
+DETAIL|A discarded rune-stick lies in the grass, its symbols worn smooth by rain.
+DETAIL|The grass has been pressed flat in a circle around an old campfire.
+DETAIL|Somebody has painted a small smiling face on a nearby milestone.
+DETAIL|Water drips from leaves with the steady rhythm of a slow baud rate.
+DETAIL|The trees are threaded with spider silk that catches stray blue light.
+DETAIL|A pile of pale feathers has been arranged beside the path with peculiar care.
+DETAIL|The wind stirs a scrap of paper reading SEE YOU AFTER MIDNIGHT.
+DETAIL|A warm footprint steams briefly on a stone before the rain erases it.
+DETAIL|The ground is rich with mushrooms shaped uncannily like old function keys.
+DETAIL|A low electrical hum rises and falls beneath the natural sounds.
+DETAIL|The sky carries a single bright star that refuses to move.
+DETAIL|A faint scent of cinnamon rolls drifts from a direction with no houses.
+DETAIL|The shadows between the trees seem one shade darker than they should be.
+DETAIL|A scratched brass token lies just beyond reach in a puddle.
+DETAIL|The soil is soft enough to remember everyone who passed this way.
+DETAIL|A coil of red cable rests on a stump as though someone will collect it later.
+DETAIL|The path is edged with stones painted in the colours of old ANSI art.
+
+NPC|a cloak-wrapped ranger with a glowing pager
+NPC|a dwarven cable-liner carrying a spool of copper
+NPC|an elven archivist with a stack of floppy disks
+NPC|a weary hobbit courier on a very fast pony
+NPC|a troll who insists he is only moderating the bridge
+NPC|a wandering wizard in a jacket full of serial adapters
+NPC|a goblin merchant selling suspiciously clean keyboards
+NPC|a silent knight whose shield bears an @ symbol
+NPC|a barefoot mapper with ink-stained hands
+NPC|a cheerful orc hauling a packet of mail
+NPC|a forest witch reading a green-screen terminal
+NPC|a tired paladin looking for a charging socket
+NPC|a blacksmith with a hammer shaped like an Enter key
+NPC|a small dragon asleep on a pile of manuals
+NPC|a hooded player-killer who is clearly lost
+NPC|a travelling baker offering lembas and cinnamon buns
+NPC|a halfling bard singing a song about dropped connections
+NPC|an old sysop with a lantern and a very large ban hammer
+NPC|a goblin scout wearing a stolen ANSI cape
+NPC|a scholar collecting rumours in a dog-eared notebook
+NPC|a stern elf who remembers every password ever forgotten
+NPC|a warg rider looking for a safer hobby
+NPC|a teenager in chainmail carrying a modem like a holy relic
+NPC|a dwarven postmaster who never loses a message
+NPC|a mysterious caller whose handle is only three question marks
+
+ENEMY|packet warg
+ENEMY|buffer goblin
+ENEMY|dialtone wraith
+ENEMY|rust troll
+ENEMY|spambat swarm
+ENEMY|glitch orc
+ENEMY|cable spider
+ENEMY|lost carrier spectre
+ENEMY|moss ogre
+ENEMY|keyboard mimic
+ENEMY|black-screen knight
+ENEMY|rogue daemon
+ENEMY|crash goblin
+ENEMY|static wolf
+ENEMY|floppy golem
+ENEMY|lag hound
+ENEMY|spam necromancer
+ENEMY|byte-eating slime
+ENEMY|modem banshee
+ENEMY|broken-link bandit
+ENEMY|one-eyed forum troll
+ENEMY|blue-screen revenant
+ENEMY|ringtone drake
+ENEMY|cursor imp
+ENEMY|packet-sniffing raven
+ENEMY|phantom sysop
+ENEMY|wire serpent
+ENEMY|doorway bugbear
+ENEMY|cache ghoul
+ENEMY|darknet kobold
+
+DIALOG|The road remembers people who return. It is kinder to them.
+DIALOG|If the lamps of Vola are behind you, keep one good story in front of you.
+DIALOG|A map is only a promise until somebody walks it.
+DIALOG|There are old kings in these woods, but they still wait their turn on the node list.
+DIALOG|Do not trust any bridge whose owner says the toll is optional.
+DIALOG|The moon is bright tonight. That usually means a packet warg is hungry.
+DIALOG|The city pays in gold, but the road pays in names worth remembering.
+DIALOG|I saw a dragon once. It asked whether I had tried turning the kingdom off and on again.
+DIALOG|Take the north road if you want adventure. Take the south road if you want rain.
+DIALOG|Nobody knows who built the relay towers. Everybody has an opinion.
+DIALOG|The trees can hear you type, so use short commands.
+DIALOG|The old heroes did not have save files. Be grateful.
+DIALOG|Every proper quest begins with poor footwear and an unfinished meal.
+DIALOG|A good sword is useful. A good backup is better.
+DIALOG|The tavern has a rumour for every traveller and a bill for every rumour.
+DIALOG|When the fog is blue, do not answer it.
+DIALOG|I would help, but my shift ends when the next caller connects.
+DIALOG|The wilderness is large enough for legends and small enough for gossip.
+DIALOG|Ask the banker about gold. Ask the tinker about everything else.
+DIALOG|If an orc offers technical support, run.
+
+TASK|Survey the old road and bring back a useful coordinate.
+TASK|Track whatever has been worrying the outer settlements.
+TASK|Find a place where the sky looks wrong and make a note of it.
+TASK|Clear a wild route before the next courier leaves town.
+TASK|Walk the forgotten path until the map has to admit it exists.
+TASK|Hunt a creature that should not have learned to use a keyboard.
+TASK|Check the relay ruins for smoke, sparks or singing.
+TASK|Make the road safe enough for a halfling with a heavy mailbag.
+TASK|Search for a lost caller before the night grows colder.
+TASK|Find the source of the strange modem howl beyond the city lamps.

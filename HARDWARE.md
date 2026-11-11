@@ -105,6 +105,22 @@ The USB connection is also normally used for flashing and serial diagnostics
 at 115200 baud. Select the port assigned by the operating system. Do not copy
 a hard-coded COM port from another machine.
 
+### Flash-mode recovery note
+
+The N16R8V's runtime image is QIO flash plus OPI PSRAM, but the proven direct
+serial-flash mode is **DIO**. A direct `esptool` command that forces QIO can
+cause the ROM to reset while loading the bootloader: Windows then makes a
+repeating USB connect/disconnect sound and the serial log repeats
+`rst:0x7 (TG0WDT_SYS_RST)` before application output.
+
+This is recoverable. The ROM bootloader still accepts `esptool --chip esp32s3
+--port COMx flash-id`. Rebuild with `platformio.flash.ini`, then rewrite the
+bootloader at `0x0`, partitions at `0x8000`, `boot_app0.bin` at `0xe000` and
+the application at `0x10000`, explicitly using `--flash-mode dio`. Verify the
+hashes, reset, and check that `THE_BOARD` is visible again. Do not change the
+board profile to a generic no-PSRAM board, and do not erase the full chip as a
+first diagnostic step.
+
 ## Limits and verification
 
 Eight active BBS nodes is the present firmware ceiling, not a completed

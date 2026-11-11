@@ -18,7 +18,12 @@ if ($PresentationOnly) {
       Copy-Item -LiteralPath $_.FullName -Destination $dest -Recurse -Force
     }
   }
-  Write-Host "Updated ANSI, ASCII, assets and bulletins at $target"
+  $doorSource = Join-Path $source 'DOORS'
+  if (Test-Path -LiteralPath $doorSource) {
+    Copy-Item -LiteralPath $doorSource -Destination $target -Recurse -Force
+  }
+  Copy-Item -LiteralPath (Join-Path $source 'CONFIG\VOLAMUD.INI') -Destination (Join-Path $target 'CONFIG\VOLAMUD.INI') -Force
+  Write-Host "Updated presentation, VolaMUD world data and its seed at $target"
   return
 }
 Get-ChildItem -LiteralPath $source -Force | ForEach-Object {

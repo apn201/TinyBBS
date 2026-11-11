@@ -2,11 +2,13 @@
 
 ## GoMud
 
-VolaMUD contains a native C++ port of GoMud's default tutorial-room topology,
-tutorial progression and selected world text. The source snapshot is
-GoMudEngine/GoMud commit `b3f55cc236ea67ac8827a62c68de7980474f0757`, obtained
-on 2026-11-11. The original Go source, web server, JavaScript scripting and
-default-world data are not shipped or run on the ESP32.
+GoMud was inspected as a mechanics and world-design reference during VolaMUD
+development. The source snapshot is GoMudEngine/GoMud commit
+`b3f55cc236ea67ac8827a62c68de7980474f0757`, obtained on 2026-11-11. VolaMUD
+does not ship GoMud source, its default-world data, a Go runtime, web server
+or JavaScript scripting. Its current city, procedural world and code are
+original TinyBBS work. This notice keeps the reference provenance and the
+upstream MIT licence together for any future selected port work.
 
 Copyright (c) 2026 Dylan Squires
 
