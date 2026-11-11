@@ -6,7 +6,9 @@ static void handleLine(Session &s, String line) {
   s.lastAt = millis(); line.trim(); String cmd = up(line);
   if (s.user.locked) { closeSession(s); return; }
   if (s.pageNode && isSysop(s) && (cmd == "/A" || cmd == "/R")) { answerPage(s, cmd == "/A"); return; }
-  if ((s.state == SYSOP_MENU || s.state == SYSOP_USERS || s.state == SYSOP_DOORS || s.state == SYSOP_ADD_PASSWORD || s.state == SYSOP_DELETE_CONFIRM) && !isSysop(s)) {
+  bool sysopState = s.state == SYSOP_MENU || s.state == SYSOP_USERS || s.state == SYSOP_DOORS || s.state == SYSOP_ADD_PASSWORD ||
+                    s.state == SYSOP_DELETE_CONFIRM || s.state == SYSOP_USER_EDIT || s.state == SYSOP_USER_FIELD || s.state == SYSOP_ADD_HANDLE;
+  if (sysopState && !isSysop(s)) {
     s.hideInput = false;
     s.editId = 0;
     mainMenu(s);
@@ -17,7 +19,7 @@ static void handleLine(Session &s, String line) {
     mainMenu(s);
     return;
   }
-  loginCommand(s, line, cmd) || mainCommand(s, line, cmd) || sysopCommand(s, line, cmd) ||
+  loginCommand(s, line, cmd) || mainCommand(s, line, cmd) || sysopCommand(s, line, cmd) || userEditorCommand(s, line, cmd) ||
     fileCommand(s, line, cmd) || messageCommand(s, line, cmd) || doorCommand(s, line, cmd);
 }
 static void input(Session &s, const String &bytes) {

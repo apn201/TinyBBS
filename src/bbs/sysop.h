@@ -18,6 +18,7 @@ static bool downloadAllowed(const User &u, size_t bytes, String &reason) {
   if (u.ratioEnforced && proposed > (uint64_t)u.uploadBytes * u.ratio + u.credits) { reason = "Ratio or credits do not permit this download"; return false; }
   return true;
 }
+static void sysopUsers(Session &s);  // bbs/user_editor.h
 static uint16_t showUserList(Session &s, bool sysopView) {
   const uint8_t PAGE = 10; uint16_t visible = 0, shown = 0, start = s.userPage * PAGE;
   say(s, sysopView ? "\x1b[1;35m#     Handle           Access Lock Calls Location\x1b[0m" : "\x1b[1;36m#     Handle           Calls  Location\x1b[0m");
@@ -45,34 +46,13 @@ static uint16_t userListPages(bool sysopView) {
 }
 static void userList(Session &s) {
   s.state = USER_LIST; activity(s, "USER LIST"); uint16_t pages = showUserList(s, false);
-  if (isSysop(s)) say(s, "[Z] Manage users, quotas and permissions");
+  if (isSysop(s)) say(s, "[Z] User editor: levels, flags, limits and passwords");
   prompt(s, pages > 1 ? "ENTER next, P previous, Q board: " : "Q returns to board: ");
-}
-static void showUserRecord(Session &s, const User &u) {
-  String quota = "unlimited"; if (u.downloadQuota) quota = String(u.downloadQuota) + " bytes";
-  say(s, "\x1b[1;35m+------------------------- USER RECORD -------------------------+\x1b[0m");
-  say(s, "#" + String(u.id) + "  " + u.handle + "  Access " + String(u.level) + (u.locked ? "  \x1b[1;31mLOCKED\x1b[0m" : "  \x1b[1;32mACTIVE\x1b[0m"));
-  say(s, "Real: " + u.realName + "  From: " + u.location);
-  say(s, "Calls: " + String(u.calls) + "  Messages: " + String(u.messages) + "  Flags: " + (u.flags.length() ? u.flags : "(none)"));
-  say(s, "Uploads: " + String(u.uploads) + " / " + String(u.uploadBytes) + " bytes   Downloads: " + String(u.downloads) + " / " + String(u.downloadBytes) + " bytes");
-  String ratio = u.ratioEnforced ? "1:" : "OFF";
-  if (u.ratioEnforced) ratio += u.ratio;
-  say(s, "Upload:download " + ratio + "  Credits: " + String(u.credits) + " bytes");
-  say(s, "Lifetime download quota: " + quota);
-}
-static void sysopUsers(Session &s) {
-  s.state = SYSOP_USERS; activity(s, "SYSOP USER EDITOR");
-  say(s, "\x1b[1;35m\r\n+===================== KOUVOSTO USER EDITOR =====================+\x1b[0m");
-  say(s, "[E handle] Edit quota, ratio, credits, level, flags and lock status.");
-  say(s, "\x1b[1;36m[L]\x1b[0m List  \x1b[1;36m[V handle]\x1b[0m View  \x1b[1;36m[ADD handle level]\x1b[0m Add");
-  say(s, "\x1b[1;33m[LEVEL handle 0-255]\x1b[0m  \x1b[1;33m[LOCK|UNLOCK handle]\x1b[0m  \x1b[1;33m[FLAGS handle list]\x1b[0m");
-  say(s, "\x1b[1;32m[QUOTA handle bytes]  [CREDIT handle bytes]  [RATIO handle n|OFF]\x1b[0m");
-  say(s, "\x1b[1;31m[DEL handle]\x1b[0m  \x1b[1;37m[Q] SysOp menu\x1b[0m"); prompt(s, "User editor command? ");
 }
 static void sysopMenu(Session &s) {
   s.state = SYSOP_MENU; activity(s, "SYSOP CONSOLE");
   art(s, "/BBS/ANSI/MENUS/SYSOP.ANS", "KOUVOSTO // SYSOP");
-  say(s, "[U] Accounts / quotas / access     [D] Door settings / forest fights");
+  say(s, "[U] User editor                    [D] Door settings / forest fights");
   say(s, "[W] Node monitor   [S] Board statistics   [R] Reload settings   [Q] Main Board");
   if (s.web) say(s, "[F] File manager (opens a separate admin page)");
   prompt(s, "SysOp command? ");

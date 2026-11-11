@@ -95,20 +95,22 @@ static void messageArea(Session &s) {
 }
 // The last 20 headers of the area, new ones marked.
 static void listMessages(Session &s) {
-  struct Row { uint32_t id; String from, to, subject; bool fresh; };
+  struct Row { uint32_t id; String when, from, to, subject; bool fresh; };
   std::vector<Row> rows;
   uint32_t mark = lastReadIn(s, s.conference);
   eachMessage([&](const Message &m) {
     if (m.conference != s.conference || !canRead(s, m)) return true;
-    rows.push_back({m.id, m.from, m.to.length() ? m.to : String("All"), m.subject, m.id > mark});
+    rows.push_back({m.id, m.when, m.from, m.to.length() ? m.to : String("All"), m.subject, m.id > mark});
     if (rows.size() > 20) rows.erase(rows.begin());
     return true;
   });
-  say(s, "\r\n\x1b[1;36m  #     From             To               Subject\x1b[0m");
+  char head[100];
+  snprintf(head, sizeof(head), "  %-5s %-16s %-14s %-12s %s", "#", "Date", "From", "To", "Subject");
+  say(s, "\r\n\x1b[1;36m" + String(head) + "\x1b[0m");
   for (const auto &r : rows) {
     char row[120];
-    snprintf(row, sizeof(row), "%s%-5lu %-16.16s %-16.16s %.40s", r.fresh ? "\x1b[1;32m*\x1b[0m " : "  ",
-             (unsigned long)r.id, r.from.c_str(), r.to.c_str(), r.subject.c_str());
+    snprintf(row, sizeof(row), "%s%-5lu %-16.16s %-14.14s %-12.12s %.26s", r.fresh ? "\x1b[1;32m*\x1b[0m " : "  ",
+             (unsigned long)r.id, r.when.c_str(), r.from.c_str(), r.to.c_str(), r.subject.c_str());
     say(s, row);
   }
   if (rows.empty()) say(s, "No messages in this area yet.");
@@ -130,11 +132,12 @@ static void showMessage(Session &s, uint32_t id) {
   String replies;
   eachMessage([&](const Message &r) { if (r.replyTo == m.id && canRead(s, r)) replies += " #" + String(r.id); return true; });
   say(s, "");
-  say(s, "\x1b[1;36m" + confName(m.conference) + "\x1b[0m   \x1b[1;33mMsg #" + String(m.id) + "\x1b[0m");
+  uint32_t at = parseClock(m.when);
+  say(s, "\x1b[1;36m" + confName(m.conference) + "\x1b[0m   \x1b[1;33mMsg #" + String(m.id) + "\x1b[0m   \x1b[1;37m" +
+         (at ? clockText(at, true) : m.when) + "\x1b[0m");
   say(s, "From : " + m.from);
   say(s, "To   : " + (m.to.length() ? m.to : String("ALL")) + (m.priv ? "  \x1b[1;31m(private)\x1b[0m" : ""));
   say(s, "Subj : " + m.subject);
-  say(s, "Date : " + m.when);
   if (m.replyTo) say(s, "\x1b[0;36mReply to #" + String(m.replyTo) + "\x1b[0m");
   say(s, "\x1b[0;34m------------------------------------------------------------------------------\x1b[0m");
   sayBody(s, m.body);

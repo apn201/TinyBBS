@@ -13,6 +13,8 @@
 #include <esp_wifi.h>
 #include <mbedtls/sha256.h>
 #include <memory>
+#include <functional>
+#include <algorithm>
 #include <vector>
 #include "hw/scene_logo.h"
 #include "net/web_terminal.h"
@@ -42,6 +44,7 @@
 #include "bbs/cmd_login.h"
 #include "bbs/cmd_main.h"
 #include "bbs/cmd_sysop.h"
+#include "bbs/user_editor.h"
 #include "bbs/cmd_files.h"
 #include "bbs/cmd_messages.h"
 #include "bbs/cmd_doors.h"
