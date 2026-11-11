@@ -51,70 +51,6 @@ static void listArea(Session &s) {
   prompt(s, "File command? ");
   s.state = FILE_LIST;
 }
-static void renderFilePage(Session &s) {
-  auto &view = s.viewer;
-  if (!canUseArea(s, s.fileArea)) { fileMenu(s); return; }
-  File file = SD_MMC.open(view.path, FILE_READ);
-  if (!file || file.size() < view.end || !file.seek(view.offset)) {
-    say(s, "File no longer available.");
-    listArea(s);
-    return;
-  }
-  const bool ansi = s.ansi && view.ansi;
-  const uint8_t width = ansi ? 80 : 78;
-  const uint8_t pageRows = ansi ? 23 : 20;
-  const uint32_t limit = min(view.end, view.offset + 8192);
-  String page;
-  if (!page.reserve(10240)) { say(s, "Not enough memory to open the viewer."); listArea(s); return; }
-  if (s.ansi) page = "\x1b[2J\x1b[H\x1b[0m";
-  if (!ansi) page += clean(view.name, 65) + "\r\n\r\n";
-  uint8_t lines = 0, column = 0;
-  bool eof = false;
-  while (file.position() < limit && lines < pageRows && page.length() < 10100) {
-    int byte = file.read();
-    if (byte < 0 || byte == 0x1a) { eof = true; break; }
-    if (byte == 27) { readArchiveEscape(file, min(view.end, limit + 32), page, ansi); continue; }
-    if (byte == '\r' || byte == '\n') {
-      if (byte == '\r' && file.position() < view.end && file.peek() == '\n') file.read();
-      page += "\r\n";
-      column = 0;
-      ++lines;
-      continue;
-    }
-    if (byte == '\t') {
-      do { page += ' '; ++column; } while (column < width && column % 8);
-      continue;
-    }
-    if (byte < 32 || byte == 127) continue;
-    if (column >= width) {
-      if (++lines >= pageRows) { file.seek(file.position() - 1); break; }
-      page += "\r\n";
-      column = 0;
-    }
-    ++column;
-    if (byte < 128) page += char(byte);
-    else if (!view.utf8) appendDosGlyph(page, byte);
-    else {
-      char glyph[4] = {char(byte)};
-      uint8_t tail = utf8Tail(byte), got = 0;
-      while (got < tail && file.position() < view.end && (file.peek() & 0xc0) == 0x80)
-        glyph[++got] = char(file.read());
-      if (tail && got == tail && !(uint8_t(glyph[0]) == 0xc2 && uint8_t(glyph[1]) < 0xa0))
-        page.concat(glyph, got + 1);
-      else page += '?';
-    }
-  }
-  view.next = eof || file.position() >= view.end ? 0 : file.position();
-  if (s.ansi) page += ansi ? "\x1b[0m\x1b[24;1H\x1b[K" : "\x1b[0m\r\n";
-  else page += "\r\n";
-  if (view.next) page += "[ENTER/N] Next  ";
-  if (view.depth) page += "[P] Previous  ";
-  page += "[R] Start  [Q] File list: ";
-  if (s.web && s.ansi) s.output = "";
-  write(s, page);
-  s.state = FILE_VIEW;
-  activity(s, "VIEWING FILE");
-}
 static void openFileViewer(Session &s, uint16_t number) {
   String path, name;
   size_t bytes;
@@ -139,7 +75,6 @@ static void openFileViewer(Session &s, uint16_t number) {
   view.name = name;
   view.ansi = ansi;
   view.utf8 = sampleUtf8(sample, got);
-  view.depth = 0;
   view.offset = 0;
   if (got >= 3 && sample[0] == 0xef && sample[1] == 0xbb && sample[2] == 0xbf)
     view.offset = 3;
@@ -152,5 +87,13 @@ static void openFileViewer(Session &s, uint16_t number) {
         file.read(sample, 5) == 5 && memcmp(sample, "COMNT", 5) == 0) view.end -= comment;
   }
   file.close();
-  renderFilePage(s);
+  StreamJob job;
+  job.path = path; job.offset = view.offset; job.end = view.end;
+  job.ansi = s.ansi && ansi; job.utf8 = view.utf8; job.width = job.ansi ? 80 : 78;
+  write(s, "\x1b[0m\r\n");
+  if (!ansi) say(s, clean(name, 65) + "\r\n");
+  s.jobs.push_back(job);
+  write(s, "\x1b[0m\r\n[R] Replay  [Q] File list: ");
+  s.state = FILE_VIEW;
+  activity(s, "VIEWING FILE");
 }

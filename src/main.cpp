@@ -26,6 +26,7 @@
 #include "core/users.h"
 #include "core/messagebase.h"
 #include "core/session.h"
+#include "core/stream.h"
 #include "bbs/files.h"
 #include "doors/volamud.h"
 #include "doors/legend.h"
@@ -54,6 +55,7 @@ void setup() {
   if (sdReady && prepareStorage()) { userCounters(); messageCounters(); }
   else { if (!storageFault.length()) storageFault = "storage setup failed"; sdReady = false; trace("SD_OFFLINE", storageFault); }
   String ssid = config("/BBS/CONFIG/NETWORK.INI", "ssid", "THE_BOARD"), password = config("/BBS/CONFIG/NETWORK.INI", "password", ""), mode = config("/BBS/CONFIG/NETWORK.INI", "mode", "ap");
+  { long baud = config("/BBS/CONFIG/SYSTEM.INI", "baud", "28800").toInt(); lineCps = baud > 0 ? baud / 10 : 0; }
   if (mode != "ap") trace("NETWORK", "ap_sta reserved; starting isolated AP only");
   constexpr int apLimit = ESP_WIFI_MAX_CONN_NUM < 17 - CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM
                         ? ESP_WIFI_MAX_CONN_NUM : 17 - CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM;
@@ -71,8 +73,9 @@ void loop() {
   dns.processNextRequest();
   {
     BbsLock lock;
-    tickTelnet();
     uint32_t now = millis();
+    for (auto &s : sessions) if (s.used) pace(s, now);
+    tickTelnet();
     for (auto &s : sessions) {
       if (!s.used) continue;
       uint32_t idleLimit = s.authenticated ? 30UL * 60UL * 1000UL : LOGIN_TIMEOUT_MS;

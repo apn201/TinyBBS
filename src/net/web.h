@@ -45,8 +45,9 @@ static void sendTerminalOutput(AsyncWebServerRequest *r, Session &s) {
   else res = r->beginResponse(204);
   res->addHeader("Cache-Control", "no-store");
   res->addHeader("X-BBS-Password", s.hideInput ? "1" : "0");
+  res->addHeader("X-BBS-Stream", streaming(s) ? "1" : "0");
   r->send(res);
-  if (s.state == GOODBYE && !s.output.length()) closeSession(s);
+  if (s.state == GOODBYE && outputDone(s)) closeSession(s);
 }
 static void apiOut(AsyncWebServerRequest *r) {
   BbsLock lock;
@@ -136,7 +137,7 @@ static void tickWebSocket() {
         Session *s = colon > 0 ? webSession(e.data.substring(0, colon).toInt(), e.data.substring(colon + 1)) : nullptr;
         if (!s) { hangups.push_back(e.client); continue; }
         if (s->wsClient && s->wsClient != e.client) hangups.push_back(s->wsClient);
-        s->wsClient = e.client; s->wsSecret = -1; s->lastPoll = millis();
+        s->wsClient = e.client; s->wsSecret = -1; s->wsStream = -1; s->lastPoll = millis();
         trace("WS_ATTACH", String("node ") + s->node);
       } else {
         for (auto &s : sessions) {
@@ -153,8 +154,9 @@ static void tickWebSocket() {
       if (!ws.hasClient(s.wsClient)) { s.wsClient = 0; continue; }
       s.lastPoll = now;
       if (s.wsSecret != (int8_t)s.hideInput) { outgoing.push_back({s.wsClient, s.hideInput ? "p1" : "p0"}); s.wsSecret = s.hideInput; }
-      if (s.output.length() && ws.availableForWrite(s.wsClient)) { outgoing.push_back({s.wsClient, "o" + s.output}); s.output = ""; }
-      if (s.state == GOODBYE && !s.output.length()) closeSession(s);
+      if (s.wsStream != (int8_t)streaming(s)) { outgoing.push_back({s.wsClient, streaming(s) ? "s1" : "s0"}); s.wsStream = streaming(s); }
+      if (s.output.length() && (s.output.length() >= 512 || now - s.sentAt >= 40) && ws.availableForWrite(s.wsClient)) { outgoing.push_back({s.wsClient, "o" + s.output}); s.output = ""; s.sentAt = now; }
+      if (s.state == GOODBYE && outputDone(s)) closeSession(s);
     }
     hangups.insert(hangups.end(), wsHangups.begin(), wsHangups.end());
     wsHangups.clear();

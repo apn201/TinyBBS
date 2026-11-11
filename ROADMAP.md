@@ -204,8 +204,18 @@ colours: file areas, conferences, bulletins and doors. The art stays in the
 `.ANS` files on the card. The list comes from what actually exists and what
 the caller may use.
 
+Conferences and message bases are one thing to the caller today, but they
+look like two: `J` switches conference, `M` reads and posts only in the
+current one, and nothing shows where you are. Fold them together: `M` opens a
+generated list of the message bases the caller may use (from
+`CONFERENCES.INI`), picking one opens its read/scan/post menu, and the
+current base is shown in the prompts (`Main Board Command [General]?`). `J`
+stays as a shortcut to the same list. A file-areas-per-conference split, as
+on PCBoard, is not needed at this size.
+
 Done when: adding a file area folder or a conference changes the menu with no
-ANSI editing, and a normal user's menus show no Back Room or SysOp entries.
+ANSI editing, a normal user's menus show no Back Room or SysOp entries, and a
+new caller can tell which message base they are in.
 
 ### Slice 6: file listings that look the part
 

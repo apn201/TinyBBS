@@ -22,6 +22,17 @@ struct MudCharacter {
 struct Wallet { uint32_t id = 0, gold = 35, bank = 0; };
 static bool loadSharedWallet(uint32_t id, Wallet &wallet);
 static bool saveSharedWallet(const Wallet &wallet);
+// A file queued for paced output: presentation art or a viewed file. Text
+// written while a job is queued waits in `after`, so it appears after the file.
+struct StreamJob {
+  String path;
+  uint32_t offset = 0, end = 0;
+  bool art = false;        // presentation art: bytes pass through, newlines normalised
+  bool ansi = true, utf8 = false;
+  uint8_t column = 0, width = 80;
+  bool lineStart = true;
+  String after;
+};
 struct Session {
   bool used = false, web = false, ansi = true, hideInput = false, paged = false, ignoreNextLf = false;
   uint8_t node = 0, conference = 0, fileArea = 0; uint16_t userPage = 0; State state = DEAD; WiFiClient socket;
@@ -35,8 +46,7 @@ struct Session {
   bool galleryCabinet = false;
   struct {
     uint16_t number = 0;
-    uint32_t end = 0, offset = 0, next = 0, history[24] = {};
-    uint8_t depth = 0;
+    uint32_t end = 0, offset = 0;
     bool ansi = false, utf8 = false;
     String path, name;
   } viewer;
@@ -50,6 +60,13 @@ struct Session {
   int8_t wsSecret = -1;   // password masking state last sent over the socket
   uint8_t pageNode = 0;   // SysOp only: node of a caller waiting for an answer
   uint32_t pageUser = 0;  // and that caller's user id
+  // Paced output: write() -> pending (or the last job's `after`) -> output at
+  // the line speed -> transport. Jobs stream files between them.
+  String pending;
+  std::vector<StreamJob> jobs;
+  bool paused = false;
+  uint32_t paceAt = 0, paceCredit = 0, sentAt = 0;
+  int8_t wsStream = -1;  // streaming flag last sent over the socket
   bool authenticated = false;
   uint8_t telnetState = 0;
 };
@@ -60,38 +77,14 @@ static Session *sessionByNode(uint8_t node) {
   return candidate.used ? &candidate : nullptr;
 }
 
-static void write(Session &s, const String &text) { s.output += text; if (s.output.length() > 14000) s.output.remove(0, s.output.length() - 14000); }
+static void write(Session &s, const String &text) {
+  String &dst = s.jobs.empty() ? s.pending : s.jobs.back().after;
+  dst += text;
+  if (dst.length() > 14000) dst.remove(0, dst.length() - 14000);
+}
 static void say(Session &s, const String &text = "") { write(s, text + "\r\n"); }
 static void prompt(Session &s, const String &text) { write(s, text); }
 static void activity(Session &s, const String &what) { s.activity = what; }
-static void art(Session &s, const char *path, const String &fallback = "") {
-  // Read a screen as a unit. A clearing screen supersedes undelivered text;
-  // the amount of output waiting for the browser must never crop a new screen.
-  if (sdReady && s.ansi) {
-    File f = SD_MMC.open(path, FILE_READ);
-    if (f && !f.isDirectory() && f.size() <= 12000) {
-      String screen;
-      size_t bytes = f.size();
-      if (bytes && screen.reserve(bytes + 1)) {
-        std::unique_ptr<char[]> buffer(new (std::nothrow) char[bytes]);
-        if (!buffer || f.read(reinterpret_cast<uint8_t *>(buffer.get()), bytes) != bytes) {
-          say(s, fallback);
-          return;
-        }
-        screen.concat(buffer.get(), bytes);
-        screen.replace("\r\n", "\n");
-        screen.replace("\n", "\r\n");
-        if (!screen.endsWith("\r\n")) screen += "\r\n";
-        if (s.web && screen.startsWith("\x1b[2J")) s.output = "";
-        if (s.output.length() + screen.length() <= 14000) {
-          write(s, screen);
-          return;
-        }
-      }
-    }
-  }
-  say(s, fallback);
-}
 static void savePointer(Session &s) { if (!sdReady || !s.user.id) return; File f = SD_MMC.open((String("/BBS/DATA/STATE/PTR_") + s.user.id + ".DAT").c_str(), FILE_WRITE); if (f) { f.printf("%lu|%u\n", (unsigned long)s.lastRead, s.conference); f.close(); } }
 static void loadPointer(Session &s) { if (!sdReady || !s.user.id) return; File f = SD_MMC.open((String("/BBS/DATA/STATE/PTR_") + s.user.id + ".DAT").c_str(), FILE_READ); if (f) { String x = f.readStringUntil('\n'); s.lastRead = field(x, 0).toInt(); f.close(); } }
 static String confName(uint8_t n) { return n == 0 ? "Main Board" : n == 1 ? "General Discussion" : n == 2 ? "The Back Room" : n == 3 ? "SysOp Console" : "Unknown"; }

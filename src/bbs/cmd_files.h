@@ -48,27 +48,8 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
                  : "Use V <number>, N, P, L, or Q."); prompt(s, "File command? "); return true;
   }
   if (s.state == FILE_VIEW) {
-    auto &view = s.viewer;
-    if (cmd == "Q") { listArea(s); return true; }
-    if (cmd == "R") { openFileViewer(s, view.number); return true; }
-    if (cmd == "P" && view.depth) {
-      view.offset = view.history[--view.depth];
-      renderFilePage(s);
-      return true;
-    }
-    if ((cmd == "N" || !cmd.length()) && view.next) {
-      constexpr uint8_t cap = sizeof(view.history) / sizeof(view.history[0]);
-      if (view.depth == cap) {
-        memmove(view.history, view.history + 1, (cap - 1) * sizeof(view.history[0]));
-        view.depth--;
-      }
-      view.history[view.depth++] = view.offset;
-      view.offset = view.next;
-      renderFilePage(s);
-      return true;
-    }
-    renderFilePage(s);
-    return true;
+    if (cmd == "R") { openFileViewer(s, s.viewer.number); return true; }
+    listArea(s); return true;
   }
   return false;
 }

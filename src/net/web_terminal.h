@@ -11,7 +11,7 @@ button{background:#000;color:inherit;border:1px solid #066;font:inherit;min-heig
    #carrier{flex:1;min-width:18ch}
 canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
 #screen{position:relative;width:min(100%,960px,max(160px,calc((var(--visible-height,100dvh) - 84px) * 1.6)));
-touch-action:manipulation}
+touch-action:none}
 #capture{position:absolute;width:1.2ch;height:1em;overflow:hidden;color:transparent;
 caret-color:transparent;outline:none;white-space:pre;pointer-events:none}
 #links:empty{display:none} a{color:#5ff}
@@ -36,6 +36,9 @@ const blank=()=>({ch:' ',ink:7,paper:0});
 const row=()=>Array.from({length:cols},blank);
 let screen=Array.from({length:rows},row);
 let node=0,token='',connected=false,busy=false,secret=false,frame=0,failures=0;
+// streamOn: the board is streaming a picture or file; keys skip or pause it.
+// history/viewOff: lines that scrolled off the top, and how far back we look.
+let streamOn=false,history=[],viewOff=0;
 let pending=null,timer=0;
  let modemPlayer=null,modemPlaying=false;
  function playModem(){
@@ -54,7 +57,7 @@ function move(nx,ny){
 }
 function down(){
   if(y<rows-1)y++;
-  else{screen.shift();screen.push(row());}
+  else{history.push(screen.shift());if(history.length>1000)history.shift();screen.push(row());}
 }
 function colors(){
   const ink=fg|(bright?8:0);
@@ -174,7 +177,14 @@ function repaint(){
   frame=requestAnimationFrame(()=>{
     frame=0;
     ctx.font='14px "Courier New", monospace';
-    screen.forEach((line,i)=>line.forEach((cell,j)=>drawCell(cell,j,i)));
+    viewOff=Math.min(viewOff,history.length);
+    const shown=viewOff?history.slice(history.length-viewOff).concat(screen).slice(0,rows):screen;
+    shown.forEach((line,i)=>line.forEach((cell,j)=>drawCell(cell,j,i)));
+    if(viewOff){
+      const tag=' SCROLLBACK -'+viewOff+' ';
+      [...tag].forEach((ch,i)=>drawCell({ch,ink:0,paper:14},cols-tag.length+i,0));
+      return;
+    }
     if(!connected)return;
     const raw=capture.textContent||'';
     const draft=secret?'*'.repeat(raw.length):raw;
@@ -194,6 +204,7 @@ function frameIn(d){
   const k=d[0],v=d.slice(1);
   if(k==='o')render(v);
   else if(k==='p'){secret=v==='1';repaint();}
+  else if(k==='s')streamOn=v==='1';
   else if(k==='x')lost('KOUVOSTO // NO CARRIER');
 }
 function flushPending(){
@@ -268,7 +279,7 @@ async function request(path,options={}){
   const timeout=setTimeout(()=>abort.abort(),7000);
   try{
     const response=await fetch(path,{...options,cache:'no-store',signal:abort.signal});
-    return {status:response.status,text:await response.text(),secret:response.headers.get('X-BBS-Password')==='1'};
+    return {status:response.status,text:await response.text(),secret:response.headers.get('X-BBS-Password')==='1',stream:response.headers.get('X-BBS-Stream')==='1'};
   }finally{clearTimeout(timeout);}
 }
 function wake(delay){
@@ -290,7 +301,7 @@ async function exchange(){
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
     failures=0;lastOk=Date.now();
     carrier.textContent=connectText();
-    if(!sockReady)secret=response.secret;
+    if(!sockReady){secret=response.secret;streamOn=response.stream;}
     if(response.text)render(response.text);
   }catch{
     // Keep trying quietly while the phone rejoins the WiFi. Give up only
@@ -312,7 +323,17 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('resize',fit);
   fit();
 }
+// While a picture streams, a key goes out at once: space pauses, anything
+// else (or a tap on the screen) skips to the prompt.
+function streamKey(ch){
+  if(!connected)return;
+  viewOff=0;capture.textContent='';repaint();
+  if(sockReady){sock.send('k'+ch);return;}
+  if(pending===null){pending=ch;if(!busy)wake(0);}
+}
 function submit(){
+  if(streamOn){streamKey('\x1b');return;}
+  viewOff=0;
   if(!connected||pending!==null)return;
   pending=(capture.textContent||'').replace(/[\r\n]/g,'').slice(0,900);
   capture.textContent='';
@@ -336,11 +357,24 @@ document.addEventListener('visibilitychange',()=>{
   if(!sockReady){sockTries=0;openSocket();}
   if(!busy&&!sockReady)wake(0);
 });
-display.addEventListener('click',focusTerminal);
-capture.addEventListener('input',repaint);
+display.addEventListener('click',()=>{if(streamOn&&!dragged)streamKey('\x1b');else focusTerminal();});
+capture.addEventListener('input',()=>{if(streamOn)streamKey('\x1b');else repaint();});
 capture.addEventListener('keydown',e=>{
+  if(streamOn&&!e.isComposing&&e.key.length===1||streamOn&&e.key==='Enter'){e.preventDefault();streamKey(e.key===' '?' ':'\x1b');return;}
   if(e.key==='Enter'&&!e.isComposing){e.preventDefault();submit();}
 });
+// Scrollback: mouse wheel or a finger drag on the terminal.
+let dragY=null,dragOff=0,dragged=false;
+const lineHeight=()=>display.clientHeight/rows;
+function scrollTo(off){viewOff=Math.max(0,Math.min(history.length,Math.round(off)));repaint();}
+display.addEventListener('wheel',e=>{e.preventDefault();scrollTo(viewOff+(e.deltaY<0?3:-3));},{passive:false});
+display.addEventListener('touchstart',e=>{dragY=e.touches[0].clientY;dragOff=viewOff;dragged=false;},{passive:true});
+display.addEventListener('touchmove',e=>{
+  if(dragY===null)return;
+  const dy=(e.touches[0].clientY-dragY)/lineHeight();
+  if(Math.abs(dy)>0.5){dragged=true;e.preventDefault();scrollTo(dragOff+dy);}
+},{passive:false});
+display.addEventListener('touchend',()=>{dragY=null;setTimeout(()=>dragged=false,50);});
 capture.addEventListener('beforeinput',e=>{
   if(e.inputType==='insertParagraph'||e.inputType==='insertLineBreak'){e.preventDefault();submit();}
 });
