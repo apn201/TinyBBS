@@ -63,7 +63,7 @@ static bool saveSharedWallet(const Wallet &wallet) {
   if (!out) { in.close(); return false; }
   bool found = false, ok = true;
   while (in && in.available() && ok) {
-    String line = in.readStringUntil('\n');
+    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */
     if (line.endsWith("\r")) line.remove(line.length() - 1);
     Wallet current;
     if (parseWallet(line, current) && current.id == wallet.id) {
@@ -150,7 +150,7 @@ static bool saveQuest(const Quest &quest) {
     return out.println(line) == line.length() + 2;
   };
   while (in && in.available() && ok) {
-    String line = in.readStringUntil('\n');
+    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */
     Quest current;
     if (parseQuest(line, current) && current.id == quest.id) {
       if (!found) ok = put(questLine(quest));

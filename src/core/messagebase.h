@@ -18,7 +18,10 @@ struct Message {
   String editedAt, editedBy;  // last edit or kill
   uint8_t versions = 1;  // lines in the file for this id
 };
-static bool parseMessage(const String &line, Message &m) {
+static bool parseMessage(const String &raw, Message &m) {
+  // println() ends each line with CRLF: the CR would stick to the last field.
+  String line = raw;
+  while (line.endsWith("\r")) line.remove(line.length() - 1);
   m.id = field(line, 0).toInt(); m.conference = field(line, 1).toInt();
   m.from = dec(field(line, 2)); m.to = dec(field(line, 3)); m.subject = dec(field(line, 4));
   m.when = dec(field(line, 5)); m.body = dec(field(line, 6));

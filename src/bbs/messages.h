@@ -358,6 +358,8 @@ static void setDraft(Session &s, const std::vector<String> &lines) {
   s.draftLines = lines.size();
 }
 static void editorPrompt(Session &s) {
+  // The key list scrolls away in a long message: a short reminder every 15 lines.
+  if (s.draftLines && s.draftLines % 15 == 0) say(s, "\x1b[0;36m/S save  /A abort  /L list  /? all editor keys\x1b[0m");
   char p[8]; snprintf(p, sizeof(p), "%2u: ", s.draftLines + 1);
   prompt(s, p);
 }
@@ -368,7 +370,7 @@ static void listDraft(Session &s) {
 }
 static void editorHelp(Session &s) {
   say(s, "\x1b[1;36mOne line at a time. /S saves, /A aborts, /L lists, /D n deletes line n,\x1b[0m");
-  say(s, "\x1b[1;36m/R n text replaces line n, /C clears all. (" + String(DRAFT_LINES) + " lines max)\x1b[0m");
+  say(s, "\x1b[1;36m/R n text replaces line n, /C clears all, /? shows this. (" + String(DRAFT_LINES) + " lines max)\x1b[0m");
 }
 static void startEditor(Session &s) {
   s.draft = ""; s.draftLines = 0; s.msgEdit = 0;

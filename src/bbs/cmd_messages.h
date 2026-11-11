@@ -83,6 +83,7 @@ static bool messageCommand(Session &s, String &line, const String &cmd) {
       saveDraft(s); return true;
     }
     if (cmd == "/L") { listDraft(s); editorPrompt(s); return true; }
+    if (cmd == "/?" || cmd == "/H") { editorHelp(s); editorPrompt(s); return true; }
     if (cmd == "/C") { s.draft = ""; s.draftLines = 0; say(s, "Cleared."); editorPrompt(s); return true; }
     if (tokenAt(cmd, 0) == "/D" || tokenAt(cmd, 0) == "/R") {
       auto lines = draftLineList(s);

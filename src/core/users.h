@@ -73,7 +73,7 @@ static bool touchUser(User &changed) { // journal-style rewrite: .NEW first, the
   if (!out) { in.close(); trace("USER_TOUCH_FAIL", "cannot create USERS.NEW"); return false; }
   bool wrote = true;
   while (in.available()) {
-    String line = in.readStringUntil('\n'); User u;
+    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */ User u;
     wrote = (parseUser(line, u) && u.id == changed.id) ? out.println(userLine(changed)) : out.println(line);
     if (!wrote) break;
   }
@@ -96,7 +96,7 @@ static bool removeUser(const User &removed) {
   if (!out) { in.close(); trace("USER_DELETE_FAIL", "cannot create USERS.NEW"); return false; }
   bool found = false, wrote = true;
   while (in.available()) {
-    String line = in.readStringUntil('\n'); User candidate;
+    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */ User candidate;
     if (parseUser(line, candidate) && candidate.id == removed.id) { found = true; continue; }
     if (!out.println(line)) { wrote = false; break; }
   }

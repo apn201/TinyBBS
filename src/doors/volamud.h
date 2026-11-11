@@ -194,7 +194,7 @@ static bool saveMud(const MudCharacter &character) {
   if (!out) { in.close(); return false; }
   bool found = false, ok = true;
   while (in && in.available() && ok) {
-    String line = in.readStringUntil('\n');
+    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */
     if (line.endsWith("\r")) line.remove(line.length() - 1);
     MudCharacter current;
     if (parseMud(line, current) && current.id == character.id) {
