@@ -33,6 +33,7 @@ static uint8_t iniLevel(const Ini &ini, const String &section) {
 }
 
 // Returns a one-line summary for the SysOp.
+static String loadFileAreas();  // bbs/files.h
 static String loadSettings() {
   BoardSettings b;
   Ini ini;
@@ -85,7 +86,8 @@ static String loadSettings() {
   lineCps = board.baud / 10;
   clockSyncBrowser = sync;
   String clock = startClock(epoch);
-  return "clock " + clock + (sync ? " (browser sync)" : "") + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
+  String areas = loadFileAreas();
+  return areas + ", clock " + clock + (sync ? " (browser sync)" : "") + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
          board.maxNodes + " nodes, " + (board.baud ? String(board.baud) + " baud" : String("no speed limit"));
 }
 

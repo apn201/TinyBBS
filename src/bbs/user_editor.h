@@ -65,7 +65,7 @@ static std::vector<FlagUse> knownFlags() {
   };
   for (auto &c : board.conferences) add(c.flag, "messages: " + c.name);
   for (auto &b : board.bulletins) add(b.flag, "bulletin: " + b.title);
-  for (uint8_t i = 0; i < FILE_AREA_COUNT; ++i) add(FILE_AREAS[i].flag, String("files: ") + FILE_AREAS[i].name);
+  for (auto &a : fileAreas) add(a.flag, "files: " + a.name);
   for (auto &u : allUsers()) eachFlag(u.flags, [&](const String &f) { add(f, ""); });
   for (auto &k : flags) if (!k.opens.length()) k.opens = "not used by anything";
   return flags;

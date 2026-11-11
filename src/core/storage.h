@@ -6,7 +6,7 @@ static bool mkdirs() {
   // A freshly formatted card has no BBS tree at all.  TinyIRC only needed a
   // root-level log, but TinyBBS owns a directory hierarchy, so provision the
   // root first rather than treating a missing /BBS as a dead card.
-  const char *paths[] = {"/BBS", "/BBS/DATA", "/BBS/DATA/USERS", "/BBS/DATA/MSGS", "/BBS/DATA/STATE", "/BBS/DATA/DOORS", "/BBS/LOGS", "/BBS/TEMP", "/BBS/TEMP/UPLOADS"};
+  const char *paths[] = {"/BBS", "/BBS/DATA", "/BBS/DATA/USERS", "/BBS/DATA/MSGS", "/BBS/DATA/STATE", "/BBS/DATA/DOORS", "/BBS/DATA/INDEX", "/BBS/LOGS", "/BBS/TEMP", "/BBS/TEMP/UPLOADS"};
   bool ok = true;
   for (auto p : paths) {
     if (!SD_MMC.exists(p) && !SD_MMC.mkdir(p)) { trace("SD_MKDIR_FAIL", p); ok = false; }

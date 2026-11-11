@@ -13,14 +13,35 @@ static void mainMenu(Session &s) {
   if (isSysop(s)) say(s, "\x1b[1;35m[Z]\x1b[0m SysOp console  \x1b[1;35m[USER]\x1b[0m User editor");
   prompt(s, "\x1b[1;33mMain Board Command? \x1b[0m");
 }
+// The gallery's G browses the first file area whose folder name has ANSI in it.
+static int galleryArea(const Session &s) {
+  for (size_t i = 0; i < fileAreas.size(); ++i) if (listedArea(s, i) && up(fileAreas[i].folder).indexOf("ANSI") >= 0) return i;
+  return -1;
+}
 static void ansiGallery(Session &s) {
   s.state = ANSI_GALLERY;
   activity(s, "ANSI GALLERY");
   art(s, "/BBS/ANSI/MENUS/GALLERY.ANS", "[A] Login splash  [F] File cabinet  [Q] Main Board");
-  if (canUseArea(s, 1)) say(s, "[G] Browse ANSI / ASCII files");
+  if (galleryArea(s) >= 0) say(s, "[G] Browse ANSI / ASCII files");
   prompt(s, "Gallery command? ");
 }
-static void fileMenu(Session &s) { s.state = FILE_MENU; activity(s, "FILE AREAS"); art(s, "/BBS/ANSI/MENUS/FILES.ANS"); if (canUseArea(s, 6)) say(s, "\x1b[1;35m[7]\x1b[0m The Back Room"); if (canUseArea(s, 7)) say(s, "\x1b[1;31m[8]\x1b[0m SysOp Vault"); prompt(s, "File area? "); }
+// FILES.ANS is the header art; the areas below it come from the card.
+static void fileMenu(Session &s) {
+  s.state = FILE_MENU; activity(s, "FILE AREAS");
+  art(s, "/BBS/ANSI/MENUS/FILES.ANS", "\x1b[1;36mFILE CABINETS\x1b[0m");
+  uint32_t n = 0;
+  for (size_t i = 0; i < fileAreas.size(); ++i) {
+    if (!listedArea(s, i)) continue;
+    const FileArea &a = fileAreas[i];
+    char row[100];
+    snprintf(row, sizeof(row), "  \x1b[1;33m[%2lu]\x1b[0m %s%-32.32s\x1b[0m \x1b[0;36m%5u files\x1b[0m", (unsigned long)++n,
+             a.flag.length() ? "\x1b[1;35m" : "\x1b[1;37m", a.name.c_str(), a.files);
+    say(s, row);
+  }
+  if (!n) say(s, "  No file areas are open to you tonight.");
+  say(s, "  \x1b[1;33m[Q]\x1b[0m Main Board");
+  prompt(s, "File area? ");
+}
 static void doorMenu(Session &s) { s.state = DOOR_MENU; activity(s, "DOORS & GAMES"); art(s, "/BBS/ANSI/MENUS/DOORS_V2.ANS"); prompt(s, "Door command? "); }
 static void finishLogin(Session &s) {
   s.authenticated = true;

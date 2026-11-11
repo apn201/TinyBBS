@@ -49,6 +49,7 @@ struct Session {
   uint16_t fileOffset = 0;
   bool moreFiles = false;
   bool galleryCabinet = false;
+  String filePath;  // sub-folder inside the current file area, "" = its top
   struct {
     uint16_t number = 0;
     uint32_t end = 0, offset = 0;

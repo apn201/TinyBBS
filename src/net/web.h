@@ -82,7 +82,7 @@ static void apiIn(AsyncWebServerRequest *r) {
 static void downloadFile(AsyncWebServerRequest *r) {
   BbsLock lock;
   Session *s = requestSession(r); String path, name; size_t bytes = 0;
-  if (!s || !s->authenticated || s->state != FILE_LIST || !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || !SD_MMC.exists(path)) {
+  if (!s || !s->authenticated || s->state != FILE_LIST || !fileAreas[s->fileArea].downloads || !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || !SD_MMC.exists(path)) {
     r->send(404, "text/plain", "File unavailable"); return;
   }
   String reason;

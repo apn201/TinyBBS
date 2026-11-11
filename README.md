@@ -40,16 +40,25 @@ board at the same time and see each other in WHO and chat.
 
 - Opens an open WiFi access point, `THE_BOARD` by default. Phones get a
   captive portal that lands on the terminal.
-- Browser terminal at `http://192.168.4.1`: press DIAL, get a node.
+- Browser terminal at `http://192.168.4.1`: press DIAL, get a node. A page
+  reload rejoins the same node, and the screen has 1000 lines of scrollback.
 - Telnet on port 23 for PuTTY, SyncTERM and friends. 80 columns.
 - Eight nodes, shared by browser and Telnet callers.
 - New-user signup, logins, security levels and flags.
-- Public and private messages in four conferences, one of them invite-only
-  and one for the SysOp.
-- Multi-node chat, WHO, page the SysOp, bulletins, ANSI gallery.
-- File areas with paged ANSI and text viewing, and browser downloads that
-  check quota and ratio.
-- SysOp user editor in the terminal.
+- Message areas read the 1990s way: one message at a time with next and
+  previous, replies linked into threads, a thread view, a line editor, and
+  "new" counted per area. Private mail is opt-in.
+- Multi-node chat, WHO, page the SysOp, bulletins (ANSI files or a line of
+  text), ANSI gallery.
+- File areas made from the folders on the card, with sub-folders,
+  descriptions from `FILES.BBS`, `DESCRIPT.ION` and `FILE_ID.DIZ`, and browser
+  downloads that check quota and ratio.
+- ANSI pictures opened with `V` scroll in at modem speed. Any key skips,
+  space pauses, and the browser's SPEED button picks the baud rate.
+- An invented 1990s board clock that only runs while the stick has power.
+- SysOp tools: user editor, node monitor with disconnect and one-way
+  messages, answering a page into chat, and a file manager page in the
+  browser for the SD card.
 - Two native doors: Legend of Kouvola and VolaMUD.
 - Optional dial-up sound in the browser, after you click for it.
 - A small LCD on the board shows the logo, SD state, IP and the last caller.
@@ -73,25 +82,28 @@ out. Pins and display offsets are in [`HARDWARE.md`](HARDWARE.md).
 
 ### Firmware layout
 
-The firmware is Arduino on ESP32, about 2400 lines. `src/main.cpp` has
+The firmware is Arduino on ESP32, about 4400 lines of C++ plus the two web
+pages. `src/main.cpp` has
 `setup()` and `loop()` and includes the modules in order, as one translation
 unit:
 
 | Folder | Contents |
 | --- | --- |
-| `src/core` | Globals, helpers, SD storage, users, message store, sessions |
-| `src/bbs` | File areas and viewer, SysOp tools, menus, login, one `cmd_*.h` per command area, CP437 conversion |
+| `src/core` | Globals, helpers, the board clock, SD storage and INI reader, users, message store, sessions, paced output |
+| `src/bbs` | Settings, file areas and viewer, messages, SysOp tools and user editor, menus, login, one `cmd_*.h` per command area, CP437 conversion |
 | `src/doors` | Legend of Kouvola, VolaMUD, dice cabinet and `doors.h`, the door table |
-| `src/net` | Browser terminal page (compiled into flash), HTTP routes, Telnet |
+| `src/net` | Browser terminal and SysOp file manager pages (compiled into flash), HTTP and WebSocket routes, Telnet |
 | `src/hw` | Status LCD and the splash logo as DOS palette indexes |
 
 A door is one header with `enter`, `owns` and `handle` functions plus one
 line in the door table.
 
-Libraries: Arduino GFX Library, the core `WebServer`, `DNSServer`, `SD_MMC`
-and mbedTLS for SHA-256. There are no extra RTOS tasks. `loop()` serves DNS,
-serves HTTP, polls Telnet, expires idle sessions and refreshes the LCD once a
-second.
+Libraries: Arduino GFX Library, ESPAsyncWebServer and AsyncTCP, `DNSServer`,
+`SD_MMC`, mbedTLS for SHA-256 and the inflater in the ESP32-S3 ROM for
+`FILE_ID.DIZ`. HTTP and WebSocket run in the async server's task. One
+recursive mutex guards sessions, users and the card. WebSocket keys are
+queued and applied in `loop()`, which also serves DNS, polls Telnet, paces
+output, expires idle sessions, keeps the clock and refreshes the LCD.
 
 ### One BBS, two transports
 
@@ -107,11 +119,18 @@ buffer.
   clients behave the same.
 - **Browser** loads one page from flash. It draws an 80x25 terminal on a
   640x400 canvas with 8x16 cells, the 16-colour DOS palette and an ANSI
-  parser in JavaScript. The carrier is plain HTTP polling: `POST
-  /api/connect` returns a node number and a random token, `GET /api/out`
-  drains output (204 when there is nothing), `POST /api/in` sends keys.
-  An `X-BBS-Password` header tells the page to hide input while a password
-  is typed. WebSocket transport is not done yet.
+  parser in JavaScript. `POST /api/connect` returns a node number and a
+  random token. The carrier is then a WebSocket at `/ws`, with one-letter
+  frames: keys, output, password masking, the modem speed and the phone's
+  clock. If the socket fails, the page falls back to HTTP polling
+  (`/api/out`, `/api/in`). Node and token are kept in `sessionStorage`, so a
+  reload or a dropped WiFi rejoins the node until the three-minute carrier
+  timeout.
+
+Output goes through a small pipeline. Menus and text go out at once. A file
+opened with `V` is streamed from the card in chunks, at the caller's modem
+speed for ANSI, and chunks never end inside an escape sequence or a UTF-8
+character. Text written while a file streams waits until it has finished.
 
 Because both sides share the same session pool, a Telnet caller and a phone
 caller can chat, duel in the door game and see each other in WHO.
@@ -135,7 +154,9 @@ can open it on a PC.
 - Messages are append-only.
 - User updates and door saves are written to a `.NEW` file first and then
   swapped in, with a `.BAK` for recovery.
-- Per-user last-read pointers are small files in `DATA/STATE`.
+- Messages carry the message they answer, so replies form threads.
+- Per-user last-read pointers, one per message area, are small files in
+  `DATA/STATE`.
 - Passwords are salted SHA-256. The salt comes from the hardware RNG.
 - There is no real-time clock and the board never sees NTP, so it invents
   one. The board clock starts from a 1990s date in `SYSTEM.INI`, only runs
@@ -152,6 +173,26 @@ can open it on a PC.
 Archive ANSI is CP437. The server converts it to UTF-8 for both transports,
 so box drawing and shading survive in a modern Telnet client and in the
 browser.
+
+### File areas
+
+Every folder in `/BBS/FILES` is a file area, in the order of its number
+prefix. `014_BACKROOM_IMAGES` becomes "Backroom Images". Folders starting
+with `_` or `.` are hidden, and so is an area with no files in it.
+Sub-folders nest as deep as the card has them. A number opens a folder or
+views a file, and `Q` goes up one level.
+
+An optional `AREA.INI` in the folder sets the name, the lowest security
+level, a required user flag such as `BACKROOM`, and whether downloads are
+allowed. Areas are read at boot and on `RELOAD`.
+
+Descriptions come from `FILES.BBS` or `DESCRIPT.ION` in the folder. For a ZIP
+without one, the board reads `FILE_ID.DIZ` from the archive's central
+directory, inflates it with the ROM inflater and caches the first lines in
+`DATA/INDEX/DIZ.DAT`. Archives are never unpacked or renamed.
+
+In the viewer, `N` and `P` open the next or previous viewable file in the
+same folder, so a folder of ANSI art can be flipped through.
 
 ### Doors
 
@@ -214,6 +255,8 @@ Settings live in `sd/BBS/CONFIG`, each file explained in its comments:
 - `CONFERENCES.INI`: message bases with their security level and flag.
 - `BULLETINS.INI`: bulletins, and which ones are shown at every login.
 - `NETWORK.INI`: SSID, password, channel, Telnet port.
+- `FILES/<area>/AREA.INI`: name, level, flag and downloads for one file
+  area. Optional.
 
 After editing (on the card, or in the SysOp file manager) type `RELOAD` as
 SysOp, or `Z` then `R`. `NETWORK.INI` needs a restart.
@@ -253,8 +296,8 @@ as a first response.
 | Path | Purpose |
 | --- | --- |
 | `/BBS/ANSI`, `/BBS/ASCII`, `/BBS/BULLETINS`, `/BBS/ASSETS` | Screens, art and modem audio |
-| `/BBS/CONFIG` | Board, conference, file area and network config |
-| `/BBS/FILES` | Downloadable file areas |
+| `/BBS/CONFIG` | Board, conference, bulletin and network config |
+| `/BBS/FILES` | File areas, one folder each, with an optional `AREA.INI` |
 | `/BBS/DATA` | Users, messages, door saves, indexes |
 | `/BBS/LOGS` | Caller and event logs |
 | `/BBS/TEMP`, `/BBS/UPLOADS` | Runtime temp and upload staging |
@@ -267,15 +310,26 @@ by git. Archive rules are in [`CURATION.md`](CURATION.md).
 
 ## SysOp
 
-A level-255 account with the `SYSOP` flag opens the user editor with `USER`
-or `Z` then `U`. It lists users and can change security level, flags, quota,
-ratio and credits, lock or unlock an account, add one, and delete one after
-confirmation.
+A level-255 account with the `SYSOP` flag gets `Z`, the SysOp console.
+
+- **User editor** (`Z` then `U`, or `USER`): a table of every account with
+  level, flags, calls, messages, downloads against the limit and ratio. A
+  number or handle opens a record where each setting has a number: level,
+  flags (with what each flag opens), lock, download limit, credits, ratio,
+  password, forest fights, real name and location. Sizes can be typed as
+  `500K` or `2M`. `N` and `P` step through users.
+- **Node monitor** (`W`): who is on and doing what. A node number
+  disconnects that caller, `M <node|ALL> <text>` sends a one-way message.
+- **Page answering**: when a caller pages, `/A` from any prompt pulls both
+  into chat and `/R` refuses.
+- **File manager** (`Z` then `F`, browser only): a separate page for the SD
+  card. Upload, download, rename, delete and edit text files without
+  pulling the card. `DATA` and `LOGS` are read-only there.
+- **`RELOAD`** rereads the settings and file areas.
 
 ## Limits
 
-- The browser carrier is polling. WebSocket and reconnect are not done.
-- Uploads, the SysOp approval queue, Telnet file transfers (no ZMODEM yet)
+- Caller uploads, the SysOp approval queue, Telnet file transfers (no ZMODEM yet)
   and QWK are not done.
 - Eight nodes is a firmware limit. It has not been tested with eight real
   callers on the board.

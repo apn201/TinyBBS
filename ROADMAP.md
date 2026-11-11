@@ -199,6 +199,11 @@ at 21:30 and the board clock shows 21:30 on a 1990s date.
 
 ### Slice 4: file areas from folders
 
+Built. On first boot the firmware writes the settings from an old
+`FILEAREAS.INI` into an `AREA.INI` in each folder and renames the old file to
+`FILEAREAS.OLD`. Areas with no files are not listed. A number opens a folder
+or views a file.
+
 Every folder in `/BBS/FILES` is a file area, sorted by its number prefix.
 The display name comes from the folder name (`014_BACKROOM_IMAGES` becomes
 "Backroom Images") unless an optional `AREA.INI` in the folder sets name,
