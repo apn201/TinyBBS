@@ -377,6 +377,9 @@ nerds, but no visitor will use them.
 
 - QWK offline mail packets.
 - ZMODEM downloads over Telnet.
+- A full-screen message editor, nano-like (arrow keys, Ctrl-O save, Ctrl-X
+  exit) and maybe a vi mode, as an option the caller switches to. Not period
+  correct; the line editor stays the default.
 - Swappable tools: the reader, editor and similar parts behind a small
   interface, picked in the config, so others could bring their own as
   plugins. Only worth it if this became a real product.
