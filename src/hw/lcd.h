@@ -26,7 +26,7 @@ static void drawLcd() {
     active++;
     if (s.paged) call = "*** SYSOP PAGE N" + String(s.node) + " ***";
   }
-  String statusLine = "NODE " + String(active) + "/" + MAX_NODES + "  SD " + (sdReady ? "OK" : "ERR");
+  String statusLine = "NODE " + String(active) + "/" + board.maxNodes + "  SD " + (sdReady ? "OK" : "ERR");
   String ipLine = "IP " + WiFi.softAPIP().toString();
   static String previous;
   String panel = statusLine + "|" + ipLine + "|" + call;

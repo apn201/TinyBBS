@@ -19,7 +19,7 @@ static uint32_t mudSeed() {
   static bool loaded = false;
   static uint32_t seed = 19840715UL;
   if (!loaded) {
-    seed = strtoul(config(MUD_CONFIG, "seed", String(seed)).c_str(), nullptr, 10);
+    seed = strtoul(config(MUD_CONFIG, "VOLAMUD", "seed", String(seed)).c_str(), nullptr, 10);
     if (!seed) seed = 19840715UL;
     loaded = true;
   }

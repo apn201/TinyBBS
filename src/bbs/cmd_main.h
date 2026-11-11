@@ -28,16 +28,40 @@ static void answerPage(Session &op, bool accept) {
   enterChat(op, "\r\n\x1b[1;33m*** Chat with " + caller->user.handle + " (node " + caller->node + "). /Q returns to the board. ***\x1b[0m");
 }
 
+// Bulletins from BULLETINS.INI that this caller may read, numbered from 1.
+static const Bulletin *visibleBulletin(const Session &s, uint32_t wanted) {
+  uint32_t n = 0;
+  for (const auto &b : board.bulletins) if (canSee(s.user, b.level, b.flag) && ++n == wanted) return &b;
+  return nullptr;
+}
+static void bulletinMenu(Session &s) {
+  activity(s, "BULLETINS");
+  uint32_t count = 0;
+  for (const auto &b : board.bulletins) if (canSee(s.user, b.level, b.flag)) count++;
+  if (!count) { say(s, "No bulletins tonight."); s.state = BULLETIN; prompt(s, "Press ENTER: "); return; }
+  if (count == 1) { const Bulletin *b = visibleBulletin(s, 1); art(s, b->path.c_str(), b->title); s.state = BULLETIN; prompt(s, "Press ENTER: "); return; }
+  say(s, "\r\n\x1b[1;36mBULLETINS\x1b[0m");
+  for (uint32_t i = 1; i <= count; ++i) say(s, "\x1b[1;33m[" + String(i) + "]\x1b[0m " + visibleBulletin(s, i)->title);
+  s.state = BULLETIN_LIST;
+  prompt(s, "Bulletin # (ENTER = back): ");
+}
+
 static bool mainCommand(Session &s, String &line, const String &cmd) {
   if (s.state == BULLETIN) { mainMenu(s); return true; }
   if (s.state == MAIN) {
-    if (cmd == "B") { art(s, "/BBS/BULLETINS/001_RULES.ANS"); prompt(s, "Press ENTER: "); s.state = BULLETIN; }
+    if (cmd == "B") { bulletinMenu(s); }
     else if (cmd == "W") { who(s); prompt(s, "Press ENTER: "); s.state = BULLETIN; }
     else if (cmd == "U") { s.userPage = 0; userList(s); }
     else if (cmd == "M") { s.state = MSG_MENU; activity(s, "MESSAGES"); art(s, "/BBS/ANSI/MENUS/MESSAGES.ANS"); prompt(s, "Message command? "); }
     else if (cmd == "N") { activity(s, "NEW MESSAGE SCAN"); showMessages(s, true); prompt(s, "Read message #, or ENTER: "); s.state = MSG_READ; }
     else if (cmd == "C") { s.state = CHAT; activity(s, "CHAT"); say(s, "\r\n\x1b[1;33mEntered Multi-Node Chat. /Q returns to the board.\x1b[0m"); broadcastChat(s, "joined the chat."); prompt(s, "> "); }
-    else if (cmd == "J") { s.state = JOIN_CONF; say(s, "0 Main Board\r\n1 General Discussion"); if (canJoinConference(s.user, 2)) say(s, "2 The Back Room"); if (canJoinConference(s.user, 3)) say(s, "3 SysOp Console"); prompt(s, "Join conference #: "); }
+    else if (cmd == "J") {
+      s.state = JOIN_CONF;
+      for (const auto &c : board.conferences)
+        if (canJoinConference(s.user, c.id))
+          say(s, String(c.id == s.conference ? "\x1b[1;33m* " : "  ") + c.id + " " + c.name + (c.description.length() ? "  - " + c.description : String()) + "\x1b[0m");
+      prompt(s, "Join conference # (ENTER stays): ");
+    }
     else if (cmd == "P") {
       bool sent = false;
       for (auto &n : sessions) {
@@ -49,15 +73,20 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
       say(s, sent ? "Paging the SysOp... stay on the line." : "The SysOp is not online.");
       s.state = BULLETIN; prompt(s, "Press ENTER: ");
     }
-    else if (cmd == "S") { say(s, "System: " + config("/BBS/CONFIG/SYSTEM.INI", "name", "TINYBBS") + " // " + nowText()); say(s, "Nodes: " + String(MAX_NODES) + "  Messages: " + String(nextMessageId - 1)); s.state = BULLETIN; prompt(s, "Press ENTER: "); }
+    else if (cmd == "S") {
+      say(s, "System: " + board.name + (board.location.length() ? " // " + board.location : String()) + " // " + nowText());
+      say(s, "SysOp: " + board.sysop + "  Nodes: " + String(board.maxNodes) + "  Messages: " + String(nextMessageId - 1));
+      s.state = BULLETIN; prompt(s, "Press ENTER: ");
+    }
     else if (cmd == "A") { ansiGallery(s); }
     else if (cmd == "F") { s.galleryCabinet = false; fileMenu(s); }
     else if (cmd == "D") { doorMenu(s); }
     else if (cmd == "?" || cmd == "H") { say(s, "Type a command and press ENTER. Q backs out of most menus."); if (isSysop(s)) say(s, "USER opens the user editor. E <handle> selects an account."); s.state = BULLETIN; prompt(s, "Press ENTER: "); }
     else if (cmd == "Z" && isSysop(s)) { sysopMenu(s); }
+    else if (cmd == "RELOAD" && isSysop(s)) { say(s, "Settings reloaded: " + loadSettings() + "."); say(s, "Network settings take effect after a restart."); prompt(s, "Main Board Command? "); }
     else if (cmd == "USER" && isSysop(s)) { sysopUsers(s); }
     else if (cmd == "Z" || cmd == "USER") { say(s, "SysOp access requires level 255 and the SYSOP flag."); prompt(s, "Main Board Command? "); }
-    else if (cmd == "G") { s.state = GOODBYE; activity(s, "LOGOFF"); uint32_t mins = (millis() - s.connectedAt) / 60000; art(s, "/BBS/ANSI/GOODBYE/GOODBYE.ANS"); say(s, "Time online: " + String(mins) + " minutes"); }
+    else if (cmd == "G") { s.state = GOODBYE; activity(s, "LOGOFF"); uint32_t mins = (millis() - s.connectedAt) / 60000; art(s, board.goodbye.c_str()); say(s, "Time online: " + String(mins) + " minutes"); }
     else if (!cmd.length()) mainMenu(s);
     else { say(s, "Unknown command. Type ? for help."); prompt(s, "Main Board Command? "); }
     return true;
@@ -70,7 +99,22 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
     else if (!cmd.length() && s.userPage + 1 < pages) s.userPage++;
     userList(s); return true;
   }
-  if (s.state == JOIN_CONF) { uint8_t c = line.toInt(); if (!canJoinConference(s.user, c)) say(s, "That conference is not available to you."); else { s.conference = c; say(s, "Joined " + confName(c) + "."); } mainMenu(s); return true; }
+  if (s.state == JOIN_CONF) {
+    if (line.length()) {
+      uint32_t c;
+      if (!readNumber(line, c) || c > 255 || !canJoinConference(s.user, c)) say(s, "That conference is not available to you.");
+      else { s.conference = c; say(s, "Joined " + confName(c) + "."); }
+    }
+    mainMenu(s); return true;
+  }
+  if (s.state == BULLETIN_LIST) {
+    uint32_t n;
+    if (!line.length() || cmd == "Q") { mainMenu(s); return true; }
+    const Bulletin *b = readNumber(line, n) ? visibleBulletin(s, n) : nullptr;
+    if (!b) say(s, "No such bulletin.");
+    else art(s, b->path.c_str(), b->title);
+    prompt(s, "Bulletin # (ENTER = back): "); return true;
+  }
   if (s.state == CHAT) { if (cmd == "/Q") { broadcastChat(s, "left the chat."); mainMenu(s); } else if (line.length()) { broadcastChat(s, line); prompt(s, "> "); } return true; }
   return false;
 }

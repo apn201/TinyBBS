@@ -34,12 +34,6 @@ static bool prepareStorage() {
   trace("SD_READY", String("total=") + (unsigned long)(SD_MMC.totalBytes() / 1024 / 1024) + "MiB free=" + (unsigned long)(SD_MMC.totalBytes() - SD_MMC.usedBytes()) / 1024 / 1024 + "MiB");
   return true;
 }
-static String config(const char *file, const char *key, const String &fallback) {
-  if (!sdReady) return fallback; File f = SD_MMC.open(file, FILE_READ); if (!f) return fallback;
-  String needle = String(key) + "=";
-  while (f.available()) { String line = f.readStringUntil('\n'); line.trim(); if (line.startsWith(needle)) { f.close(); return line.substring(needle.length()); } }
-  f.close(); return fallback;
-}
 static void event(const String &tag, const String &detail) {
   if (!sdReady) return; File f = SD_MMC.open("/BBS/LOGS/EVENTS.LOG", FILE_APPEND);
   if (f) { f.println(nowText() + "|" + tag + "|" + enc(detail)); f.close(); }

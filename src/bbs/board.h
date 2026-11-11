@@ -22,7 +22,7 @@ static void mainMenu(Session &s) {
                          "[F] Files     [A] Art        [D] Doors  [U] User list\r\n"
                          "[B] Bulletins [J] Conference [P] Page   [S] System\r\n"
                          "[?] Help      [G] Goodbye";
-  if (s.ansi) art(s, "/BBS/ANSI/MENUS/MAIN.ANS", fallback);
+  if (s.ansi) art(s, board.mainMenu.c_str(), fallback);
   else say(s, fallback);
   if (isSysop(s)) say(s, "\x1b[1;35m[Z]\x1b[0m SysOp console  \x1b[1;35m[USER]\x1b[0m User editor");
   prompt(s, "\x1b[1;33mMain Board Command? \x1b[0m");
@@ -63,13 +63,18 @@ static void finishLogin(Session &s) {
   if (repairedSysop) say(s, "\r\nPrimary SYSOP account normalized: level 255, SYSOP flag.");
   callers++; loadPointer(s); event("LOGIN", s.user.handle + " node " + s.node); trace("LOGIN_OK", s.user.handle + " node " + s.node); activity(s, "BULLETINS");
   say(s, "\r\nCaller #" + String(callers) + "  Security: " + String(s.user.level) + "  Conference: " + confName(s.conference));
-  art(s, "/BBS/BULLETINS/001_RULES.ANS", "Welcome to the board."); s.state = BULLETIN; prompt(s, "Press ENTER for Main Board: ");
+  // Mandatory bulletins from BULLETINS.INI are shown at every login.
+  bool shown = false;
+  for (const auto &b : board.bulletins)
+    if (b.mandatory && canSee(s.user, b.level, b.flag)) { art(s, b.path.c_str(), b.title); shown = true; }
+  if (!shown) say(s, "Welcome to " + board.name + ".");
+  s.state = BULLETIN; prompt(s, "Press ENTER for Main Board: ");
 }
 static void loginPrompt(Session &s) {
   s.state = LOGIN_CHOICE;
   activity(s, "AWAITING LOGIN");
-  if (s.ansi) art(s, "/BBS/ANSI/LOGIN/WELCOME.ANS", "KOUVOSTO BBS");
-  else say(s, "KOUVOSTO BBS");
+  if (s.ansi) art(s, board.welcome.c_str(), board.name);
+  else say(s, board.name);
   prompt(s, "(N)ew user, (L)ogin, or (G)oodbye? ");
 }
 static void newSession(Session &s) {
@@ -96,7 +101,7 @@ static void closeSession(Session &s) {
   s = Session();
 }
 static Session *allocate(bool web, WiFiClient incoming = WiFiClient()) {
-  for (uint8_t i = 0; i < MAX_NODES; ++i) if (!sessions[i].used) { Session &s = sessions[i]; s = Session(); s.used = true; s.web = web; s.socket = incoming; s.node = i + 1; s.token = salt(); newSession(s); event("CONNECT", String("node ") + s.node + (web ? " web" : " telnet")); trace("SESSION_OPEN", String("node ") + s.node + (web ? " web" : " telnet")); return &s; } trace("SESSION_REJECT", "all nodes busy"); return nullptr;
+  for (uint8_t i = 0; i < board.maxNodes; ++i) if (!sessions[i].used) { Session &s = sessions[i]; s = Session(); s.used = true; s.web = web; s.socket = incoming; s.node = i + 1; s.token = salt(); newSession(s); event("CONNECT", String("node ") + s.node + (web ? " web" : " telnet")); trace("SESSION_OPEN", String("node ") + s.node + (web ? " web" : " telnet")); return &s; } trace("SESSION_REJECT", "all nodes busy"); return nullptr;
 }
 static Session *webSession(uint8_t node, const String &token) { if (!node || node > MAX_NODES) return nullptr; Session &s = sessions[node - 1]; return s.used && s.web && s.token == token ? &s : nullptr; }
 static void broadcastChat(Session &from, const String &line) { for (auto &s : sessions) if (s.used && s.state == CHAT) say(s, "\x1b[0;36m[" + from.user.handle + "]\x1b[0m " + line); }

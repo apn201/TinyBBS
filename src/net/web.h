@@ -105,7 +105,7 @@ static void modemAudio(AsyncWebServerRequest *r) {
 static void status(AsyncWebServerRequest *r) {
   BbsLock lock;
   uint8_t active = 0; for (auto &s : sessions) if (s.used) active++;
-  r->send(200, "application/json", String("{\"nodes\":") + active + ",\"max_nodes\":" + MAX_NODES + ",\"sd\":" + (sdReady ? "true" : "false") + "}");
+  r->send(200, "application/json", String("{\"nodes\":") + active + ",\"max_nodes\":" + board.maxNodes + ",\"sd\":" + (sdReady ? "true" : "false") + "}");
 }
 static void notFound(AsyncWebServerRequest *r) {
   r->redirect(String("http://") + WiFi.softAPIP().toString() + "/");

@@ -2,7 +2,7 @@
 // Caller state machine, node pool and output helpers.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-enum State : uint8_t { DEAD, LOGIN_CHOICE, LOGIN_HANDLE, LOGIN_PASSWORD, NEW_HANDLE, NEW_PASSWORD, NEW_REAL, NEW_LOCATION, BULLETIN, MAIN, USER_LIST, MSG_MENU, MSG_READ, POST_TO, POST_SUBJECT, POST_BODY, JOIN_CONF, CHAT, SYSOP_MENU, SYSOP_USERS, SYSOP_DOORS, SYSOP_ADD_PASSWORD, SYSOP_DELETE_CONFIRM, ANSI_GALLERY, FILE_MENU, FILE_LIST, FILE_VIEW, DOOR_MENU, QUEST_MENU, QUEST_TAVERN, QUEST_FIGHT, QUEST_RESULT, QUEST_BANK, QUEST_SHOP, DICE_BET, QUEST_DUEL_OFFER, QUEST_DUEL_WAIT, QUEST_DUEL, QUEST_DUEL_RESULT, MUD_MENU, GOODBYE };
+enum State : uint8_t { DEAD, LOGIN_CHOICE, LOGIN_HANDLE, LOGIN_PASSWORD, NEW_HANDLE, NEW_PASSWORD, NEW_REAL, NEW_LOCATION, BULLETIN, MAIN, USER_LIST, MSG_MENU, MSG_READ, POST_TO, POST_SUBJECT, POST_BODY, JOIN_CONF, CHAT, SYSOP_MENU, SYSOP_USERS, SYSOP_DOORS, SYSOP_ADD_PASSWORD, SYSOP_DELETE_CONFIRM, ANSI_GALLERY, FILE_MENU, FILE_LIST, FILE_VIEW, DOOR_MENU, QUEST_MENU, QUEST_TAVERN, QUEST_FIGHT, QUEST_RESULT, QUEST_BANK, QUEST_SHOP, DICE_BET, QUEST_DUEL_OFFER, QUEST_DUEL_WAIT, QUEST_DUEL, QUEST_DUEL_RESULT, MUD_MENU, BULLETIN_LIST, GOODBYE };
 struct Quest {
   uint32_t id = 0, gold = 35, bank = 0, exp = 0;
   uint16_t hp = 30, maxHp = 30, monsterHp = 0;
@@ -90,11 +90,3 @@ static void prompt(Session &s, const String &text) { write(s, text); }
 static void activity(Session &s, const String &what) { s.activity = what; }
 static void savePointer(Session &s) { if (!sdReady || !s.user.id) return; File f = SD_MMC.open((String("/BBS/DATA/STATE/PTR_") + s.user.id + ".DAT").c_str(), FILE_WRITE); if (f) { f.printf("%lu|%u\n", (unsigned long)s.lastRead, s.conference); f.close(); } }
 static void loadPointer(Session &s) { if (!sdReady || !s.user.id) return; File f = SD_MMC.open((String("/BBS/DATA/STATE/PTR_") + s.user.id + ".DAT").c_str(), FILE_READ); if (f) { String x = f.readStringUntil('\n'); s.lastRead = field(x, 0).toInt(); f.close(); } }
-static String confName(uint8_t n) { return n == 0 ? "Main Board" : n == 1 ? "General Discussion" : n == 2 ? "The Back Room" : n == 3 ? "SysOp Console" : "Unknown"; }
-static bool hasFlag(const User &u, const String &flag) { return ("," + up(u.flags) + ",").indexOf("," + up(flag) + ",") >= 0; }
-static bool canJoinConference(const User &u, uint8_t conference) {
-  if (conference < 2) return true;
-  if (conference == 2) return u.level >= 50 && hasFlag(u, "BACKROOM");
-  if (conference == 3) return u.level >= 255 && hasFlag(u, "SYSOP");
-  return false;
-}

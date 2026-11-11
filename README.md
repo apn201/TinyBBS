@@ -202,9 +202,16 @@ caller or page.
 6. Create a user named `SYSOP` first. While no SysOp exists, that handle
    becomes the level-255 SysOp. Change its password.
 
-AP name, password, channel and WiFi client limit are in
-`sd/BBS/CONFIG/NETWORK.INI`. Board name and default levels are in
-`SYSTEM.INI` next to it.
+Settings live in `sd/BBS/CONFIG`, each file explained in its comments:
+
+- `SYSTEM.INI`: board name, node limit, new-user level, modem speed for ANSI
+  pictures, art paths.
+- `CONFERENCES.INI`: message bases with their security level and flag.
+- `BULLETINS.INI`: bulletins, and which ones are shown at every login.
+- `NETWORK.INI`: SSID, password, channel, Telnet port.
+
+After editing (on the card, or in the SysOp file manager) type `RELOAD` as
+SysOp, or `Z` then `R`. `NETWORK.INI` needs a restart.
 
 ## Flash and recovery
 
@@ -267,8 +274,7 @@ confirmation.
   and QWK are not done.
 - Eight nodes is a firmware limit. It has not been tested with eight real
   callers on the board.
-- AP only. `mode=ap_sta` in `NETWORK.INI` is reserved and ignored. The board
-  does not join any other network.
+- AP only. The board does not join any other network.
 
 More in [`ROADMAP.md`](ROADMAP.md). The full 1.0 target is in
 [`TinyBBS_READY_TO_CODE_SPEC.md`](TinyBBS_READY_TO_CODE_SPEC.md).

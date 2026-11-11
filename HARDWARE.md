@@ -95,9 +95,10 @@ firmware expires an unauthenticated login after two minutes, a stalled browser
 carrier after three minutes and an authenticated idle session after 30
 minutes.
 
-`mode=ap_sta` and station credentials in `NETWORK.INI` are placeholders for a
-future explicit bridge. They do not authorize LAN or Internet use. The 0.1
-firmware logs that choice and starts AP-only mode.
+The board is AP-only and never joins another network. `NETWORK.INI` sets the
+SSID, password (8+ characters, or empty for an open network), channel,
+WiFi-client limit and Telnet port. It is read at boot, so changes need a
+restart.
 
 ## Power and USB
 

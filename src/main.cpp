@@ -23,10 +23,12 @@
 #include "core/globals.h"
 #include "core/util.h"
 #include "core/storage.h"
+#include "core/ini.h"
 #include "core/users.h"
 #include "core/messagebase.h"
 #include "core/session.h"
 #include "core/stream.h"
+#include "bbs/settings.h"
 #include "bbs/files.h"
 #include "doors/volamud.h"
 #include "doors/legend.h"
@@ -54,20 +56,24 @@ void setup() {
   SD_MMC.setPins(SD_CLK, SD_CMD, SD_D0); sdReady = SD_MMC.begin("/sdcard", true);
   if (sdReady && prepareStorage()) { userCounters(); messageCounters(); }
   else { if (!storageFault.length()) storageFault = "storage setup failed"; sdReady = false; trace("SD_OFFLINE", storageFault); }
-  String ssid = config("/BBS/CONFIG/NETWORK.INI", "ssid", "THE_BOARD"), password = config("/BBS/CONFIG/NETWORK.INI", "password", ""), mode = config("/BBS/CONFIG/NETWORK.INI", "mode", "ap");
-  { long baud = config("/BBS/CONFIG/SYSTEM.INI", "baud", "28800").toInt(); lineCps = baud > 0 ? baud / 10 : 0; }
-  if (mode != "ap") trace("NETWORK", "ap_sta reserved; starting isolated AP only");
+  trace("SETTINGS", loadSettings());
+  // Network settings are read once here; they need a restart to change.
+  Ini net;
+  iniLoad("/BBS/CONFIG/NETWORK.INI", net);
+  String ssid = iniGet(net, "NETWORK", "ssid", "THE_BOARD"), password = iniGet(net, "NETWORK", "password", "");
   constexpr int apLimit = ESP_WIFI_MAX_CONN_NUM < 17 - CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM
                         ? ESP_WIFI_MAX_CONN_NUM : 17 - CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM;
-  int apClients = constrain(config("/BBS/CONFIG/NETWORK.INI", "max_wifi_clients", "10").toInt(), 1L, (long)apLimit);
+  int apClients = constrain(iniGet(net, "NETWORK", "max_wifi_clients", "10").toInt(), 1L, (long)apLimit);
+  int channel = constrain(iniGet(net, "NETWORK", "channel", "1").toInt(), 1L, 13L);
+  uint16_t telnetPort = constrain(iniGet(net, "NETWORK", "telnet_port", "23").toInt(), 1L, 65535L);
   WiFi.mode(WIFI_AP);
-  if (!WiFi.softAP(ssid.c_str(), password.length() ? password.c_str() : nullptr,
-                   config("/BBS/CONFIG/NETWORK.INI", "channel", "1").toInt(), false, apClients))
+  if (!WiFi.softAP(ssid.c_str(), password.length() >= 8 ? password.c_str() : nullptr, channel, false, apClients))
     trace("AP_FAIL", "could not start access point");
+  if (password.length() && password.length() < 8) trace("AP_OPEN", "WiFi passwords need 8+ characters; starting an open network");
   dns.start(53, "*", WiFi.softAPIP());
   startWeb();
   startSysopWeb();
-  telnet.begin(); event("BOOT", "TinyBBS started"); trace("NETWORK_READY", WiFi.softAPIP().toString());
+  telnet.begin(telnetPort); event("BOOT", "TinyBBS started"); trace("NETWORK_READY", WiFi.softAPIP().toString());
 }
 void loop() {
   dns.processNextRequest();
