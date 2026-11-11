@@ -80,8 +80,12 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
   }
   if (s.state == FILE_VIEW) {
     if (cmd == "R") { openFileViewer(s, s.viewer.number); return true; }
-    if (cmd == "N") { stepViewer(s, true); return true; }
-    if (cmd == "P") { stepViewer(s, false); return true; }
+    if (cmd == "N" || cmd == "P") {
+      if (!stepViewer(s, cmd == "N"))
+        write(s, cmd == "N" ? "\r\nLast viewable file in this folder. [P] Prev  [R] Replay  [Q] File list: "
+                            : "\r\nFirst viewable file in this folder. [N] Next  [R] Replay  [Q] File list: ");
+      return true;
+    }
     listArea(s); return true;
   }
   return false;

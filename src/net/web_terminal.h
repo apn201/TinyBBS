@@ -36,9 +36,10 @@ const blank=()=>({ch:' ',ink:7,paper:0});
 const row=()=>Array.from({length:cols},blank);
 let screen=Array.from({length:rows},row);
 let node=0,token='',connected=false,busy=false,secret=false,frame=0,failures=0;
-// streamOn: the board is streaming a picture or file; keys skip or pause it.
+// streamOn: key mode from the board. 1 = a picture is streaming, keys skip
+// or pause it. 2 = the text pager, every key goes to the board at once.
 // history/viewOff: lines that scrolled off the top, and how far back we look.
-let streamOn=false,history=[],viewOff=0;
+let streamOn=0,history=[],viewOff=0;
 let pending=null,timer=0;
  let modemPlayer=null,modemPlaying=false;
  function playModem(){
@@ -212,7 +213,7 @@ function frameIn(d){
   const k=d[0],v=d.slice(1);
   if(k==='o')render(v);
   else if(k==='p'){secret=v==='1';repaint();}
-  else if(k==='s')streamOn=v==='1';
+  else if(k==='s')streamOn=parseInt(v,10)||0;
   else if(k==='x')lost('KOUVOSTO // NO CARRIER');
 }
 function flushPending(){
@@ -291,7 +292,7 @@ async function request(path,options={}){
   const timeout=setTimeout(()=>abort.abort(),7000);
   try{
     const response=await fetch(path,{...options,cache:'no-store',signal:abort.signal});
-    return {status:response.status,text:await response.text(),secret:response.headers.get('X-BBS-Password')==='1',stream:response.headers.get('X-BBS-Stream')==='1'};
+    return {status:response.status,text:await response.text(),secret:response.headers.get('X-BBS-Password')==='1',stream:parseInt(response.headers.get('X-BBS-Stream'),10)||0};
   }finally{clearTimeout(timeout);}
 }
 function wake(delay){
@@ -344,7 +345,7 @@ function streamKey(ch){
   if(pending===null){pending=ch;if(!busy)wake(0);}
 }
 function submit(){
-  if(streamOn){streamKey('\x1b');return;}
+  if(streamOn){streamKey(streamOn===2?'\r':'\x1b');return;}
   viewOff=0;
   if(!connected||pending!==null)return;
   pending=(capture.textContent||'').replace(/[\r\n]/g,'').slice(0,900);
@@ -369,9 +370,24 @@ document.addEventListener('visibilitychange',()=>{
   if(!sockReady){sockTries=0;openSocket();}
   if(!busy&&!sockReady)wake(0);
 });
-display.addEventListener('click',()=>{if(streamOn&&!dragged)streamKey('\x1b');else focusTerminal();});
-capture.addEventListener('input',()=>{if(streamOn)streamKey('\x1b');else repaint();});
+// In the pager a tap turns the page; the bottom quarter of the screen goes back.
+display.addEventListener('click',e=>{
+  if(dragged)return;
+  if(streamOn===2){const r=display.getBoundingClientRect();streamKey(e.clientY>r.top+r.height*0.75?'b':' ');focusTerminal();}
+  else if(streamOn===1)streamKey('\x1b');
+  else focusTerminal();
+});
+capture.addEventListener('input',()=>{
+  if(streamOn===2){const t=capture.textContent||'';capture.textContent='';if(t)streamKey(t.slice(-1));return;}
+  if(streamOn)streamKey('\x1b');else repaint();
+});
+const PAGER_KEYS={ArrowUp:'\x1b[A',ArrowDown:'\x1b[B',PageUp:'\x1b[5~',PageDown:'\x1b[6~',Home:'\x1b[H',End:'\x1b[F',Escape:'q',Enter:'\r'};
 capture.addEventListener('keydown',e=>{
+  if(streamOn===2&&!e.isComposing){
+    const k=PAGER_KEYS[e.key]||(e.key.length===1&&!e.ctrlKey&&!e.metaKey?e.key:null);
+    if(k){e.preventDefault();streamKey(k);}
+    return;
+  }
   if(streamOn&&!e.isComposing&&e.key.length===1||streamOn&&e.key==='Enter'){e.preventDefault();streamKey(e.key===' '?' ':'\x1b');return;}
   if(e.key==='Enter'&&!e.isComposing){e.preventDefault();submit();}
 });
@@ -379,14 +395,25 @@ capture.addEventListener('keydown',e=>{
 let dragY=null,dragOff=0,dragged=false;
 const lineHeight=()=>display.clientHeight/rows;
 function scrollTo(off){viewOff=Math.max(0,Math.min(history.length,Math.round(off)));repaint();}
-display.addEventListener('wheel',e=>{e.preventDefault();scrollTo(viewOff+(e.deltaY<0?3:-3));},{passive:false});
+// In the pager the wheel scrolls the text a line at a time and a swipe turns pages.
+display.addEventListener('wheel',e=>{
+  e.preventDefault();
+  if(streamOn===2){streamKey(e.deltaY<0?'\x1b[A':'\x1b[B');return;}
+  scrollTo(viewOff+(e.deltaY<0?3:-3));
+},{passive:false});
 display.addEventListener('touchstart',e=>{dragY=e.touches[0].clientY;dragOff=viewOff;dragged=false;},{passive:true});
 display.addEventListener('touchmove',e=>{
   if(dragY===null)return;
   const dy=(e.touches[0].clientY-dragY)/lineHeight();
-  if(Math.abs(dy)>0.5){dragged=true;e.preventDefault();scrollTo(dragOff+dy);}
+  if(Math.abs(dy)>0.5){dragged=true;e.preventDefault();if(streamOn!==2)scrollTo(dragOff+dy);}
 },{passive:false});
-display.addEventListener('touchend',()=>{dragY=null;setTimeout(()=>dragged=false,50);});
+display.addEventListener('touchend',e=>{
+  if(streamOn===2&&dragged&&dragY!==null){
+    const dy=(e.changedTouches[0].clientY-dragY)/lineHeight();
+    if(Math.abs(dy)>2)streamKey(dy>0?'b':' ');
+  }
+  dragY=null;setTimeout(()=>dragged=false,50);
+});
 capture.addEventListener('beforeinput',e=>{
   if(e.inputType==='insertParagraph'||e.inputType==='insertLineBreak'){e.preventDefault();submit();}
 });

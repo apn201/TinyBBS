@@ -11,6 +11,9 @@ static bool streaming(const Session &s) {
   for (const auto &j : s.jobs) if (j.paced) return true;
   return false;
 }
+// Key mode for the browser: 0 = line input, 1 = a file is streaming (keys skip
+// or pause it), 2 = the text pager (every key goes to the board at once).
+static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == FILE_PAGER ? 2 : 0; }
 static bool outputDone(const Session &s) { return s.jobs.empty() && !s.pending.length() && !s.output.length(); }
 
 // Append up to `want` bytes of the job's file to `out`. Returns true when the

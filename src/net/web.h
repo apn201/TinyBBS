@@ -59,7 +59,7 @@ static void sendTerminalOutput(AsyncWebServerRequest *r, Session &s) {
   else res = r->beginResponse(204);
   res->addHeader("Cache-Control", "no-store");
   res->addHeader("X-BBS-Password", s.hideInput ? "1" : "0");
-  res->addHeader("X-BBS-Stream", streaming(s) ? "1" : "0");
+  res->addHeader("X-BBS-Stream", String(keyMode(s)));
   r->send(res);
   if (s.state == GOODBYE && outputDone(s)) closeSession(s);
 }
@@ -170,7 +170,7 @@ static void tickWebSocket() {
       if (!ws.hasClient(s.wsClient)) { s.wsClient = 0; continue; }
       s.lastPoll = now;
       if (s.wsSecret != (int8_t)s.hideInput) { outgoing.push_back({s.wsClient, s.hideInput ? "p1" : "p0"}); s.wsSecret = s.hideInput; }
-      if (s.wsStream != (int8_t)streaming(s)) { outgoing.push_back({s.wsClient, streaming(s) ? "s1" : "s0"}); s.wsStream = streaming(s); }
+      if (s.wsStream != (int8_t)keyMode(s)) { s.wsStream = keyMode(s); outgoing.push_back({s.wsClient, "s" + String(s.wsStream)}); }
       if (s.output.length() && (s.output.length() >= 512 || now - s.sentAt >= 40) && ws.availableForWrite(s.wsClient)) { outgoing.push_back({s.wsClient, "o" + s.output}); s.output = ""; s.sentAt = now; }
       if (s.state == GOODBYE && outputDone(s)) closeSession(s);
     }
