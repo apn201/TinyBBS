@@ -14,9 +14,20 @@ static const char *MODEM_AUDIO = "/BBS/ASSETS/DIALUP.MP3";
 
 Arduino_DataBus *lcdBus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCLK, LCD_MOSI, GFX_NOT_DEFINED);
 Arduino_GFX *gfx = new Arduino_ST7735(lcdBus, LCD_RST, 0, true, 80, 160, 26, 1, 26, 1);
-WebServer http(80);
+AsyncWebServer http(80);
+AsyncWebSocket ws("/ws");
 DNSServer dns;
 WiFiServer telnet(23);
 static bool sdReady = false;
 static uint32_t bootAt = 0, callers = 0, nextUserId = 1, nextMessageId = 1;
 static String storageFault;
+
+// The async web server runs its handlers in its own task. Anything that
+// touches sessions, users or the SD card holds this lock.
+static SemaphoreHandle_t bbsMutex = nullptr;  // created first thing in setup()
+struct BbsLock {
+  BbsLock() { xSemaphoreTakeRecursive(bbsMutex, portMAX_DELAY); }
+  ~BbsLock() { xSemaphoreGiveRecursive(bbsMutex); }
+};
+// WebSocket clients to hang up after the lock is released.
+static std::vector<uint32_t> wsHangups;

@@ -114,6 +114,29 @@ Done when: lock the phone for 30 seconds in the middle of a door game,
 unlock, and the game continues on the same node. Lock it for over three
 minutes and the page shows NO CARRIER and the node is free again.
 
+### Slice 2b: ANSI at modem speed instead of pages
+
+On a real board nobody paged through an ANSI. It arrived at modem speed and
+scrolled past while it was drawn. Do the same: tall ANSI and text files are
+sent at an emulated line speed (`baud=` in `SYSTEM.INI`, for example 28800)
+and the terminal scrolls by itself. This works the same on Telnet, because
+any terminal scrolls when text arrives slowly. ANSI animations that use cursor
+movement play as intended.
+
+- The file streams from the SD card as the output drains, so a file of any
+  size works with the 14 KB output buffer.
+- Any key stops the scroll and drops to the prompt. Space pauses and resumes.
+  A one-minute visitor must never be stuck in a long file.
+- The browser terminal gets a scrollback buffer, so a finished ANSI can be
+  scrolled back up with a finger or the mouse wheel. Telnet users use their
+  own client's scrollback.
+- The old page-by-page viewer stays only for long plain text where reading
+  at your own pace matters, if it turns out to be needed.
+
+Done when: a tall multi-screen ANSI scrolls smoothly at the set speed in the
+browser and in PuTTY, a key press stops it at once, and in the browser the
+whole picture can be scrolled back after it finishes.
+
 ### Slice 3: real INI reader and SD-driven board settings
 
 One INI reader that understands `[SECTION]` headers, used everywhere.

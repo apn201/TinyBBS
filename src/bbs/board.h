@@ -92,6 +92,7 @@ static void closeSession(Session &s) {
   trace("SESSION_CLOSE", String("node ") + s.node + " " + (s.user.handle.length() ? s.user.handle : "anonymous"));
   event("LOGOFF", s.user.handle.length() ? s.user.handle : "anonymous");
   if (s.socket) s.socket.stop();
+  if (s.wsClient) wsHangups.push_back(s.wsClient);
   s = Session();
 }
 static Session *allocate(bool web, WiFiClient incoming = WiFiClient()) {

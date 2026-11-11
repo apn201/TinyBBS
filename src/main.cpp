@@ -4,7 +4,7 @@
 */
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
 #include <FS.h>
 #include <SD_MMC.h>
@@ -13,6 +13,7 @@
 #include <esp_wifi.h>
 #include <mbedtls/sha256.h>
 #include <memory>
+#include <vector>
 #include "hw/scene_logo.h"
 #include "net/web_terminal.h"
 #include "bbs/cp437.h"
@@ -44,6 +45,7 @@
 #include "hw/lcd.h"
 
 void setup() {
+  bbsMutex = xSemaphoreCreateRecursiveMutex();
   pinMode(UI_BOOT_PIN, INPUT_PULLUP); Serial.begin(115200); delay(100); bootAt = millis(); trace("BOOT", String("reset_reason=") + (int)esp_reset_reason()); gfx->begin(); gfx->setRotation(1); drawLcdLogo(); lcdText(4, 64, "TINYBBS BOOTING", 0xFE66);
   SD_MMC.setPins(SD_CLK, SD_CMD, SD_D0); sdReady = SD_MMC.begin("/sdcard", true);
   if (sdReady && prepareStorage()) { userCounters(); messageCounters(); }
@@ -58,19 +60,26 @@ void setup() {
                    config("/BBS/CONFIG/NETWORK.INI", "channel", "1").toInt(), false, apClients))
     trace("AP_FAIL", "could not start access point");
   dns.start(53, "*", WiFi.softAPIP());
-  http.on("/", HTTP_GET, root); http.on("/api/out", HTTP_GET, apiOut); http.on("/api/in", HTTP_POST, apiIn); http.on("/download", HTTP_GET, downloadFile);
-  http.on("/api/connect", HTTP_POST, apiConnect);
-  http.on("/api/hangup", HTTP_POST, apiHangup);
-  http.on("/status", HTTP_GET, status); http.on("/modem.mp3", HTTP_GET, modemAudio); http.onNotFound(notFound); http.begin(); telnet.begin(); event("BOOT", "TinyBBS started"); trace("NETWORK_READY", WiFi.softAPIP().toString());
+  startWeb();
+  telnet.begin(); event("BOOT", "TinyBBS started"); trace("NETWORK_READY", WiFi.softAPIP().toString());
 }
 void loop() {
-  dns.processNextRequest(); http.handleClient(); tickTelnet();
-  uint32_t now = millis();
-  for (auto &s : sessions) {
-    if (!s.used) continue;
-    uint32_t idleLimit = s.authenticated ? 30UL * 60UL * 1000UL : LOGIN_TIMEOUT_MS;
-    if (now - s.lastAt >= idleLimit || (s.web && now - s.lastPoll >= WEB_CARRIER_TIMEOUT_MS))
-      closeSession(s);
+  dns.processNextRequest();
+  {
+    BbsLock lock;
+    tickTelnet();
+    uint32_t now = millis();
+    for (auto &s : sessions) {
+      if (!s.used) continue;
+      uint32_t idleLimit = s.authenticated ? 30UL * 60UL * 1000UL : LOGIN_TIMEOUT_MS;
+      if (now - s.lastAt >= idleLimit || (s.web && now - s.lastPoll >= WEB_CARRIER_TIMEOUT_MS))
+        closeSession(s);
+    }
   }
-  drawLcd();
+  tickWebSocket();
+  {
+    BbsLock lock;
+    drawLcd();
+  }
+  delay(1);
 }

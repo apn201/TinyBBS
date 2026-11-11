@@ -46,6 +46,8 @@ struct Session {
   bool mudEnemyDefeated = false;
   uint32_t connectedAt = 0, lastAt = 0, lastRead = 0;
   uint32_t lastPoll = 0;
+  uint32_t wsClient = 0;  // live WebSocket for a browser node, 0 = polling
+  int8_t wsSecret = -1;   // password masking state last sent over the socket
   bool authenticated = false;
   uint8_t telnetState = 0;
 };

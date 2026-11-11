@@ -173,7 +173,49 @@ function repaint(){
     capture.style.top=(y/rows*100)+'%';
   });
 }
+// Carrier: a WebSocket when it opens, HTTP polling until then and as fallback.
+let sock=null,sockReady=false,sockTries=0,held=[];
+function connectText(){return sockReady?'KOUVOSTO // CONNECT 28800/ARQ':'KOUVOSTO // CONNECT 2400';}
+function frameIn(d){
+  const k=d[0],v=d.slice(1);
+  if(k==='o')render(v);
+  else if(k==='p'){secret=v==='1';repaint();}
+  else if(k==='x')lost('KOUVOSTO // NO CARRIER');
+}
+function flushPending(){
+  if(!sockReady||pending===null)return;
+  sock.send('k'+pending+'\r');pending=null;enter.disabled=false;
+}
+function dropSocket(){
+  if(!sock)return;
+  const s=sock;sock=null;sockReady=false;
+  s.onclose=s.onmessage=s.onerror=null;
+  try{s.close();}catch{}
+}
+function openSocket(){
+  if(!connected||sock||!window.WebSocket)return;
+  let s;
+  try{s=new WebSocket('ws://'+location.host+'/ws');}catch{return;}
+  sock=s;
+  const giveUp=setTimeout(()=>{if(!sockReady)s.close();},4000);
+  s.onopen=()=>{
+    clearTimeout(giveUp);
+    s.send('a'+node+':'+token);
+    sockReady=true;sockTries=0;clearTimeout(timer);
+    carrier.textContent=connectText();
+    if(!busy)flushPending();
+  };
+  s.onmessage=e=>{if(busy)held.push(e.data);else frameIn(e.data);};
+  s.onclose=()=>{
+    clearTimeout(giveUp);
+    const was=sockReady;sock=null;sockReady=false;
+    if(!connected)return;
+    carrier.textContent=connectText();wake(0);
+    if(++sockTries<=3)setTimeout(openSocket,was?1000:5000);
+  };
+}
 function lost(message){
+  dropSocket();held=[];
   connected=false;pending=null;clearTimeout(timer);
   carrier.textContent=message;dial.disabled=false;enter.disabled=back.disabled=true;
   capture.textContent='';capture.blur();repaint();
@@ -191,7 +233,7 @@ function wake(delay){
   if(connected)timer=setTimeout(exchange,delay);
 }
 async function exchange(){
-  if(busy||!connected)return;
+  if(busy||!connected||sockReady)return;
   busy=true;
   const line=pending;
   pending=null;
@@ -204,8 +246,8 @@ async function exchange(){
     if(response.status===404){lost('KOUVOSTO // NO CARRIER');return;}
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
     failures=0;
-    carrier.textContent='KOUVOSTO // CONNECT';
-    secret=response.secret;
+    carrier.textContent=connectText();
+    if(!sockReady)secret=response.secret;
     if(response.text)render(response.text);
   }catch{
     if(++failures>=3){lost('KOUVOSTO // LINK LOST');return;}
@@ -213,7 +255,9 @@ async function exchange(){
     delay=950;
   }finally{
     busy=false;
-    if(connected){enter.disabled=pending!==null;wake(pending!==null?0:delay);}
+    const queued=held;held=[];queued.forEach(frameIn);
+    if(connected&&sockReady)flushPending();
+    else if(connected){enter.disabled=pending!==null;wake(pending!==null?0:delay);}
   }
 }
 function focusTerminal(){if(connected)capture.focus({preventScroll:true});}
@@ -225,7 +269,9 @@ if(window.visualViewport){
 function submit(){
   if(!connected||pending!==null)return;
   pending=(capture.textContent||'').replace(/[\r\n]/g,'').slice(0,900);
-  capture.textContent='';enter.disabled=true;
+  capture.textContent='';
+  if(sockReady&&!busy){flushPending();repaint();return;}
+  enter.disabled=true;
   repaint();if(!busy)wake(0);
 }
 dial.onclick=async()=>{
@@ -234,9 +280,9 @@ dial.onclick=async()=>{
     const response=await request('/api/connect',{method:'POST'});
     if(response.status!==200){lost(response.status===503?'KOUVOSTO // ALL NODES BUSY':'KOUVOSTO // NO CARRIER');return;}
     ({node,token}=JSON.parse(response.text));
-    clear();move(0,0);partial='';fg=7;bg=0;bright=reverse=secret=false;failures=0;
+    clear();move(0,0);partial='';fg=7;bg=0;bright=reverse=secret=false;failures=0;sockTries=0;held=[];
     connected=true;enter.disabled=back.disabled=false;
-    carrier.textContent='KOUVOSTO // CONNECT';focusTerminal();wake(0);repaint();
+    carrier.textContent=connectText();focusTerminal();wake(0);openSocket();repaint();
   }catch{lost('KOUVOSTO // LINK ERROR');}
 };
 display.addEventListener('click',focusTerminal);
