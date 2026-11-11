@@ -8,3 +8,6 @@ sd/BBS/TEMP/
 sd/BBS/UPLOADS/
 # Curated/downloadable BBS file areas are kept off the source repository.
 sd/BBS/FILES/
+
+# TinyIRC, the first iteration, lives in its own repository.
+reference/

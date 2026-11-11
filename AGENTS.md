@@ -17,8 +17,9 @@ core, not separate applications.
 ## Current implementation
 
 - Firmware entry point: `src/main.cpp`.
-- Build definition: `platformio.ini` for `esp32-s3-devkitc-1`.
-- Frozen hardware reference: `reference/TinyIRC_2.ino`; preserve it unchanged.
+- Build definition: `platformio.ini` for `esp32-s3-devkitc1-n16r8`.
+- Hardware reference: TinyIRC, kept in its own repository. A local copy may
+  sit in the git-ignored `reference/` folder; do not modify it.
 - SD-card source content: `sd/BBS/`.
 - SD-card preparation helper: `tools/prepare-sd.ps1`.
 - `TinyBBS_SD_CARD_EMPTY_TREE.zip` is the supplied complete empty card tree.

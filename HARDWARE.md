@@ -1,6 +1,6 @@
 # Hardware contract
 
-TinyBBS uses the ESP32-S3 layout proven by `reference/TinyIRC_2.ino`. The
+TinyBBS uses the ESP32-S3 layout proven by TinyIRC, the earlier sketch. The
 firmware in `src/main.cpp` uses the same assignments. Treat these pins as a
 contract. Changing them means making and testing a different hardware build.
 
@@ -8,8 +8,8 @@ contract. Changing them means making and testing a different hardware build.
 
 | Item | Current target |
 | --- | --- |
-| Development board | Espressif ESP32-S3-DevKitC-1 (`esp32-s3-devkitc-1`) |
-| Configured board profile | ESP32-S3-DevKitC-1-N8, 8 MB flash, no PSRAM |
+| Development board | Espressif ESP32-S3-DevKitC-1-N16R8V |
+| Configured board profile | `esp32-s3-devkitc1-n16r8`, 16 MB flash, 8 MB PSRAM |
 | Framework | Arduino on the Espressif32 PlatformIO platform |
 | Display | ST7735 colour TFT, native 80x160 pixels |
 | Storage | microSD card over SD_MMC in 1-bit mode |
@@ -17,10 +17,10 @@ contract. Changing them means making and testing a different hardware build.
 | Network | Isolated 2.4 GHz WiFi soft AP |
 | Caller transports | HTTP browser terminal on port 80, Telnet on port 23 |
 
-The PlatformIO board definition resolves to the N8, no-PSRAM profile above.
-Check the module fitted to the physical DevKitC-1 before changing memory or
-flash settings. If it differs, change the PlatformIO board configuration and
-rebuild. Do not assume an arbitrary DevKitC-1 has PSRAM.
+The connected board reported 16 MB flash and 8 MB embedded PSRAM during the
+2026-11-11 flash. The PlatformIO board definition matches that N16R8V module.
+Check a replacement board before changing memory or flash settings. Do not
+assume an arbitrary DevKitC-1 has PSRAM.
 
 ## Pin map
 
@@ -123,5 +123,5 @@ the physical board:
 5. Confirm both callers appear in WHO and can exchange chat or messages.
 6. Reset and confirm the account and posted message are still present.
 
-Keep `reference/TinyIRC_2.ino` unchanged during this work. It is the fallback
-hardware reference if a wiring or display regression appears.
+TinyIRC, kept in its own repository, is the fallback hardware reference if a
+wiring or display regression appears.

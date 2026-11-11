@@ -1,148 +1,240 @@
 # TinyBBS
 
-TinyBBS is a local, offline-first BBS for an ESP32-S3. It creates its own WiFi
-network. A phone can open `192.168.4.1` in a browser and use an ANSI terminal.
-A terminal program can connect to the same board over Telnet on port 23.
-
-The browser and Telnet are two ways into the same BBS. They use one shared
-node pool, see the same caller list, chat, messages and SysOp pages. This is
-not a web dashboard with a retro skin on it.
+A 1990s-style BBS running on a $10 ESP32-S3 board. No Internet, no modem, no
+phone line. The board makes its own WiFi network and you call it from a phone
+browser or a Telnet client.
 
 The working board name is Kouvosto.
 
-## Current state
+## Why
 
-The first vertical slice is in the repository. It has:
+This is an experiment on what can be done with a $10 ESP32 board with no
+GPIO. The first iteration was TinyIRC, a local IRC server. Now it is a local
+BBS, completely isolated from the Internet.
 
-- isolated WiFi AP with captive DNS, HTTP on port 80 and Telnet on port 23;
-- eight shared browser and Telnet BBS nodes;
-- browser terminal using HTTP polling and a real Telnet terminal path;
-- account creation, returning logins, salted SHA-256 password records and
-  persistent user records on SD;
-- public and private messages, conferences, chat, WHO, SysOp page, caller
-  and event logs, and a small LCD status screen;
-- editable ANSI, ASCII, bulletin and configuration files on the SD card;
-- browser-side modem audio after an explicit user click;
-- paged ANSI and text viewing, and a browser-only download route for listed
-  files that checks the current quota and ratio fields;
-- separate native Legend of Kouvola and VolaMUD doors with persistent game
-  data.
+I tried sticking it to a USB charger and plugging it in the toilet of a bar,
+creating the SSID. Nobody joined.
 
-The browser transport is still polling. WebSocket reconnect, upload and
-approval flow, Telnet transfer protocols, QWK, a general door framework and
-AP plus station mode are not complete. The browser download route is not a
-complete file-transfer subsystem and has not been profiled on physical
-hardware.
+It is a nod to my history with BBSes before the Internet. The board only
+contains some example content, but it should show how advanced and arty the
+scene already was in the 1990s. Maybe even more than now.
 
-The eight-node ceiling is a conservative firmware limit. It has not yet been
-validated with eight active callers on the target board.
+Language was rough, art was questionable, rules were not yet made and sysops
+were dickheads. Yet it was still mostly more civil than today's social media.
+And people discussed important things, like religion and UFO cow mutilations.
 
-## Hardware and software
+In the secret sections bad scans from Playboy were shared, and images drawn
+by Hajime Sorayama. Text files often contained "secret documents" from CIA
+projects, UFO reports, song lyrics and so on.
 
-The target is `esp32-s3-devkitc-1` with an ST7735 display and a FAT32 SD card.
-The pin contract is fixed from the earlier TinyIRC build. Read
-[`HARDWARE.md`](HARDWARE.md) before changing any wiring.
+It was not the Internet, but almost. You could download shareware and PD
+games, device drivers etc. And play door games like LORD.
 
-Firmware entry point: `src/main.cpp`.
+TinyBBS has the same parts in small: ANSI screens, message conferences, a
+back room for trusted callers, file areas with ratios, a SysOp who can lock
+you out, and two door games. Browser and Telnet callers are on the same
+board at the same time and see each other in WHO and chat.
 
-Frozen reference: `reference/TinyIRC_2.ino`. Do not modify it.
+## What it does now
 
-Build definitions: `platformio.ini`, `platformio.flash.ini` and
-`platformio.mp.ini`.
+- Opens an open WiFi access point, `THE_BOARD` by default. Phones get a
+  captive portal that lands on the terminal.
+- Browser terminal at `http://192.168.4.1`: press DIAL, get a node.
+- Telnet on port 23 for PuTTY, SyncTERM and friends. 80 columns.
+- Eight nodes, shared by browser and Telnet callers.
+- New-user signup, logins, security levels and flags.
+- Public and private messages in four conferences, one of them invite-only
+  and one for the SysOp.
+- Multi-node chat, WHO, page the SysOp, bulletins, ANSI gallery.
+- File areas with paged ANSI and text viewing, and browser downloads that
+  check quota and ratio.
+- SysOp user editor in the terminal.
+- Two native doors: Legend of Kouvola and VolaMUD.
+- Optional dial-up sound in the browser, after you click for it.
+- A small LCD on the board shows the logo, SD state, IP and the last caller.
 
-The firmware uses the Arduino ESP32 framework and Arduino GFX Library. The
-browser page, terminal renderer and most presentation assets are compiled
-into firmware or copied from the SD source tree. BBS content and state belong
-on the card.
+## Technical details
 
-## Start here
+### Hardware
 
-1. Install PlatformIO with the ESP32 platform and Arduino GFX Library
-   available. A host build is not a hardware or flash confirmation.
-2. Build and flash with `pio run -t upload`, or use
-   `tools\\build-platformio.cmd` on the development PC.
-3. Prepare a FAT32 SD card. Extract `TinyBBS_SD_CARD_EMPTY_TREE.zip` to the
-   card root, then copy the repository `sd/BBS` tree into the card's `BBS`
-   directory. Existing board data needs care. Do not overwrite it casually.
-4. For a presentation-only update, run:
+| Part | Detail |
+| --- | --- |
+| MCU | ESP32-S3, board profile `esp32-s3-devkitc1-n16r8` (16 MB flash, 8 MB PSRAM) |
+| Display | ST7735, 80x160 native, used as 160x80 landscape |
+| Storage | microSD over SD_MMC, 1-bit mode, FAT32 |
+| Input | BOOT button only |
+| Network | 2.4 GHz soft AP, channel 1 by default |
+| Power | USB |
+
+Nothing else is attached. No modem, no keyboard, no audio out. Pins and
+display offsets are in [`HARDWARE.md`](HARDWARE.md).
+
+### Firmware layout
+
+The firmware is Arduino on ESP32, one main file of about 2000 lines:
+
+| File | Contents |
+| --- | --- |
+| `src/main.cpp` | BBS core, storage, doors, HTTP and Telnet transports, LCD |
+| `src/web_terminal.h` | The browser terminal page, compiled into flash |
+| `src/file_viewer.h` | CP437 to UTF-8 conversion for archive ANSI |
+| `src/scene_logo.h` | LCD splash logo as DOS palette indexes |
+
+Libraries: Arduino GFX Library, the core `WebServer`, `DNSServer`, `SD_MMC`
+and mbedTLS for SHA-256. There are no extra RTOS tasks. `loop()` serves DNS,
+serves HTTP, polls Telnet, expires idle sessions and refreshes the LCD once a
+second.
+
+### One BBS, two transports
+
+The core does not know how a caller connected. There is a fixed pool of
+eight `Session` structs. Each has a state machine (about 40 states, from
+login prompt to door combat), an input line and an output buffer capped at
+14 KB. A transport only pushes bytes into `input()` and drains the output
+buffer.
+
+- **Telnet** uses a `WiFiServer` on port 23. A small IAC state machine strips
+  option negotiation and answers WILL and DO with refusals, except ECHO and
+  SUPPRESS-GO-AHEAD. CR, LF and CRLF all end a line, so PuTTY and raw
+  clients behave the same.
+- **Browser** loads one page from flash. It draws an 80x25 terminal on a
+  640x400 canvas with 8x16 cells, the 16-colour DOS palette and an ANSI
+  parser in JavaScript. The carrier is plain HTTP polling: `POST
+  /api/connect` returns a node number and a random token, `GET /api/out`
+  drains output (204 when there is nothing), `POST /api/in` sends keys.
+  An `X-BBS-Password` header tells the page to hide input while a password
+  is typed. WebSocket transport is not done yet.
+
+Because both sides share the same session pool, a Telnet caller and a phone
+caller can chat, duel in the door game and see each other in WHO.
+
+Timeouts: two minutes at the login prompt, three minutes for a browser that
+stops polling, 30 minutes idle after login.
+
+### Captive portal
+
+A `DNSServer` answers every name with the AP address and any unknown HTTP
+path redirects to `/`. Phones detect the portal and open the terminal
+without the caller typing an address.
+
+### Storage
+
+Everything lives as plain text on the FAT32 card under `/BBS`, so the SysOp
+can open it on a PC.
+
+- Users and messages are pipe-delimited lines with escaping.
+  `USERS/USERS.DAT` and `MSGS/MESSAGES.DAT` under `/BBS/DATA`.
+- Messages are append-only.
+- User updates and door saves are written to a `.NEW` file first and then
+  swapped in, with a `.BAK` for recovery.
+- Per-user last-read pointers are small files in `DATA/STATE`.
+- Passwords are salted SHA-256. The salt comes from the hardware RNG.
+- There is no real-time clock and the board never sees NTP, so timestamps are
+  uptime, `UP hh:mm:ss`.
+- ANSI screens, bulletins, menus, config and the modem sound are all files
+  on the card. Change the look without reflashing.
+- The firmware creates its runtime folders if they are missing. It never
+  formats the card.
+
+Archive ANSI is CP437. The server converts it to UTF-8 for both transports,
+so box drawing and shading survive in a modern Telnet client and in the
+browser.
+
+### Doors
+
+**Legend of Kouvola** is a daily-turn style RPG written for TinyBBS: forest
+fights, tavern rumours, bank, weapon and armour shop, dice, a leaderboard,
+and live duels between two callers on different nodes. There is no clock, so
+when forest fights run out you ask the SysOp for more. It does not run or
+include the original LORD.
+
+**VolaMUD** is a small room-based MUD with persistent characters, shared
+rooms, movement, room chat and a training fight. The world is a C++ port of
+the GoMud tutorial zone. See [`VOLA_MUD.md`](VOLA_MUD.md) and
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+### LCD
+
+The 160x80 screen draws the Kouvosto logo from palette-indexed rows, then
+three status lines: SD state and node count, AP IP address and the latest
+caller or page.
+
+## Getting started
+
+1. Install PlatformIO with the Espressif32 platform.
+2. Build and flash: `pio run -t upload`. On Windows,
+   `tools\build-platformio.cmd` does the same.
+3. Format a microSD card as FAT32. Extract `TinyBBS_SD_CARD_EMPTY_TREE.zip`
+   to the card root, then copy this repository's `sd/BBS` into the card's
+   `BBS` folder. Or run:
 
    ```powershell
-   .\prepare-sd.ps1 -CardRoot X:\ -PresentationOnly
+   .\tools\prepare-sd.ps1 -CardRoot X:\
    ```
 
-   Without `-PresentationOnly`, the script copies the whole repository
-   `sd/BBS` tree. It does not format the card.
-5. Insert the card and power the board. The default AP is `THE_BOARD` on
-   channel 1 with no password. Browse to `http://192.168.4.1` and press DIAL,
-   or connect a Telnet client to `192.168.4.1:23` with an 80-column terminal.
-6. Create the first account. A handle named `SYSOP` becomes the bootstrap
-   level-255 SysOp while no SysOp record exists. Change that password after
-   the first login.
+   Add `-PresentationOnly` to update only screens and config on a card that
+   already has users and messages. The script does not format the card.
+4. Insert the card and power the board from USB.
+5. Join `THE_BOARD`. Press DIAL in the browser, or Telnet to
+   `192.168.4.1:23`.
+6. Create a user named `SYSOP` first. While no SysOp exists, that handle
+   becomes the level-255 SysOp. Change its password.
 
-`sd/BBS/CONFIG/NETWORK.INI` controls the AP name, password, channel and WiFi
-client limit. `mode=ap_sta` is reserved only. Version 0.1 always starts an
-isolated AP and never joins an upstream network.
+AP name, password, channel and WiFi client limit are in
+`sd/BBS/CONFIG/NETWORK.INI`. Board name and default levels are in
+`SYSTEM.INI` next to it.
 
 ## SD card layout
 
-`sd/BBS` is the source tree to place under `/BBS` on the card.
-
 | Path | Purpose |
 | --- | --- |
-| `/BBS/ANSI`, `/BBS/ASCII`, `/BBS/BULLETINS`, `/BBS/ASSETS` | Replaceable caller-facing presentation and modem audio |
-| `/BBS/CONFIG` | Board and content configuration |
-| `/BBS/FILES` | Curated downloadable archive areas |
-| `/BBS/DATA` | Runtime users, messages, door state and indexes |
+| `/BBS/ANSI`, `/BBS/ASCII`, `/BBS/BULLETINS`, `/BBS/ASSETS` | Screens, art and modem audio |
+| `/BBS/CONFIG` | Board, conference, file area and network config |
+| `/BBS/FILES` | Downloadable file areas |
+| `/BBS/DATA` | Users, messages, door saves, indexes |
 | `/BBS/LOGS` | Caller and event logs |
-| `/BBS/TEMP` | Runtime temporary files |
-| `/BBS/UPLOADS` | Incoming material and staging |
+| `/BBS/TEMP`, `/BBS/UPLOADS` | Runtime temp and upload staging |
 
-Do not edit `/BBS/DATA`, `/BBS/LOGS`, `/BBS/TEMP` or `/BBS/QWK/WORK` by hand.
-Do not expose SD paths to callers. Archive rules and provenance are in
-[`CURATION.md`](CURATION.md).
+Do not edit `DATA`, `LOGS` or `TEMP` by hand while the board is in use.
+Callers never see SD paths.
 
-The repository intentionally ignores `sd/BBS/FILES`, generated runtime
-directories and PlatformIO build output. The archive stays on the SD card or
-in its own managed storage, not in the firmware source repository.
+The file archive itself is not in this repository. `sd/BBS/FILES` is ignored
+by git. Archive rules are in [`CURATION.md`](CURATION.md).
 
-## SysOp notes
+## SysOp
 
-At the main board, a level-255 account with the `SYSOP` flag can open the user
-editor with `USER`, or `Z` then `U`. The editor can list users, inspect one
-record, change security and flags, set quota, ratio or credits, lock or unlock
-an account, add an account and delete it with confirmation.
+A level-255 account with the `SYSOP` flag opens the user editor with `USER`
+or `Z` then `U`. It lists users and can change security level, flags, quota,
+ratio and credits, lock or unlock an account, add one, and delete one after
+confirmation.
 
-The controls are visible in the terminal. They are not a substitute for a
-finished approval queue or file-area manager.
+## Limits
 
-Legend of Kouvola is TinyBBS's own native door. It is inspired by daily-turn
-BBS RPG mechanics. It does not run, include or claim compatibility with an
-original LORD distribution.
+- The browser carrier is polling. WebSocket and reconnect are not done.
+- Uploads, the SysOp approval queue, Telnet file transfers (no ZMODEM yet)
+  and QWK are not done.
+- Eight nodes is a firmware limit. It has not been tested with eight real
+  callers on the board.
+- AP only. `mode=ap_sta` in `NETWORK.INI` is reserved and ignored. The board
+  does not join any other network.
 
-VolaMUD is a separate native room-based MUD door. It currently has persistent
-characters, a small shared room map, directional movement, room chat and
-presence. It is not a GoMud binary on the ESP32. See `VOLA_MUD.md` for its
-source and licensing boundary.
+More in [`ROADMAP.md`](ROADMAP.md). The full 1.0 target is in
+[`TinyBBS_READY_TO_CODE_SPEC.md`](TinyBBS_READY_TO_CODE_SPEC.md).
 
 ## Repository map
 
 | Path | Contents |
 | --- | --- |
-| `src/main.cpp` | Firmware, BBS core and both transports |
-| `reference/TinyIRC_2.ino` | Unchanged hardware baseline |
-| `sd/BBS` | SD-card source content and configuration |
-| `tools` | SD preparation and archive-curation helpers |
-| `TinyBBS_READY_TO_CODE_SPEC.md` | 1.0 target and acceptance criteria |
-| `ROADMAP.md` | Honest boundary of the current build |
-| `HARDWARE.md` | Wiring, display, SD and network contract |
+| `src/` | Firmware |
+| `sd/BBS/` | SD card content and config |
+| `tools/` | SD preparation and archive curation scripts |
+| `HARDWARE.md` | Pins, display, SD and network details |
+| `ROADMAP.md` | What is done and what is next |
 | `CURATION.md` | Archive and provenance policy |
+| `VOLA_MUD.md` | VolaMUD notes |
+| `TinyBBS_READY_TO_CODE_SPEC.md` | 1.0 specification |
 
-## Project boundaries
+## Credits
 
-TinyBBS is AP-only at present. It does not silently format a card, connect to
-an upstream WiFi network, or turn arbitrary caller input into filesystem
-paths. Keep presentation assets on SD. Keep the BBS core independent of its
-transport so a browser caller and a Telnet caller remain adjacent nodes.
-
-The 1.0 target is described in `TinyBBS_READY_TO_CODE_SPEC.md`. Do not call
-that target complete until its acceptance scenario has been run on hardware.
+Dial-up sound: [Oona Raisanen, "The sound of the dialup, pictured"](https://www.windytan.com/2012/11/the-sound-of-dialup-pictured.html).
+VolaMUD tutorial world: ported from [GoMud](https://github.com/GoMudEngine/GoMud), MIT.
