@@ -280,6 +280,11 @@ else's, the SysOp kills and edits anything, an edited message shows
 
 ### Slice 5: generated menus with SD art
 
+Built. `MENUS.INI` names each menu's art and the place in it (row, column,
+columns, width, rows) where the board writes the options; the old options
+were blanked out of the pictures. Main, messages, gallery and doors use it.
+The file menu lists its areas below `FILES.ANS`, since there can be many.
+
 Menus that list things become header art plus a generated list in matching
 colours: file areas, conferences, bulletins and doors. The art stays in the
 `.ANS` files on the card. The list comes from what actually exists and what

@@ -2,15 +2,36 @@
 // Message reading, menus, login and node allocation.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
+static bool sysopOnline(const Session &s) {
+  for (auto &n : sessions) if (n.used && &n != &s && isSysop(n)) return true;
+  return false;
+}
+// Only what works for this caller: no file cabinets without an open area, no
+// bulletins without one to read, no page when no SysOp is on.
 static void mainMenu(Session &s) {
   s.state = MAIN; activity(s, "MAIN MENU");
-  const char *fallback = "[M] Messages  [N] New scan   [C] Chat   [W] Who\r\n"
-                         "[F] Files     [A] Art        [D] Doors  [U] User list\r\n"
-                         "[B] Bulletins [J] Conference [P] Page   [S] System\r\n"
-                         "[?] Help      [G] Goodbye";
-  if (s.ansi) art(s, board.mainMenu.c_str(), fallback);
-  else say(s, fallback);
-  if (isSysop(s)) say(s, "\x1b[1;35m[Z]\x1b[0m SysOp console  \x1b[1;35m[USER]\x1b[0m User editor");
+  bool files = false, bulletins = false;
+  uint8_t areas = 0;
+  for (size_t i = 0; i < fileAreas.size(); ++i) files |= listedArea(s, i);
+  for (const auto &b : board.bulletins) bulletins |= canSee(s.user, b.level, b.flag);
+  for (const auto &c : board.conferences) if (canJoinConference(s.user, c.id)) areas++;
+  std::vector<MenuItem> items;
+  items.push_back({"M", "Message bases"});
+  items.push_back({"N", "New scan"});
+  if (files) items.push_back({"F", "File cabinets"});
+  items.push_back({"A", "ANSI gallery"});
+  items.push_back({"D", "Doors & games"});
+  items.push_back({"C", "Node chat"});
+  if (bulletins) items.push_back({"B", "Bulletins"});
+  if (areas > 1) items.push_back({"J", "Conferences"});
+  items.push_back({"W", "Who is online"});
+  if (sysopOnline(s)) items.push_back({"P", "Page SysOp"});
+  items.push_back({"U", "User list"});
+  items.push_back({"S", "System info"});
+  items.push_back({"?", "Help"});
+  items.push_back({"G", "Goodbye"});
+  if (isSysop(s)) items.push_back({"Z", "SysOp console", "\x1b[1;35m"});
+  showMenu(s, "MAIN", items, board.name + " // MAIN BOARD");
   prompt(s, "\x1b[1;33mMain Board Command? \x1b[0m");
 }
 // The gallery's G browses the first file area whose folder name has ANSI in it.
@@ -21,8 +42,12 @@ static int galleryArea(const Session &s) {
 static void ansiGallery(Session &s) {
   s.state = ANSI_GALLERY;
   activity(s, "ANSI GALLERY");
-  art(s, "/BBS/ANSI/MENUS/GALLERY.ANS", "[A] Login splash  [F] File cabinet  [Q] Main Board");
-  if (galleryArea(s) >= 0) say(s, "[G] Browse ANSI / ASCII files");
+  std::vector<MenuItem> items;
+  items.push_back({"A", "Kouvosto login splash"});
+  items.push_back({"F", "File cabinet screen"});
+  if (galleryArea(s) >= 0) items.push_back({"G", "Browse ANSI / ASCII files"});
+  items.push_back({"Q", "Main Board"});
+  showMenu(s, "GALLERY", items, "ANSI GALLERY");
   prompt(s, "Gallery command? ");
 }
 // FILES.ANS is the header art; the areas below it come from the card.
@@ -42,7 +67,15 @@ static void fileMenu(Session &s) {
   say(s, "  \x1b[1;33m[Q]\x1b[0m Main Board");
   prompt(s, "File area? ");
 }
-static void doorMenu(Session &s) { s.state = DOOR_MENU; activity(s, "DOORS & GAMES"); art(s, "/BBS/ANSI/MENUS/DOORS_V2.ANS"); prompt(s, "Door command? "); }
+// The door table (doors/doors.h) is the list: a new door shows up by itself.
+static void doorMenu(Session &s) {
+  s.state = DOOR_MENU; activity(s, "DOORS & GAMES");
+  std::vector<MenuItem> items;
+  for (const Door &d : DOORS) items.push_back({String(d.keys[0]), d.name});
+  items.push_back({"Q", "Main Board"});
+  showMenu(s, "DOORS", items, "DOORS & GAMES");
+  prompt(s, "Door command? ");
+}
 static void finishLogin(Session &s) {
   s.authenticated = true;
   // Older cards could already contain a SYSOP-named account created before

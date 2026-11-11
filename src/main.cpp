@@ -33,6 +33,7 @@
 #include "core/stream.h"
 #include "core/reader.h"
 #include "bbs/settings.h"
+#include "bbs/menus.h"
 #include "bbs/files.h"
 #include "doors/volamud.h"
 #include "doors/legend.h"

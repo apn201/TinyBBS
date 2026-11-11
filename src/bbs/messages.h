@@ -135,11 +135,18 @@ static void areaList(Session &s) {
 }
 static void messageArea(Session &s) {
   s.state = MSG_MENU; activity(s, "MESSAGES");
-  art(s, "/BBS/ANSI/MENUS/MESSAGES.ANS");
+  uint8_t areas = 0;
+  for (const auto &c : board.conferences) if (canJoinConference(s.user, c.id)) areas++;
+  std::vector<MenuItem> items;
+  items.push_back({"R", "Read / list"});
+  items.push_back({"N", "Read new"});
+  items.push_back({"P", "Post a message"});
+  if (areas > 1) items.push_back({"A", "Change area"});
+  items.push_back({"Q", "Main Board"});
+  showMenu(s, "MESSAGES", items, "MESSAGE BASES");
   uint32_t total, fresh;
   areaCounts(s, s.conference, total, fresh);
   say(s, "\x1b[1;36mArea: " + confName(s.conference) + "\x1b[0m  " + total + " messages, " + fresh + " new");
-  say(s, "[R] Read / list  [N] Read new  [P] Post  [A] Change area  [Q] Main board");
   prompt(s, "Message command? ");
 }
 // The last 20 headers of the area, new ones marked.

@@ -1,11 +1,19 @@
 #pragma once
-// Board settings from the SD card: SYSTEM.INI, CONFERENCES.INI, BULLETINS.INI.
+// Board settings from the SD card: SYSTEM.INI, CONFERENCES.INI, BULLETINS.INI,
+// MENUS.INI.
 // Read at boot and again with the SysOp RELOAD command.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
 struct Conference { uint8_t id = 0; String name, description, flag; uint8_t level = 0; };
 // A bulletin is an art file (path=) or a quick line of text (text=, | breaks lines).
 struct Bulletin { String title, path, text, flag; uint8_t level = 0; bool mandatory = false; };
+// A menu from MENUS.INI: header art, and where in it the generated options go.
+// rows = 0 puts the options below the art instead.
+struct MenuLayout {
+  String name, art;
+  uint8_t row = 0, col = 3, columns = 1, width = 26, rows = 0;
+  uint8_t height = 0;  // lines in the art: the prompt goes below them
+};
 struct BoardSettings {
   String name = "KOUVOSTO BBS", location, sysop = "SYSOP";
   uint8_t maxNodes = MAX_NODES, newUserLevel = 20;
@@ -15,8 +23,22 @@ struct BoardSettings {
   String goodbye = "/BBS/ANSI/GOODBYE/GOODBYE.ANS";
   std::vector<Conference> conferences;
   std::vector<Bulletin> bulletins;
+  std::vector<MenuLayout> menus;
 };
 static BoardSettings board;
+static const MenuLayout *findMenu(const String &name) {
+  for (const auto &m : board.menus) if (m.name == name) return &m;
+  return nullptr;
+}
+static uint8_t artHeight(const String &path) {
+  File f = sdReady ? SD_MMC.open(path, FILE_READ) : File();
+  if (!f) return 0;
+  uint16_t lines = 0;
+  uint8_t buf[256];
+  while (f.available()) { size_t n = f.read(buf, sizeof(buf)); for (size_t i = 0; i < n; ++i) if (buf[i] == '\n') lines++; }
+  f.close();
+  return min<uint16_t>(lines, 24);
+}
 
 // Paths in the INI files are relative to /BBS. Anything climbing out is ignored.
 static String boardPath(String p, const String &fallback) {
@@ -80,6 +102,21 @@ static String loadSettings() {
       bl.level = iniLevel(ini, sec);
       bl.mandatory = iniGet(ini, sec, "mandatory", "0").toInt() != 0;
       b.bulletins.push_back(bl);
+    }
+  }
+  if (iniLoad("/BBS/CONFIG/MENUS.INI", ini)) {
+    for (const auto &sec : iniSections(ini)) {
+      MenuLayout m;
+      m.name = up(sec);
+      m.art = boardPath(iniGet(ini, sec, "art"), m.name == "MAIN" ? b.mainMenu : String());
+      m.row = constrain(iniGet(ini, sec, "row", "0").toInt(), 0L, 24L);
+      m.col = constrain(iniGet(ini, sec, "col", "3").toInt(), 1L, 80L);
+      m.columns = constrain(iniGet(ini, sec, "columns", "1").toInt(), 1L, 4L);
+      m.width = constrain(iniGet(ini, sec, "width", "26").toInt(), 8L, 80L);
+      m.rows = constrain(iniGet(ini, sec, "rows", "0").toInt(), 0L, 24L);
+      if (!m.row) m.rows = 0;
+      m.height = artHeight(m.art);
+      b.menus.push_back(m);
     }
   }
   board = b;

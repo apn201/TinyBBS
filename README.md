@@ -255,6 +255,9 @@ Settings live in `sd/BBS/CONFIG`, each file explained in its comments:
 - `CONFERENCES.INI`: message bases with their security level and flag.
 - `BULLETINS.INI`: bulletins, and which ones are shown at every login.
 - `NETWORK.INI`: SSID, password, channel, Telnet port.
+- `MENUS.INI`: the art for each menu and where in it the options go. The
+  options themselves are generated: only what exists and what the caller may
+  use is listed, so a new door or file area shows up without editing ANSI.
 - `FILES/<area>/AREA.INI`: name, level, flag and downloads for one file
   area. Optional.
 
