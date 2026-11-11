@@ -238,3 +238,8 @@ More in [`ROADMAP.md`](ROADMAP.md). The full 1.0 target is in
 
 Dial-up sound: [Oona Raisanen, "The sound of the dialup, pictured"](https://www.windytan.com/2012/11/the-sound-of-dialup-pictured.html).
 VolaMUD tutorial world: ported from [GoMud](https://github.com/GoMudEngine/GoMud), MIT.
+
+## Licence
+
+MIT, see [`LICENSE`](LICENSE). The dial-up sound in `sd/BBS/ASSETS` is not
+covered by it and belongs to its author.
