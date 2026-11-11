@@ -2,7 +2,7 @@
 // Caller state machine, node pool and output helpers.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-enum State : uint8_t { DEAD, LOGIN_CHOICE, LOGIN_HANDLE, LOGIN_PASSWORD, NEW_HANDLE, NEW_PASSWORD, NEW_REAL, NEW_LOCATION, BULLETIN, MAIN, USER_LIST, MSG_MENU, MSG_READ, POST_TO, POST_SUBJECT, POST_BODY, JOIN_CONF, CHAT, SYSOP_MENU, SYSOP_USERS, SYSOP_DOORS, SYSOP_ADD_PASSWORD, SYSOP_DELETE_CONFIRM, ANSI_GALLERY, FILE_MENU, FILE_LIST, FILE_VIEW, DOOR_MENU, QUEST_MENU, QUEST_TAVERN, QUEST_FIGHT, QUEST_RESULT, QUEST_BANK, QUEST_SHOP, DICE_BET, QUEST_DUEL_OFFER, QUEST_DUEL_WAIT, QUEST_DUEL, QUEST_DUEL_RESULT, MUD_MENU, BULLETIN_LIST, MSG_VIEW, POST_PRIVATE, SYSOP_USER_EDIT, SYSOP_USER_FIELD, SYSOP_ADD_HANDLE, SYSOP_NODES, READER, GOODBYE };
+enum State : uint8_t { DEAD, LOGIN_CHOICE, LOGIN_HANDLE, LOGIN_PASSWORD, NEW_HANDLE, NEW_PASSWORD, NEW_REAL, NEW_LOCATION, BULLETIN, MAIN, USER_LIST, MSG_MENU, MSG_READ, POST_TO, POST_SUBJECT, POST_BODY, JOIN_CONF, CHAT, SYSOP_MENU, SYSOP_USERS, SYSOP_DOORS, SYSOP_ADD_PASSWORD, SYSOP_DELETE_CONFIRM, ANSI_GALLERY, FILE_MENU, FILE_LIST, FILE_VIEW, DOOR_MENU, QUEST_MENU, QUEST_TAVERN, QUEST_FIGHT, QUEST_RESULT, QUEST_BANK, QUEST_SHOP, DICE_BET, QUEST_DUEL_OFFER, QUEST_DUEL_WAIT, QUEST_DUEL, QUEST_DUEL_RESULT, MUD_MENU, BULLETIN_LIST, MSG_VIEW, POST_PRIVATE, SYSOP_USER_EDIT, SYSOP_USER_FIELD, SYSOP_ADD_HANDLE, SYSOP_NODES, READER, MSG_KILL, GOODBYE };
 struct Quest {
   uint32_t id = 0, gold = 35, bank = 0, exp = 0;
   uint16_t hp = 30, maxHp = 30, monsterHp = 0;
@@ -90,6 +90,7 @@ struct Session {
   uint8_t pageNode = 0;   // SysOp only: node of a caller waiting for an answer
   uint32_t pageUser = 0;  // and that caller's user id
   uint32_t msgId = 0, replyTo = 0;  // message being read; message being answered
+  uint32_t msgEdit = 0;  // message being edited, 0 = writing a new one
   String draft; uint8_t draftLines = 0; bool pendingPrivate = false;  // line editor
   // Paced output: write() -> pending (or the last job's `after`) -> output at
   // the line speed -> transport. Jobs stream files between them.

@@ -257,6 +257,10 @@ open in the same reader with the same keys, and S plays the picture.
 
 ### Slice 4d: killing and editing messages
 
+Built, history included. `MESSAGES.DAT` stays append-only: an edit or a kill
+is a new line with the same id, the last one wins, and the earlier lines are
+the history. The line editor gained `/L`, `/D n`, `/R n text` and `/C`.
+
 Boards of the time let the SysOp kill any message and callers kill their
 own (PCBoard's K, for example). Some let the author edit the text too.
 

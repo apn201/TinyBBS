@@ -45,11 +45,15 @@ static bool messageCommand(Session &s, String &line, const String &cmd) {
     }
     else if (cmd == "R") startReply(s);
     else if (cmd == "T") showThread(s);
+    else if (cmd == "K") startKill(s);
+    else if (cmd == "E") startEdit(s);
+    else if (cmd == "H") showHistory(s);
     else if (cmd == "Q") messageArea(s);
     else if (readNumber(line, n)) showMessage(s, n);
-    else { say(s, "Use N, P, R, T, Q or a message number."); readerPrompt(s); }
+    else { say(s, "Use the keys below, or a message number."); readerPrompt(s); }
     return true;
   }
+  if (s.state == MSG_KILL) { killMessage(s, cmd == "Y" || cmd == "YES"); return true; }
   if (s.state == POST_TO) {
     s.pendingTo = clean(line, 16, true);
     if (s.pendingTo.length()) { s.state = POST_PRIVATE; prompt(s, "Private, only you and " + s.pendingTo + " can read it? [y/N]: "); }
@@ -67,17 +71,33 @@ static bool messageCommand(Session &s, String &line, const String &cmd) {
     return true;
   }
   if (s.state == POST_BODY) {
-    if (cmd == "/A") { s.draft = ""; say(s, "Message aborted."); if (s.replyTo) { s.state = MSG_VIEW; readerPrompt(s); } else messageArea(s); return true; }
+    if (cmd == "/A") {
+      bool edit = s.msgEdit;
+      s.draft = ""; s.msgEdit = 0;
+      say(s, edit ? "Edit aborted, the message is unchanged." : "Message aborted.");
+      if (s.replyTo || edit) { s.state = MSG_VIEW; readerPrompt(s); } else messageArea(s);
+      return true;
+    }
     if (cmd == "/S") {
-      if (!s.draft.length()) { say(s, "Nothing to save yet. Type your message, or /A to abort."); prompt(s, " 1: "); return true; }
+      if (!s.draft.length()) { say(s, "Nothing to save yet. Type your message, or /A to abort."); editorPrompt(s); return true; }
       saveDraft(s); return true;
+    }
+    if (cmd == "/L") { listDraft(s); editorPrompt(s); return true; }
+    if (cmd == "/C") { s.draft = ""; s.draftLines = 0; say(s, "Cleared."); editorPrompt(s); return true; }
+    if (tokenAt(cmd, 0) == "/D" || tokenAt(cmd, 0) == "/R") {
+      auto lines = draftLineList(s);
+      uint32_t n;
+      if (!readNumber(tokenAt(cmd, 1), n) || n < 1 || n > lines.size()) { say(s, "No such line. /L lists them."); editorPrompt(s); return true; }
+      if (tokenAt(cmd, 0) == "/D") lines.erase(lines.begin() + (n - 1));
+      else lines[n - 1] = textLine(afterTokens(line, 2), 200);
+      setDraft(s, lines);
+      listDraft(s); editorPrompt(s); return true;
     }
     if (s.draftLines >= DRAFT_LINES || s.draft.length() >= DRAFT_CHARS) { say(s, "The message is full. /S saves, /A aborts."); prompt(s, "  : "); return true; }
     if (s.draftLines) s.draft += '\n';
     s.draft += textLine(line, 200);
     s.draftLines++;
-    char p[8]; snprintf(p, sizeof(p), "%2u: ", s.draftLines + 1);
-    prompt(s, p);
+    editorPrompt(s);
     return true;
   }
   return false;
