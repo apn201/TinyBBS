@@ -68,7 +68,7 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
       s.state = BULLETIN; prompt(s, "Press ENTER: ");
     }
     else if (cmd == "S") {
-      say(s, "System: " + board.name + (board.location.length() ? " // " + board.location : String()) + " // " + nowText());
+      say(s, "System: " + board.name + (board.location.length() ? " // " + board.location : String()) + " // " + clockText(boardNow(), true));
       say(s, "SysOp: " + board.sysop + "  Nodes: " + String(board.maxNodes) + "  Messages: " + String(nextMessageId - 1));
       s.state = BULLETIN; prompt(s, "Press ENTER: ");
     }

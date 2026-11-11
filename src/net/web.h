@@ -37,6 +37,7 @@ static void root(AsyncWebServerRequest *r) {
 static void apiConnect(AsyncWebServerRequest *r) {
   BbsLock lock;
   Session *s = allocate(true);
+  if (r->hasParam("t", true)) syncClock(r->getParam("t", true)->value());
   if (!s) { r->send(503, "text/plain", "All BBS nodes are busy"); return; }
   AsyncWebServerResponse *res = r->beginResponse(200, "application/json",
       String("{\"node\":") + s->node + ",\"token\":\"" + s->token + "\"}");
@@ -127,7 +128,7 @@ static void onWsEvent(AsyncWebSocket *, AsyncWebSocketClient *client, AwsEventTy
     AwsFrameInfo *info = (AwsFrameInfo *)arg;
     if (!info->final || info->index || info->len != len || info->opcode != WS_TEXT || !len || len > 1024) return;
     e.kind = (char)data[0];
-    if (e.kind != 'a' && e.kind != 'k' && e.kind != 'b') return;
+    if (e.kind != 'a' && e.kind != 'k' && e.kind != 'b' && e.kind != 'c') return;
     e.data = String((const char *)data + 1, len - 1);
   } else return;
   xSemaphoreTake(wsInboxMutex, portMAX_DELAY);
@@ -157,6 +158,7 @@ static void tickWebSocket() {
           if (!s.used || s.wsClient != e.client) continue;
           if (e.kind == 'd') { s.wsClient = 0; trace("WS_DETACH", String("node ") + s.node); }
           else if (e.kind == 'b') setSpeed(s, e.data.toInt());
+          else if (e.kind == 'c') syncClock(e.data);
           else { s.lastPoll = millis(); if (s.state != GOODBYE) input(s, e.data); }
           break;
         }

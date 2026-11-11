@@ -168,6 +168,10 @@ an area with ENTER and `P`, and see a text bulletin at login.
 
 ### Slice 3b: an invented board clock
 
+Built. The browser shift is in steps of 28 years (2026 becomes 1998), so the
+weekday matches the visitor's. The clock is saved once a minute. Last-call
+times wait for the user list rework; uploads and their dates come in slice 8.
+
 The board has no real-time clock, so it invents one. The board clock is a
 date and time in the 1990s that only runs while the stick has power. When it
 is unplugged, time stops. When it is plugged in again, time continues from

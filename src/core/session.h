@@ -8,6 +8,7 @@ struct Quest {
   uint16_t hp = 30, maxHp = 30, monsterHp = 0;
   uint8_t level = 1, fights = 12, monsterAtk = 0, weapon = 0, armor = 0;
   uint32_t kills = 0, pvpWins = 0, pvpLosses = 0, fame = 0;
+  uint32_t day = 0;  // board day the forest fights were last refilled
   String monster;
 };
 struct MudCharacter {

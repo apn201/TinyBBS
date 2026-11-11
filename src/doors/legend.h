@@ -21,12 +21,13 @@ static bool parseQuest(const String &line, Quest &q) {
   q.pvpWins = strtoul(field(line, 11).c_str(), nullptr, 10);
   q.pvpLosses = strtoul(field(line, 12).c_str(), nullptr, 10);
   q.fame = strtoul(field(line, 13).c_str(), nullptr, 10);
+  q.day = strtoul(field(line, 14).c_str(), nullptr, 10);
   return q.id > 0;
 }
 static String questLine(const Quest &q) {
   return String(q.id) + "|" + q.level + "|" + q.hp + "|" + q.maxHp + "|" +
          q.gold + "|" + q.bank + "|" + q.exp + "|" + q.fights + "|" + q.weapon + "|" + q.armor +
-         "|" + q.kills + "|" + q.pvpWins + "|" + q.pvpLosses + "|" + q.fame;
+         "|" + q.kills + "|" + q.pvpWins + "|" + q.pvpLosses + "|" + q.fame + "|" + q.day;
 }
 static constexpr const char *QUEST_DATA = "/BBS/DATA/DOORS/KOUVQUEST.DAT";
 static constexpr const char *QUEST_NEW = "/BBS/DATA/DOORS/KOUVQUEST.NEW";
@@ -226,7 +227,16 @@ static bool loadQuest(Session &s) {
       return false;
     }
   }
-  if (loadQuest(s.user.id, s.quest)) return true;
+  if (loadQuest(s.user.id, s.quest)) {
+    // A new day on the board clock brings a fresh set of forest fights.
+    if (s.quest.day != boardDay()) {
+      if (s.quest.day && s.quest.fights < Quest().fights) say(s, "\x1b[1;32mA new day dawns over Kouvola. Your forest fights are restored.\x1b[0m");
+      s.quest.fights = max(s.quest.fights, Quest().fights);
+      s.quest.day = boardDay();
+      saveQuest(s);
+    }
+    return true;
+  }
   say(s, "Door storage is unavailable.");
   return false;
 }
@@ -367,7 +377,7 @@ static void enterQuest(Session &s) {
 }
 static void enterForest(Session &s) {
   if (!s.quest.fights) {
-    say(s, "No forest fights remaining. Ask the SysOp for more turns.");
+    say(s, "No forest fights remaining. They return at midnight, board time.");
     questMenu(s);
     return;
   }

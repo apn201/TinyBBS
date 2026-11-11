@@ -36,6 +36,8 @@ static uint8_t iniLevel(const Ini &ini, const String &section) {
 static String loadSettings() {
   BoardSettings b;
   Ini ini;
+  String epoch;
+  bool sync = false;
   if (iniLoad("/BBS/CONFIG/SYSTEM.INI", ini)) {
     b.name = iniGet(ini, "SYSTEM", "name", b.name);
     b.location = iniGet(ini, "SYSTEM", "location", b.location);
@@ -46,6 +48,8 @@ static String loadSettings() {
     b.welcome = boardPath(iniGet(ini, "SYSTEM", "welcome"), b.welcome);
     b.mainMenu = boardPath(iniGet(ini, "SYSTEM", "main_menu"), b.mainMenu);
     b.goodbye = boardPath(iniGet(ini, "SYSTEM", "goodbye"), b.goodbye);
+    epoch = iniGet(ini, "SYSTEM", "epoch");
+    sync = up(iniGet(ini, "SYSTEM", "clock_sync")) == "BROWSER";
   }
   if (iniLoad("/BBS/CONFIG/CONFERENCES.INI", ini)) {
     for (const auto &sec : iniSections(ini)) {
@@ -79,7 +83,9 @@ static String loadSettings() {
   }
   board = b;
   lineCps = board.baud / 10;
-  return String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
+  clockSyncBrowser = sync;
+  String clock = startClock(epoch);
+  return "clock " + clock + (sync ? " (browser sync)" : "") + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
          board.maxNodes + " nodes, " + (board.baud ? String(board.baud) + " baud" : String("no speed limit"));
 }
 

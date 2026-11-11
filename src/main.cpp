@@ -24,6 +24,7 @@
 #include "core/util.h"
 #include "core/storage.h"
 #include "core/ini.h"
+#include "core/clock.h"
 #include "core/users.h"
 #include "core/messagebase.h"
 #include "core/session.h"
@@ -83,6 +84,7 @@ void loop() {
     uint32_t now = millis();
     for (auto &s : sessions) if (s.used) pace(s, now);
     tickTelnet();
+    tickClock();
     // Take the time again: a session opened by tickTelnet() is newer than the
     // first reading, and the idle check below would wrap around and close it.
     now = millis();

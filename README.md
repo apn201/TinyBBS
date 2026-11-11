@@ -137,8 +137,13 @@ can open it on a PC.
   swapped in, with a `.BAK` for recovery.
 - Per-user last-read pointers are small files in `DATA/STATE`.
 - Passwords are salted SHA-256. The salt comes from the hardware RNG.
-- There is no real-time clock and the board never sees NTP, so timestamps are
-  uptime, `UP hh:mm:ss`.
+- There is no real-time clock and the board never sees NTP, so it invents
+  one. The board clock starts from a 1990s date in `SYSTEM.INI`, only runs
+  while the stick has power, and is saved to `DATA/STATE/CLOCK.DAT` once a
+  minute. With `clock_sync=browser` it is pulled forward to a browser
+  caller's local time, moved back in steps of 28 years, because the calendar
+  repeats every 28 years and the weekday then still matches. It never runs
+  backwards.
 - ANSI screens, bulletins, menus, config and the modem sound are all files
   on the card. Change the look without reflashing.
 - The firmware creates its runtime folders if they are missing. It never
@@ -152,8 +157,8 @@ browser.
 
 **Legend of Kouvola** is a daily-turn style RPG written for TinyBBS: forest
 fights, tavern rumours, bank, weapon and armour shop, dice, a leaderboard,
-and live duels between two callers on different nodes. There is no clock, so
-when forest fights run out you ask the SysOp for more. It does not run or
+and live duels between two callers on different nodes. Forest fights come
+back at midnight on the board clock. It does not run or
 include the original LORD.
 
 **VolaMUD** is a native C++ MUD door with a fixed Vola City hub and an
@@ -205,7 +210,7 @@ caller or page.
 Settings live in `sd/BBS/CONFIG`, each file explained in its comments:
 
 - `SYSTEM.INI`: board name, node limit, new-user level, modem speed for ANSI
-  pictures, art paths.
+  pictures, the board clock, art paths.
 - `CONFERENCES.INI`: message bases with their security level and flag.
 - `BULLETINS.INI`: bulletins, and which ones are shown at every login.
 - `NETWORK.INI`: SSID, password, channel, Telnet port.

@@ -235,6 +235,7 @@ function openSocket(){
     clearTimeout(giveUp);
     s.send('a'+node+':'+token);
     s.send('b'+speed);
+    s.send('c'+localTime());
     sockReady=true;sockTries=0;clearTimeout(timer);lastOk=Date.now();
     carrier.textContent=connectText();
     if(!busy)flushPending();
@@ -283,6 +284,8 @@ function lost(message){
   carrier.textContent=message;dial.disabled=false;enter.disabled=back.disabled=true;
   capture.textContent='';capture.blur();repaint();
 }
+// The phone's local time; the board may pull its invented clock forward to it.
+function localTime(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 async function request(path,options={}){
   const abort=new AbortController();
   const timeout=setTimeout(()=>abort.abort(),7000);
@@ -353,7 +356,7 @@ function submit(){
 dial.onclick=async()=>{
   dial.disabled=true;
   try{
-    const response=await request('/api/connect',{method:'POST'});
+    const response=await request('/api/connect',{method:'POST',body:new URLSearchParams({t:localTime()})});
     if(response.status!==200){lost(response.status===503?'KOUVOSTO // ALL NODES BUSY':'KOUVOSTO // NO CARRIER');return;}
     ({node,token}=JSON.parse(response.text));
     clear();move(0,0);partial='';fg=7;bg=0;bright=reverse=secret=false;
