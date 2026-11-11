@@ -2,6 +2,8 @@
 param(
   [string]$MapFile = (Join-Path $PSScriptRoot 'seed-areas.json'),
   [string]$BbsRoot = (Join-Path $PSScriptRoot '..\sd\BBS'),
+  # Folder that relative 'source' paths in the map resolve against.
+  [string]$SourceRoot = $env:TINYBBS_SEED_ROOT,
   [switch]$Stage,
   [switch]$Publish,
   [string[]]$Area,
@@ -64,10 +66,12 @@ New-Item -ItemType Directory -Force -Path $indexDir | Out-Null
 $records = [System.Collections.Generic.List[object]]::new()
 foreach ($entry in $map.areas) {
   $selected = -not $Area -or $entry.name -in $Area
-  if (-not (Test-Path -LiteralPath $entry.source -PathType Container)) { Write-Warning "Missing seed source: $($entry.source)"; continue }
-  $files = Get-ChildItem -LiteralPath $entry.source -Recurse -File
+  $source = if ([System.IO.Path]::IsPathRooted($entry.source) -or -not $SourceRoot) { $entry.source } else { Join-Path $SourceRoot $entry.source }
+  if (-not (Test-Path -LiteralPath $source -PathType Container)) { Write-Warning "Missing seed source: $source"; continue }
+  $source = (Resolve-Path -LiteralPath $source).Path
+  $files = Get-ChildItem -LiteralPath $source -Recurse -File
   foreach ($file in $files) {
-    $relative = $file.FullName.Substring($entry.source.Length).TrimStart('\')
+    $relative = $file.FullName.Substring($source.Length).TrimStart('\')
     $record = [ordered]@{
       source_area = $entry.name; source_relative = $relative; target_area = $entry.target; review = $entry.review
       filename = $file.Name; extension = $file.Extension.ToUpperInvariant(); bytes = $file.Length

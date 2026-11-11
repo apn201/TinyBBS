@@ -1,16 +1,16 @@
 {
-  "description": "Private archive staging map. Nothing is public until a SysOp publishes it.",
+  "description": "Private archive staging map. Nothing is public until a SysOp publishes it. Source paths are relative to -SourceRoot or the TINYBBS_SEED_ROOT environment variable.",
   "areas": [
-    { "name": "ANSI", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\ANSI", "target": "006_ANSI_ASCII", "review": "public-review" },
-    { "name": "FAN", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\FAN", "target": "013_THE_BACK_ROOM", "review": "sysop-review" },
-    { "name": "LUCID", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\LUCID", "target": "012_SYSOP", "review": "sysop-review" },
-    { "name": "LYRICS", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\LYRICS", "target": "010_TEXTFILES", "review": "rights-review" },
-    { "name": "MAKE", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\MAKE", "target": "013_THE_BACK_ROOM", "review": "sysop-review" },
-    { "name": "MB", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\MB", "target": "012_SYSOP", "review": "sysop-review" },
-    { "name": "TXT", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\TXT", "target": "010_TEXTFILES", "review": "public-review" },
-    { "name": "UFOTXT", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\UFOTXT", "target": "013_THE_BACK_ROOM", "review": "sysop-review" },
-    { "name": "WEIRD", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\APU\\STUFF\\WEIRD", "target": "013_THE_BACK_ROOM", "review": "sysop-review" },
-    { "name": "BAS", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\DOS\\BAS", "target": "008_PROGRAMMING", "review": "public-review" },
-    { "name": "PELIT", "source": "F:\\Dropbox\\Dropbox (Personal)\\Vanhat kovot\\Gray\\Omat tiedostot\\Juha\\Nallen kiintolevy\\PELIT", "target": "004_GAMES", "review": "rights-and-malware-review" }
+    {"name": "ANSI", "source": "APU\\STUFF\\ANSI", "target": "006_ANSI_ASCII", "review": "public-review"},
+    {"name": "FAN", "source": "APU\\STUFF\\FAN", "target": "013_THE_BACK_ROOM", "review": "sysop-review"},
+    {"name": "LUCID", "source": "APU\\STUFF\\LUCID", "target": "012_SYSOP", "review": "sysop-review"},
+    {"name": "LYRICS", "source": "APU\\STUFF\\LYRICS", "target": "010_TEXTFILES", "review": "rights-review"},
+    {"name": "MAKE", "source": "APU\\STUFF\\MAKE", "target": "013_THE_BACK_ROOM", "review": "sysop-review"},
+    {"name": "MB", "source": "APU\\STUFF\\MB", "target": "012_SYSOP", "review": "sysop-review"},
+    {"name": "TXT", "source": "APU\\STUFF\\TXT", "target": "010_TEXTFILES", "review": "public-review"},
+    {"name": "UFOTXT", "source": "APU\\STUFF\\UFOTXT", "target": "013_THE_BACK_ROOM", "review": "sysop-review"},
+    {"name": "WEIRD", "source": "APU\\STUFF\\WEIRD", "target": "013_THE_BACK_ROOM", "review": "sysop-review"},
+    {"name": "BAS", "source": "DOS\\BAS", "target": "008_PROGRAMMING", "review": "public-review"},
+    {"name": "PELIT", "source": "PELIT", "target": "004_GAMES", "review": "rights-and-malware-review"}
   ]
 }

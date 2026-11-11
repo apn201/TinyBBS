@@ -1,14 +1,19 @@
 # Hardware contract
 
-TinyBBS uses the ESP32-S3 layout proven by TinyIRC, the earlier sketch. The
-firmware in `src/main.cpp` uses the same assignments. Treat these pins as a
-contract. Changing them means making and testing a different hardware build.
+TinyBBS runs on the [Pocket-Dongle-S3](https://www.aliexpress.com/item/1005008896509314.html), an ESP32-S3 N16R8 board in a
+USB-stick form factor, about 10 euros. It has a 0.96 inch ST7735 LCD and a
+microSD slot on board and no exposed GPIO. Nothing is wired to it. Buy the
+variant with the SD slot.
+
+The pins below are the board's internal wiring for the LCD and SD slot,
+proven first by TinyIRC, the earlier sketch. The firmware in `src/main.cpp`
+uses the same assignments. Another ESP32-S3 board needs its own pin check.
 
 ## Target
 
 | Item | Current target |
 | --- | --- |
-| Development board | Espressif ESP32-S3-DevKitC-1-N16R8V |
+| Board | [Pocket-Dongle-S3](https://www.aliexpress.com/item/1005008896509314.html), ESP32-S3 N16R8 USB dongle with LCD and microSD |
 | Configured board profile | `esp32-s3-devkitc1-n16r8`, 16 MB flash, 8 MB PSRAM |
 | Framework | Arduino on the Espressif32 PlatformIO platform |
 | Display | ST7735 colour TFT, native 80x160 pixels |
@@ -18,9 +23,10 @@ contract. Changing them means making and testing a different hardware build.
 | Caller transports | HTTP browser terminal on port 80, Telnet on port 23 |
 
 The connected board reported 16 MB flash and 8 MB embedded PSRAM during the
-2026-11-11 flash. The PlatformIO board definition matches that N16R8V module.
-Check a replacement board before changing memory or flash settings. Do not
-assume an arbitrary DevKitC-1 has PSRAM.
+2026-11-11 flash. The dongle has no PlatformIO board of its own; the
+`esp32-s3-devkitc1-n16r8` definition matches its module. Check a replacement
+board before changing memory or flash settings. Do not assume an arbitrary
+ESP32-S3 board has PSRAM.
 
 ## Pin map
 
@@ -36,9 +42,8 @@ assume an arbitrary DevKitC-1 has PSRAM.
 | SD_MMC CMD | 18 | SD command line |
 | BOOT / local UI input | 0 | `INPUT_PULLUP`, active low |
 
-No other pins are part of the current TinyBBS hardware contract. In
-particular, the project has no separate modem, Ethernet, audio-output or
-physical keyboard wiring requirement.
+No other pins are used. There is no modem, Ethernet, audio output or
+keyboard.
 
 ## Display
 
@@ -96,10 +101,9 @@ firmware logs that choice and starts AP-only mode.
 
 ## Power and USB
 
-Use the DevKitC-1's normal USB power connection with a reliable USB charger or
-computer port. The repository does not define a separate 5 V input, battery
-circuit, current budget or brownout qualification. Those depend on the exact
-DevKitC-1 module, display board and SD card used.
+The dongle plugs straight into a USB charger or computer port. That is the
+only power input. There is no battery circuit, measured current budget or
+brownout qualification.
 
 The USB connection is also normally used for flashing and serial diagnostics
 at 115200 baud. Select the port assigned by the operating system. Do not copy

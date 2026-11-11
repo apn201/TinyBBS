@@ -1,6 +1,7 @@
 # TinyBBS
 
-A 1990s-style BBS running on a $10 ESP32-S3 board. No Internet, no modem, no
+A 1990s-style BBS running on a $10 ESP32-S3 USB dongle,
+the [Pocket-Dongle-S3](https://www.aliexpress.com/item/1005008896509314.html). No Internet, no modem, no
 phone line. The board makes its own WiFi network and you call it from a phone
 browser or a Telnet client.
 
@@ -59,19 +60,20 @@ board at the same time and see each other in WHO and chat.
 
 | Part | Detail |
 | --- | --- |
-| MCU | ESP32-S3, board profile `esp32-s3-devkitc1-n16r8` (16 MB flash, 8 MB PSRAM) |
-| Display | ST7735, 80x160 native, used as 160x80 landscape |
-| Storage | microSD over SD_MMC, 1-bit mode, FAT32 |
+| Board | [Pocket-Dongle-S3](https://www.aliexpress.com/item/1005008896509314.html), USB-stick form factor, get the variant with the SD slot |
+| MCU | ESP32-S3 N16R8, 16 MB flash, 8 MB PSRAM, PlatformIO profile `esp32-s3-devkitc1-n16r8` |
+| Display | On-board 0.96 inch ST7735, 80x160 native, used as 160x80 landscape |
+| Storage | On-board microSD slot, SD_MMC 1-bit mode, FAT32 |
 | Input | BOOT button only |
 | Network | 2.4 GHz soft AP, channel 1 by default |
-| Power | USB |
+| Power | USB, from a computer or a phone charger |
 
-Nothing else is attached. No modem, no keyboard, no audio out. Pins and
-display offsets are in [`HARDWARE.md`](HARDWARE.md).
+Nothing is attached and no GPIO is exposed. No modem, no keyboard, no audio
+out. Pins and display offsets are in [`HARDWARE.md`](HARDWARE.md).
 
 ### Firmware layout
 
-The firmware is Arduino on ESP32, one main file of about 2000 lines:
+The firmware is Arduino on ESP32, one main file of about 2400 lines:
 
 | File | Contents |
 | --- | --- |
@@ -174,9 +176,9 @@ caller or page.
 
 1. Install PlatformIO with the Espressif32 platform.
 2. Build and flash: `pio run -t upload`. On Windows,
-   `tools\build-platformio.cmd` does the same. The proven physical target is
-   the ESP32-S3 N16R8V profile in `platformio.flash.ini`; see **Flash and
-   recovery** below before substituting a generic DevKitC profile.
+   `tools\build-platformio.cmd` does the same. The proven target is the
+   Pocket-Dongle-S3 with the N16R8 profile in `platformio.flash.ini`; see
+   **Flash and recovery** below before trying another board profile.
 3. Format a microSD card as FAT32. Extract `TinyBBS_SD_CARD_EMPTY_TREE.zip`
    to the card root, then copy this repository's `sd/BBS` into the card's
    `BBS` folder. Or run:
@@ -200,7 +202,7 @@ AP name, password, channel and WiFi client limit are in
 
 ## Flash and recovery
 
-The verified board is an N16R8V: Quad flash, Octal PSRAM, 16 MB flash and
+The verified board is the Pocket-Dongle-S3 with an N16R8 module: Quad flash, Octal PSRAM, 16 MB flash and
 8 MB PSRAM. Use the board profile `esp32-s3-devkitc1-n16r8`. Its runtime image
 uses the board's QIO/OPI arrangement, but the serial write must use **DIO**.
 Do not force QIO in a direct `esptool` command: the ROM can reset before the
