@@ -76,6 +76,9 @@ void loop() {
     uint32_t now = millis();
     for (auto &s : sessions) if (s.used) pace(s, now);
     tickTelnet();
+    // Take the time again: a session opened by tickTelnet() is newer than the
+    // first reading, and the idle check below would wrap around and close it.
+    now = millis();
     for (auto &s : sessions) {
       if (!s.used) continue;
       uint32_t idleLimit = s.authenticated ? 30UL * 60UL * 1000UL : LOGIN_TIMEOUT_MS;

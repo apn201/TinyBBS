@@ -31,6 +31,8 @@ struct StreamJob {
   bool ansi = true, utf8 = false;
   uint8_t column = 0, width = 80;
   bool lineStart = true;
+  bool paced = false;      // released at modem speed (ANSI files opened with V)
+  uint8_t inEsc = 0, utfLeft = 0;  // art: don't end a chunk inside these
   String after;
 };
 struct Session {
@@ -66,6 +68,7 @@ struct Session {
   std::vector<StreamJob> jobs;
   bool paused = false;
   uint32_t paceAt = 0, paceCredit = 0, sentAt = 0;
+  uint32_t cps = lineCps;  // modem speed for paced files, characters per second (0 = no limit)
   int8_t wsStream = -1;  // streaming flag last sent over the socket
   bool authenticated = false;
   uint8_t telnetState = 0;

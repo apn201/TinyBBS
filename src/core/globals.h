@@ -21,6 +21,7 @@ WiFiServer telnet(23);
 static bool sdReady = false;
 static uint32_t bootAt = 0, callers = 0, nextUserId = 1, nextMessageId = 1;
 static String storageFault;
+static uint32_t lineCps = 2880;  // default modem speed for paced files: baud= in SYSTEM.INI / 10
 
 // The async web server runs its handlers in its own task. Anything that
 // touches sessions, users or the SD card holds this lock.

@@ -1,13 +1,16 @@
 #pragma once
-// Output at modem speed. Everything a caller sees is released at the line
-// speed (baud= in SYSTEM.INI, 0 = no limit), and art and viewed files stream
-// from the SD card a chunk at a time, so a tall ANSI scrolls past while it is
-// drawn, on Telnet and in the browser alike.
+// Streamed output. Art and viewed files are read from the SD card a chunk at
+// a time, so any size works. ANSI files opened with V in a file area are
+// released at modem speed (the session's cps: baud= in SYSTEM.INI, or the
+// browser's SPEED button), so a tall picture scrolls past while it is drawn.
+// Everything else is shown at once.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-static uint32_t lineCps = 2880;  // characters per second, baud / 10
-
-static bool streaming(const Session &s) { return !s.jobs.empty(); }
+// True while a paced file is playing: keys then skip or pause it.
+static bool streaming(const Session &s) {
+  for (const auto &j : s.jobs) if (j.paced) return true;
+  return false;
+}
 static bool outputDone(const Session &s) { return s.jobs.empty() && !s.pending.length() && !s.output.length(); }
 
 // Append up to `want` bytes of the job's file to `out`. Returns true when the
@@ -17,7 +20,9 @@ static bool streamChunk(StreamJob &j, String &out, size_t want) {
   if (!f || f.isDirectory() || !f.seek(j.offset)) return true;
   size_t start = out.length();
   bool done = false;
-  while (out.length() - start < want) {
+  // Art chunks only end between escape sequences and whole UTF-8 characters,
+  // so a skip or a frame boundary never leaves half a sequence behind.
+  while (out.length() - start < want || j.inEsc || j.utfLeft) {
     if (f.position() >= j.end) { done = true; break; }
     int b = f.read();
     if (b < 0 || b == 0x1a) { done = true; break; }
@@ -27,6 +32,11 @@ static bool streamChunk(StreamJob &j, String &out, size_t want) {
       out += char(b);
       j.column = b == '\r' ? 1 : 0;
       j.lineStart = b == '\n';
+      if (j.utfLeft) j.utfLeft = (b & 0xc0) == 0x80 ? j.utfLeft - 1 : 0;
+      else if (b >= 0xc0) j.utfLeft = utf8Tail(b);
+      if (b == 27) j.inEsc = 1;
+      else if (j.inEsc == 1) j.inEsc = b == '[' ? 2 : 0;
+      else if (j.inEsc == 2 && b >= 0x40 && b <= 0x7e) j.inEsc = 0;
       continue;
     }
     // Archive files: only the ANSI drawing subset passes, DOS glyphs become UTF-8.
@@ -69,16 +79,18 @@ static size_t utf8Cut(const String &s, size_t want) {
   return cut;
 }
 
-// Move bytes from pending (and streaming jobs) to the transport buffer at the
-// line speed. Called for every session on every loop pass.
+// Move bytes from pending (and queued files) to the transport buffer. Paced
+// files go at the session's speed; everything else goes at once. Called for
+// every session on every loop pass.
 static void pace(Session &s, uint32_t now) {
   uint32_t elapsed = now - s.paceAt;
   s.paceAt = now;
   if (s.paused) return;
   size_t budget;
-  if (!lineCps) budget = 4096;
+  bool paced = !s.jobs.empty() && s.jobs.front().paced && s.cps;
+  if (!paced) { budget = 4096; s.paceCredit = 0; }
   else {
-    s.paceCredit = min<uint32_t>(s.paceCredit + min<uint32_t>(elapsed, 1000) * lineCps, 128000);
+    s.paceCredit = min<uint32_t>(s.paceCredit + min<uint32_t>(elapsed, 1000) * s.cps, 128000);
     budget = s.paceCredit / 1000;
     if (!budget) return;
   }
@@ -100,7 +112,7 @@ static void pace(Session &s, uint32_t now) {
     s.pending.remove(0, take);
     moved += take;
   }
-  if (lineCps) s.paceCredit -= min<uint32_t>(s.paceCredit, moved * 1000);
+  if (paced) s.paceCredit -= min<uint32_t>(s.paceCredit, moved * 1000);
 }
 
 // A key while a file streams: drop the rest of the file(s), keep what was

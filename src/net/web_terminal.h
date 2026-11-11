@@ -16,7 +16,7 @@ touch-action:none}
 caret-color:transparent;outline:none;white-space:pre;pointer-events:none}
 #links:empty{display:none} a{color:#5ff}
 </style></head><body>
- <header><button id="dial">DIAL</button> <button id="modem" type="button">MODEM AUDIO</button> <span id="carrier" role="status">KOUVOSTO // NO CARRIER</span></header>
+ <header><button id="dial">DIAL</button> <button id="modem" type="button">MODEM AUDIO</button> <button id="speed" type="button" title="Modem speed for ANSI pictures">SPEED</button> <span id="carrier" role="status">KOUVOSTO // NO CARRIER</span></header>
 <div id="screen"><canvas id="display" width="640" height="400" aria-label="80-column Kouvosto terminal"></canvas>
 <div id="capture" contenteditable="plaintext-only" role="textbox" aria-label="Terminal input"
 autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text"
@@ -144,8 +144,11 @@ function render(data){
       const kind=data[i++];
       if(kind==='['){
         const p=i;
-        while(i<data.length&&!/[@-~]/.test(data[i]))i++;
+        while(i<data.length&&data[i]!=='\x1b'&&!/[@-~]/.test(data[i]))i++;
         if(i===data.length){partial=data.slice(start);break;}
+        // A new ESC inside the parameters means the sequence was cut: drop it
+        // and start over, instead of swallowing the next sequence.
+        if(data[i]==='\x1b')continue;
         control(data.slice(p,i),data[i++]);
       }else if(kind===']'){
         const end=data.indexOf('\x07',i);
@@ -165,9 +168,14 @@ function drawCell(cell,col,line){
   const px=col*w,py=line*h;
   ctx.fillStyle=palette[cell.paper];ctx.fillRect(px,py,w,h);
   ctx.fillStyle=palette[cell.ink];
-  if(cell.ch==='█')ctx.fillRect(px,py,w,h);
+  // Block and shade glyphs are drawn, not typed: fonts render them unevenly.
+  const shade=cell.ch==='░'?.25:cell.ch==='▒'?.5:cell.ch==='▓'?.75:0;
+  if(shade){ctx.globalAlpha=shade;ctx.fillRect(px,py,w,h);ctx.globalAlpha=1;}
+  else if(cell.ch==='█')ctx.fillRect(px,py,w,h);
   else if(cell.ch==='▀')ctx.fillRect(px,py,w,h/2);
   else if(cell.ch==='▄')ctx.fillRect(px,py+h/2,w,h/2);
+  else if(cell.ch==='▌')ctx.fillRect(px,py,w/2,h);
+  else if(cell.ch==='▐')ctx.fillRect(px+w/2,py,w/2,h);
   else if(cell.ch===' ' )return;
   else ctx.fillText(cell.ch,px,py+13,w);
 }
@@ -226,6 +234,7 @@ function openSocket(){
   s.onopen=()=>{
     clearTimeout(giveUp);
     s.send('a'+node+':'+token);
+    s.send('b'+speed);
     sockReady=true;sockTries=0;clearTimeout(timer);lastOk=Date.now();
     carrier.textContent=connectText();
     if(!busy)flushPending();
@@ -265,7 +274,7 @@ function attach(){
   connected=true;failures=0;sockTries=0;held=[];lastOk=Date.now();
   enter.disabled=back.disabled=false;dial.disabled=true;
   store('kouvosto.node',{node,token});
-  focusTerminal();wake(0);openSocket();repaint();
+  focusTerminal();wake(0);openSocket();sendSpeed();repaint();
 }
 function lost(message){
   dropSocket();held=[];
@@ -381,6 +390,23 @@ capture.addEventListener('beforeinput',e=>{
 enter.onclick=()=>{submit();focusTerminal();};
 back.onclick=()=>{capture.textContent=(capture.textContent||'').slice(0,-1);focusTerminal();repaint();};
  modem.onclick=playModem;
+// SPEED: the modem speed ANSI pictures play at (V in a file area). Kept in
+// this browser and sent to the board whenever we attach.
+const speedBtn=$('speed'),SPEEDS=[2400,9600,14400,28800,57600,0];
+let speed=28800;
+try{const v=parseInt(localStorage.getItem('kouvosto.speed'),10);if(SPEEDS.includes(v))speed=v;}catch{}
+function showSpeed(){speedBtn.textContent='SPEED '+(speed||'MAX');}
+function sendSpeed(){
+  if(!connected)return;
+  if(sockReady)sock.send('b'+speed);
+  else fetch('/api/speed',{method:'POST',body:new URLSearchParams({n:node,q:token,b:speed})}).catch(()=>{});
+}
+speedBtn.onclick=()=>{
+  speed=SPEEDS[(SPEEDS.indexOf(speed)+1)%SPEEDS.length];
+  try{localStorage.setItem('kouvosto.speed',String(speed));}catch{}
+  showSpeed();sendSpeed();
+};
+showSpeed();
 // No hangup when the page unloads: a reload must be able to rejoin the node.
 // G (logoff) hangs up at once; an abandoned tab frees its node after the
 // three-minute carrier timeout, like a dropped line.

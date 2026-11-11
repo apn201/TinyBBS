@@ -117,9 +117,11 @@ minutes and the page shows NO CARRIER and the node is free again.
 ### Slice 2b: ANSI at modem speed instead of pages
 
 On a real board nobody paged through an ANSI. It arrived at modem speed and
-scrolled past while it was drawn. Do the same: tall ANSI and text files are
-sent at an emulated line speed (`baud=` in `SYSTEM.INI`, for example 28800)
-and the terminal scrolls by itself. This works the same on Telnet, because
+scrolled past while it was drawn. Do the same for ANSI files opened with `V`
+in a file area: they are sent at an emulated line speed and the terminal
+scrolls by itself. Menus and other screens appear at once. Telnet uses
+`baud=` in `SYSTEM.INI`; the browser has a SPEED button next to DIAL that
+cycles 2400 to 57600 and MAX and is remembered in the browser. This works the same on Telnet, because
 any terminal scrolls when text arrives slowly. ANSI animations that use cursor
 movement play as intended.
 

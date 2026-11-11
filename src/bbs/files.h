@@ -90,6 +90,7 @@ static void openFileViewer(Session &s, uint16_t number) {
   StreamJob job;
   job.path = path; job.offset = view.offset; job.end = view.end;
   job.ansi = s.ansi && ansi; job.utf8 = view.utf8; job.width = job.ansi ? 80 : 78;
+  job.paced = job.ansi;
   write(s, "\x1b[0m\r\n");
   if (!ansi) say(s, clean(name, 65) + "\r\n");
   s.jobs.push_back(job);

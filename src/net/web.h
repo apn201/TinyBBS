@@ -15,6 +15,19 @@ static Session *requestSession(AsyncWebServerRequest *r) {
   return webSession(requestArg(r, "n").toInt(), requestArg(r, "q"));
 }
 
+// The browser's SPEED button: modem speed in bps for paced files, 0 = no limit.
+static void setSpeed(Session &s, long bps) {
+  if (bps <= 0) s.cps = 0;
+  else s.cps = constrain(bps, 300L, 115200L) / 10;
+}
+static void apiSpeed(AsyncWebServerRequest *r) {
+  BbsLock lock;
+  Session *s = requestSession(r);
+  if (!s) { r->send(404, "text/plain", "Lost carrier"); return; }
+  setSpeed(*s, requestArg(r, "b").toInt());
+  r->send(204);
+}
+
 static void root(AsyncWebServerRequest *r) {
   AsyncWebServerResponse *res = r->beginResponse(200, "text/html; charset=utf-8",
                                                  (const uint8_t *)kWebTerminal, strlen(kWebTerminal));
@@ -114,7 +127,7 @@ static void onWsEvent(AsyncWebSocket *, AsyncWebSocketClient *client, AwsEventTy
     AwsFrameInfo *info = (AwsFrameInfo *)arg;
     if (!info->final || info->index || info->len != len || info->opcode != WS_TEXT || !len || len > 1024) return;
     e.kind = (char)data[0];
-    if (e.kind != 'a' && e.kind != 'k') return;
+    if (e.kind != 'a' && e.kind != 'k' && e.kind != 'b') return;
     e.data = String((const char *)data + 1, len - 1);
   } else return;
   xSemaphoreTake(wsInboxMutex, portMAX_DELAY);
@@ -143,6 +156,7 @@ static void tickWebSocket() {
         for (auto &s : sessions) {
           if (!s.used || s.wsClient != e.client) continue;
           if (e.kind == 'd') { s.wsClient = 0; trace("WS_DETACH", String("node ") + s.node); }
+          else if (e.kind == 'b') setSpeed(s, e.data.toInt());
           else { s.lastPoll = millis(); if (s.state != GOODBYE) input(s, e.data); }
           break;
         }
@@ -173,6 +187,7 @@ static void startWeb() {
   http.on("/", HTTP_GET, root);
   http.on("/api/connect", HTTP_POST, apiConnect);
   http.on("/api/hangup", HTTP_POST, apiHangup);
+  http.on("/api/speed", HTTP_POST, apiSpeed);
   http.on("/api/out", HTTP_GET, apiOut);
   http.on("/api/in", HTTP_POST, apiIn);
   http.on("/download", HTTP_GET, downloadFile);
