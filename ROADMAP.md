@@ -255,6 +255,25 @@ messages scroll past. One reader replaces all three:
 Done when: a tall ANSI picture, a long text file and a long message all
 open in the same reader with the same keys, and S plays the picture.
 
+### Slice 4d: killing and editing messages
+
+Boards of the time let the SysOp kill any message and callers kill their
+own (PCBoard's K, for example). Some let the author edit the text too.
+
+- `[K]ill` in the reader prompt, for the author and the SysOp, after a
+  y/N question. A killed message is marked deleted in the store, never
+  removed, so ids, replies and read pointers stay valid. Replies to it show
+  "Reply to #9 (deleted)".
+- `[E]dit` for the author and the SysOp: the line editor opens with the old
+  text. The message then shows `[edited]` with the date, and by whom when the
+  SysOp did it.
+- Deluxe: the earlier versions kept in the store, and `H` in the reader
+  shows the change history.
+
+Done when: a caller kills their own message and cannot kill someone
+else's, the SysOp kills and edits anything, an edited message shows
+`[edited]`, and a reply to a killed message still opens.
+
 ### Slice 5: generated menus with SD art
 
 Menus that list things become header art plus a generated list in matching
