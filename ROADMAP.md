@@ -107,10 +107,18 @@ security level, required flag, and whether downloads and uploads are
 allowed. Folders inside an area are browsable sub-directories. Folders
 starting with `_` or `.` are hidden. `FILEAREAS.INI` goes away.
 
+Descriptions are part of this slice, because a listing without them does not
+look like a BBS. In order of preference: `FILES.BBS` or `DESCRIPT.ION` in the
+folder, then `FILE_ID.DIZ` from inside a ZIP (read on demand and cached in
+`/BBS/DATA/INDEX`), then nothing.
+
 Done when: copy `014_BACKROOM_IMAGES` with its nested folders onto the card,
 reboot, and it appears as an area. Its sub-folders can be entered and left.
 Add an `AREA.INI` with `required_flag=BACKROOM` and it disappears for a
-normal user and reappears for one with the flag.
+normal user and reappears for one with the flag. A ZIP with a `FILE_ID.DIZ`
+shows its description in the listing.
+
+After this slice the SysOp adds more ANSI and ASCII art straight on the card.
 
 ### Slice 5: generated menus with SD art
 
@@ -124,14 +132,13 @@ ANSI editing, and a normal user's menus show no Back Room or SysOp entries.
 
 ### Slice 6: file listings that look the part
 
-Listings show name, size, date (from the card's file timestamps) and a
-description from `FILES.BBS` or `DESCRIPT.ION` in the folder, falling back to
-nothing. A download counter per file is shown, like a real board. `[V]` on a
-ZIP lists the archive contents from its central directory, without unpacking.
-Reading `FILE_ID.DIZ` from inside a ZIP is a bonus if it fits.
+Listings show name, size, date (from the card's file timestamps) and the
+description from slice 4. A download counter per file is shown, like a real
+board. `[V]` on a ZIP lists the archive contents from its central directory,
+without unpacking.
 
-Done when: an area with a `FILES.BBS` shows descriptions, dates look right,
-and viewing a ZIP lists its files.
+Done when: dates and download counts look right and viewing a ZIP lists its
+files.
 
 ### Slice 7: viewing and downloading by file type
 
@@ -167,6 +174,42 @@ key works for that caller. Remove or hide anything that does not.
 Done when: the audit list is clean for a new user, a Back Room user and the
 SysOp, on browser and Telnet.
 
+### Slice 10: a board that feels alive
+
+Right now the message bases are empty and the board does not seem alive. Fill
+them with real period traffic: FidoNet echo messages from the
+[Break Into Chat collection](https://breakintochat.com/collections/messages/fidonet/),
+with names anonymised.
+
+- A curator script in `tools` fetches selected echoes, replaces every real
+  name, handle, node address and signature with consistent invented ones,
+  and writes plain text message files under `/BBS/MSGBASE/<conference>/`.
+- The firmware shows these as read-only history in the matching conference,
+  below the live messages callers post. Editing or adding files on the card
+  changes the board without reflashing, like everything else.
+- Dates are kept as period dates (1990s), since the board has no clock
+  anyway.
+
+Done when: a new user opens a conference and finds dozens of believable
+1990s messages with no real names in them, and a caller's new post appears
+on top.
+
+### Slice 11: MOD and SID music in the browser
+
+In reality you downloaded a MOD file from the board and played it on your PC.
+Here the browser plays it directly, which is a shortcut, but the point is to
+hear it. `[V]` on a `.MOD`, `.S3M`, `.XM`, `.IT` or `.SID` file in the browser
+opens a player screen styled like a period tracker or SID player. Telnet does
+not offer it.
+
+The player JavaScript and any WebAssembly live on the SD card under
+`/BBS/ASSETS/PLAYER`, served by the board. Nothing loads from the Internet.
+Pick players with a licence that allows bundling, and list them in
+`THIRD_PARTY_NOTICES.md`.
+
+Done when: open a MOD and a SID from a music area on a phone, both play, and
+the Telnet listing shows them without a `[V]` option.
+
 ## Backburner
 
 Nice to have. They would make the board more period correct and impress
@@ -174,8 +217,19 @@ nerds, but no visitor will use them.
 
 - QWK offline mail packets.
 - ZMODEM downloads over Telnet.
+- ATASCII animations, like the
+  [Break Into Chat ATASCII collection](https://breakintochat.com/collections/atascii/).
+  Needs an ATASCII font and timed playback in the browser terminal.
 - Richer door content (more VolaMUD world, task chains, NPC state). The door
   interface from slice 0 is the hook for this.
+- **Analysis: what else did every board have?** Go through
+  [Break Into Chat](https://breakintochat.com/) and similar archives and list
+  the small features that made boards feel inhabited, then pick the cheap
+  ones. Candidates to check: last callers list, oneliners or graffiti wall,
+  voting booth, top uploaders and posters, new-files scan since last call,
+  BBS lists and ads, time bank, SysOp chat request with a buzzer, matrix or
+  pre-login screens, and random login quotes. Each one that survives becomes
+  its own slice, driven from SD like the rest.
 
 ## Not planned
 
