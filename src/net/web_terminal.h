@@ -169,6 +169,7 @@ function drawCell(cell,col,line){
   else ctx.fillText(cell.ch,px,py+13,w);
 }
 function repaint(){
+  saveScreen();
   if(frame)return;
   frame=requestAnimationFrame(()=>{
     frame=0;
@@ -189,6 +190,7 @@ function repaint(){
 let sock=null,sockReady=false,sockTries=0,held=[];
 function connectText(){return sockReady?'KOUVOSTO // CONNECT 28800/ARQ':'KOUVOSTO // CONNECT 2400';}
 function frameIn(d){
+  lastOk=Date.now();
   const k=d[0],v=d.slice(1);
   if(k==='o')render(v);
   else if(k==='p'){secret=v==='1';repaint();}
@@ -213,7 +215,7 @@ function openSocket(){
   s.onopen=()=>{
     clearTimeout(giveUp);
     s.send('a'+node+':'+token);
-    sockReady=true;sockTries=0;clearTimeout(timer);
+    sockReady=true;sockTries=0;clearTimeout(timer);lastOk=Date.now();
     carrier.textContent=connectText();
     if(!busy)flushPending();
   };
@@ -222,12 +224,41 @@ function openSocket(){
     clearTimeout(giveUp);
     const was=sockReady;sock=null;sockReady=false;
     if(!connected)return;
+    if(was)lastOk=Date.now();
     carrier.textContent=connectText();wake(0);
     if(++sockTries<=3)setTimeout(openSocket,was?1000:5000);
   };
 }
+// Reconnect: this tab remembers its node and screen, so a dropped link, a
+// sleeping phone or a reload rejoins the same node. The board keeps a quiet
+// node for three minutes; after that it answers 404 and we say NO CARRIER.
+const CARRIER_MS=180000;
+let lastOk=0,saveTimer=0;
+function store(key,value){try{if(value===null)sessionStorage.removeItem(key);else sessionStorage.setItem(key,JSON.stringify(value));}catch{}}
+function recall(key){try{return JSON.parse(sessionStorage.getItem(key)||'null');}catch{return null;}}
+function saveScreen(){
+  if(saveTimer||!connected)return;
+  saveTimer=setTimeout(()=>{
+    saveTimer=0;if(!connected)return;
+    const rows=screen.map(line=>[line.map(c=>c.ch).join(''),line.map(c=>(c.ink*16+c.paper).toString(16).padStart(2,'0')).join('')]);
+    store('kouvosto.screen',{rows,x,y,fg,bg,bright,reverse});
+  },700);
+}
+function restoreScreen(){
+  const s=recall('kouvosto.screen');
+  if(!s||!Array.isArray(s.rows)||s.rows.length!==rows)return;
+  screen=s.rows.map(([chars,attrs])=>Array.from({length:cols},(_,i)=>{const a=parseInt(attrs.substr(i*2,2),16)||7;return {ch:chars[i]||' ',ink:a>>4,paper:a&15};}));
+  ({x,y,fg,bg,bright,reverse}=s);
+}
+function attach(){
+  connected=true;failures=0;sockTries=0;held=[];lastOk=Date.now();
+  enter.disabled=back.disabled=false;dial.disabled=true;
+  store('kouvosto.node',{node,token});
+  focusTerminal();wake(0);openSocket();repaint();
+}
 function lost(message){
   dropSocket();held=[];
+  store('kouvosto.node',null);store('kouvosto.screen',null);
   connected=false;pending=null;clearTimeout(timer);
   carrier.textContent=message;dial.disabled=false;enter.disabled=back.disabled=true;
   capture.textContent='';capture.blur();repaint();
@@ -257,14 +288,17 @@ async function exchange(){
       : await request('/api/in',{method:'POST',body:new URLSearchParams({n:node,q:token,k:line+'\r'})});
     if(response.status===404){lost('KOUVOSTO // NO CARRIER');return;}
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
-    failures=0;
+    failures=0;lastOk=Date.now();
     carrier.textContent=connectText();
     if(!sockReady)secret=response.secret;
     if(response.text)render(response.text);
   }catch{
-    if(++failures>=3){lost('KOUVOSTO // LINK LOST');return;}
-    carrier.textContent=line===null?'KOUVOSTO // RETRYING':'KOUVOSTO // COMMAND STATUS UNKNOWN';
-    delay=950;
+    // Keep trying quietly while the phone rejoins the WiFi. Give up only
+    // once the board would have dropped the node anyway.
+    failures++;
+    if(Date.now()-lastOk>CARRIER_MS+5000){lost('KOUVOSTO // NO CARRIER');return;}
+    carrier.textContent=line===null?'KOUVOSTO // RECONNECTING':'KOUVOSTO // COMMAND STATUS UNKNOWN';
+    delay=Math.min(950*failures,5000);
   }finally{
     busy=false;
     const queued=held;held=[];queued.forEach(frameIn);
@@ -292,11 +326,16 @@ dial.onclick=async()=>{
     const response=await request('/api/connect',{method:'POST'});
     if(response.status!==200){lost(response.status===503?'KOUVOSTO // ALL NODES BUSY':'KOUVOSTO // NO CARRIER');return;}
     ({node,token}=JSON.parse(response.text));
-    clear();move(0,0);partial='';fg=7;bg=0;bright=reverse=secret=false;failures=0;sockTries=0;held=[];
-    connected=true;enter.disabled=back.disabled=false;
-    carrier.textContent=connectText();focusTerminal();wake(0);openSocket();repaint();
+    clear();move(0,0);partial='';fg=7;bg=0;bright=reverse=secret=false;
+    carrier.textContent=connectText();attach();
   }catch{lost('KOUVOSTO // LINK ERROR');}
 };
+// Waking the phone or returning to the tab reconnects at once.
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||!connected)return;
+  if(!sockReady){sockTries=0;openSocket();}
+  if(!busy&&!sockReady)wake(0);
+});
 display.addEventListener('click',focusTerminal);
 capture.addEventListener('input',repaint);
 capture.addEventListener('keydown',e=>{
@@ -308,8 +347,16 @@ capture.addEventListener('beforeinput',e=>{
 enter.onclick=()=>{submit();focusTerminal();};
 back.onclick=()=>{capture.textContent=(capture.textContent||'').slice(0,-1);focusTerminal();repaint();};
  modem.onclick=playModem;
-addEventListener('pagehide',e=>{
-  if(connected&&!e.persisted)navigator.sendBeacon('/api/hangup',new URLSearchParams({n:node,q:token}));
-});
+// No hangup when the page unloads: a reload must be able to rejoin the node.
+// G (logoff) hangs up at once; an abandoned tab frees its node after the
+// three-minute carrier timeout, like a dropped line.
+(()=>{
+  const saved=recall('kouvosto.node');
+  if(!saved||!saved.node||!saved.token)return;
+  node=saved.node;token=saved.token;
+  restoreScreen();
+  carrier.textContent='KOUVOSTO // RECONNECTING';
+  attach();
+})();
 repaint();
 </script></body></html>)TERM";
