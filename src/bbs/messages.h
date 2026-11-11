@@ -4,8 +4,8 @@
 // a whole thread on one screen. Messages are written with a line editor.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-static constexpr uint8_t DRAFT_LINES = 30;
-static constexpr uint16_t DRAFT_CHARS = 2400;
+static constexpr uint8_t DRAFT_LINES = 100;
+static constexpr uint16_t DRAFT_CHARS = 8000;
 
 // Message text keeps every printable character; storage escapes % and |.
 static String textLine(const String &in, uint16_t max) {

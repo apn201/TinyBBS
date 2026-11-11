@@ -213,7 +213,7 @@ function frameIn(d){
   const k=d[0],v=d.slice(1);
   if(k==='o')render(v);
   else if(k==='p'){secret=v==='1';repaint();}
-  else if(k==='s')streamOn=parseInt(v,10)||0;
+  else if(k==='s'){streamOn=parseInt(v,10)||0;if(streamOn&&viewOff){viewOff=0;repaint();}}
   else if(k==='x')lost('KOUVOSTO // NO CARRIER');
 }
 function flushPending(){
@@ -394,7 +394,9 @@ capture.addEventListener('keydown',e=>{
 // Scrollback: mouse wheel or a finger drag on the terminal.
 let dragY=null,dragOff=0,dragged=false;
 const lineHeight=()=>display.clientHeight/rows;
-function scrollTo(off){viewOff=Math.max(0,Math.min(history.length,Math.round(off)));repaint();}
+// No scrollback while the board's reader is open or a picture plays: the
+// reader does its own scrolling, and history holds earlier screens.
+function scrollTo(off){viewOff=streamOn?0:Math.max(0,Math.min(history.length,Math.round(off)));repaint();}
 // In the pager the wheel scrolls the text a line at a time and a swipe turns pages.
 display.addEventListener('wheel',e=>{
   e.preventDefault();
