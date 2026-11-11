@@ -1,0 +1,10 @@
+.pio*/
+.vscode/
+*.bak
+*.part
+sd/BBS/DATA/
+sd/BBS/LOGS/
+sd/BBS/TEMP/
+sd/BBS/UPLOADS/
+# Curated/downloadable BBS file areas are kept off the source repository.
+sd/BBS/FILES/
