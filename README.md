@@ -282,11 +282,15 @@ More in [`ROADMAP.md`](ROADMAP.md). The full 1.0 target is in
 
 ## Credits
 
-Dial-up sound: [Oona Raisanen, "The sound of the dialup, pictured"](https://www.windytan.com/2012/11/the-sound-of-dialup-pictured.html).
+Dial-up sound: a generic modem handshake recorded by William Termini on his
+iMac G3, from Oona Raisanen's
+["The sound of the dialup, pictured"](https://www.windytan.com/2012/11/the-sound-of-dialup-pictured.html).
+Mentioned because we are nice.
 GoMud was evaluated as a mechanics/world reference. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Licence
 
-MIT, see [`LICENSE`](LICENSE). The dial-up sound in `sd/BBS/ASSETS` is not
-covered by it and belongs to its author.
+MIT, see [`LICENSE`](LICENSE). That covers the code, the ANSI screens and the
+Kouvosto splash image. GoMud's notice is in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
