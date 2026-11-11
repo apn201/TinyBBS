@@ -247,7 +247,7 @@ function saveScreen(){
 function restoreScreen(){
   const s=recall('kouvosto.screen');
   if(!s||!Array.isArray(s.rows)||s.rows.length!==rows)return;
-  screen=s.rows.map(([chars,attrs])=>Array.from({length:cols},(_,i)=>{const a=parseInt(attrs.substr(i*2,2),16)||7;return {ch:chars[i]||' ',ink:a>>4,paper:a&15};}));
+  screen=s.rows.map(([chars,attrs])=>Array.from({length:cols},(_,i)=>{let a=parseInt(attrs.substr(i*2,2),16);if(Number.isNaN(a))a=0x70;return {ch:chars[i]||' ',ink:a>>4,paper:a&15};}));
   ({x,y,fg,bg,bright,reverse}=s);
 }
 function attach(){
