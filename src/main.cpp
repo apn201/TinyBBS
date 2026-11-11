@@ -33,6 +33,7 @@
 #include "doors/doors.h"
 #include "bbs/sysop.h"
 #include "bbs/board.h"
+#include "bbs/admin.h"
 #include "bbs/cmd_login.h"
 #include "bbs/cmd_main.h"
 #include "bbs/cmd_sysop.h"
@@ -41,6 +42,8 @@
 #include "bbs/cmd_doors.h"
 #include "bbs/commands.h"
 #include "net/web.h"
+#include "net/sysop_page.h"
+#include "net/sysop_web.h"
 #include "net/telnet.h"
 #include "hw/lcd.h"
 
@@ -61,6 +64,7 @@ void setup() {
     trace("AP_FAIL", "could not start access point");
   dns.start(53, "*", WiFi.softAPIP());
   startWeb();
+  startSysopWeb();
   telnet.begin(); event("BOOT", "TinyBBS started"); trace("NETWORK_READY", WiFi.softAPIP().toString());
 }
 void loop() {

@@ -74,6 +74,7 @@ static void sysopMenu(Session &s) {
   art(s, "/BBS/ANSI/MENUS/SYSOP.ANS", "KOUVOSTO // SYSOP");
   say(s, "[U] Accounts / quotas / access     [D] Door settings / forest fights");
   say(s, "[W] Node monitor   [S] Board statistics   [Q] Main Board");
+  if (s.web) say(s, "[F] File manager (opens a separate admin page)");
   prompt(s, "SysOp command? ");
 }
 static void sysopDoors(Session &s) {

@@ -109,6 +109,18 @@ function control(params,cmd){
   }
 }
 function downloadLink(message){
+  if(message.startsWith('9;LINK;')){
+    const cut=message.indexOf(';',7);
+    if(cut<0)return;
+    try{
+      const url=new URL(message.slice(7,cut),location.href);
+      if(url.origin!==location.origin||url.pathname!=='/sysop')return;
+      const link=document.createElement('a');
+      link.href=url.href;link.target='_blank';link.rel='noopener';link.textContent=message.slice(cut+1);
+      links.replaceChildren(link);
+    }catch{}
+    return;
+  }
   if(!message.startsWith('9;DL;'))return;
   const cut=message.indexOf(';',5);
   if(cut<0)return;

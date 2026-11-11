@@ -8,10 +8,15 @@ static bool sysopCommand(Session &s, String &line, const String &cmd) {
     if (cmd == "U") { sysopUsers(s); return true; }
     if (cmd == "D") { sysopDoors(s); return true; }
     if (cmd == "W") who(s);
+    else if (cmd == "F" && s.web) {
+      write(s, "\x1b]9;LINK;/sysop?t=" + issueAdminToken(s.user) + ";OPEN FILE MANAGER\x07");
+      say(s, "\x1b[1;36mFile manager armed. Tap OPEN FILE MANAGER below the terminal.\x1b[0m");
+      say(s, "The link stays valid for 30 minutes of use.");
+    }
     else if (cmd == "S") {
       say(s, "Calls: " + String(callers) + "  Users next #: " + String(nextUserId) + "  Messages: " + String(nextMessageId - 1));
       say(s, "Nodes: " + String(MAX_NODES) + "  SD: " + (sdReady ? "online" : "offline"));
-    } else say(s, "Use U, D, W, S, or Q.");
+    } else say(s, s.web ? "Use U, D, W, S, F, or Q." : "Use U, D, W, S, or Q.");
     prompt(s, "SysOp command? "); return true;
   }
   if (s.state == SYSOP_DOORS) {
