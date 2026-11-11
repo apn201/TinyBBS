@@ -48,6 +48,8 @@ struct Session {
   uint32_t lastPoll = 0;
   uint32_t wsClient = 0;  // live WebSocket for a browser node, 0 = polling
   int8_t wsSecret = -1;   // password masking state last sent over the socket
+  uint8_t pageNode = 0;   // SysOp only: node of a caller waiting for an answer
+  uint32_t pageUser = 0;  // and that caller's user id
   bool authenticated = false;
   uint8_t telnetState = 0;
 };

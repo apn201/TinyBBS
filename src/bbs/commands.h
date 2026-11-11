@@ -5,6 +5,7 @@
 static void handleLine(Session &s, String line) {
   s.lastAt = millis(); line.trim(); String cmd = up(line);
   if (s.user.locked) { closeSession(s); return; }
+  if (s.pageNode && isSysop(s) && (cmd == "/A" || cmd == "/R")) { answerPage(s, cmd == "/A"); return; }
   if ((s.state == SYSOP_MENU || s.state == SYSOP_USERS || s.state == SYSOP_DOORS || s.state == SYSOP_ADD_PASSWORD || s.state == SYSOP_DELETE_CONFIRM) && !isSysop(s)) {
     s.hideInput = false;
     s.editId = 0;
