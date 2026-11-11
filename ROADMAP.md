@@ -231,6 +231,25 @@ several and step through them with `N` and `P`.
 
 After this slice the SysOp adds more ANSI and ASCII art straight on the card.
 
+### Slice 4c: one reader for everything
+
+Text files open in a pager (built), ANSI pictures play at modem speed, and
+messages scroll past. One reader replaces all three:
+
+- ANSI art is drawn into an 80-column screen buffer on the board (PSRAM has
+  room for very tall pictures), so it can be paged like text: each screen row
+  is sent with its colours.
+- In the reader, `[S]` plays the file from the current line at modem speed,
+  the way V does now. Any key stops it and leaves you in the reader where it
+  stopped.
+- Messages and threads open in the same reader when they are longer than a
+  screen. Short ones stay as they are, with the reader prompt below.
+- Same keys everywhere: SPACE next page, B back, arrows by line, N and P
+  next and previous file or message, Q quit.
+
+Done when: a tall ANSI picture, a long text file and a long message all
+open in the same reader with the same keys, and S plays the picture.
+
 ### Slice 5: generated menus with SD art
 
 Menus that list things become header art plus a generated list in matching
