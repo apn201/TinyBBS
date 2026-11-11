@@ -465,3 +465,138 @@ static void questShop(Session &s) {
            armorNames[tier] + "   " + gearPrice[tier] + " gold each");
   prompt(s, "[W #] Weapon  [A #] Armour  [Q] Town: ");
 }
+
+static bool legendCommand(Session &s, String &line, const String &cmd) {
+  if (s.state == QUEST_MENU) {
+    if (cmd == "Q") { doorMenu(s); return true; }
+    if (cmd == "F") { enterForest(s); return true; }
+    if (cmd == "M") { questTrain(s); return true; }
+    if (cmd == "S") { questShop(s); return true; }
+    if (cmd == "T") { questTavern(s, true); return true; }
+    if (cmd == "L") { questLeaderboard(s); questMenu(s); return true; }
+    if (cmd == "C" || cmd.startsWith("C ")) { questChallenge(s, line); return true; }
+    if (cmd == "H") {
+      uint16_t missing = s.quest.maxHp - s.quest.hp;
+      uint16_t cost = missing * 2;
+      if (!missing) say(s, "You are already in fighting shape.");
+      else if (s.quest.gold < cost) say(s, "You need " + String(cost) + " gold.");
+      else {
+        Quest updated = s.quest;
+        updated.gold -= cost;
+        updated.hp = updated.maxHp;
+        if (saveQuest(updated)) {
+          s.quest = updated;
+           say(s, "The healer restores your HP.");
+        } else say(s, "Door state could not be saved.");
+      }
+      questMenu(s);
+      return true;
+    }
+    if (cmd == "B") { s.state=QUEST_BANK; activity(s,"KOUVOLA BANK"); say(s,"Bank holds "+String(s.quest.bank)+" gold. Use D <amount>, W <amount>, or Q."); prompt(s,"Bank command? "); return true; }
+    say(s,"Use F, H, B, T, M, S, L, C <name>, or Q."); prompt(s,"Town command? "); return true;
+  }
+  if (s.state == QUEST_TAVERN) {
+    if (cmd == "Q" || !cmd.length()) { questMenu(s); return true; }
+    if (cmd == "R") { tavernRumor(s); return true; }
+    if (cmd == "W") { tavernWho(s); return true; }
+    if (cmd == "L") { questLeaderboard(s); questTavern(s); return true; }
+    if (cmd == "M") { questMeal(s); return true; }
+    if (cmd == "C" || cmd.startsWith("C ")) { questChallenge(s, line); return true; }
+    say(s, "Use R, W, L, C <name>, M, or Q."); prompt(s, "Tavern command? "); return true;
+  }
+  if (s.state == QUEST_DUEL_WAIT) {
+    if (cmd == "Q") duelCancel(s, "you withdrew the challenge");
+    else prompt(s, "Waiting for the other adventurer. [Q] Cancel: ");
+    return true;
+  }
+  if (s.state == QUEST_DUEL_OFFER) {
+    if (cmd == "Y" || cmd == "YES") {
+      Session *other = sessionByNode(s.duelNode);
+      if (!other || other->state != QUEST_DUEL_WAIT) { duelCancel(s, "the challenge expired"); return true; }
+      s.state = other->state = QUEST_DUEL;
+      s.duelTurnNode = other->duelTurnNode = other->node;
+      activity(s, "ARENA DUEL"); activity(*other, "ARENA DUEL");
+      say(s, "\r\nThe arena gate opens. " + other->user.handle + " has the initiative.");
+      say(*other, "\r\nThe arena gate opens. You have the initiative.");
+      prompt(s, "Wait for the opening. [A]ttack  [R]etreat: ");
+      prompt(*other, "[A]ttack  [R]etreat: ");
+    } else if (cmd == "N" || cmd == "NO" || cmd == "Q") duelCancel(s, "the challenge was declined");
+    else prompt(s, "Accept? [Y]es / [N]o: ");
+    return true;
+  }
+  if (s.state == QUEST_DUEL) {
+    if (cmd == "R") { duelCancel(s, s.user.handle + " retreated"); return true; }
+    if (cmd == "A") duelAttack(s);
+    else prompt(s, s.node == s.duelTurnNode ? "[A]ttack  [R]etreat: " : "Wait for your initiative... ");
+    return true;
+  }
+  if (s.state == QUEST_DUEL_RESULT) {
+    if (!cmd.length() || cmd == "Q") questMenu(s);
+    else prompt(s, "[ENTER] Return to town: ");
+    return true;
+  }
+  if (s.state == QUEST_FIGHT) {
+    if (cmd == "A") { questAttack(s); return true; }
+    if (cmd == "R" && saveQuest(s)) {
+      say(s, "You escape with " + String(s.quest.hp) + " HP. The forest keeps the turn.");
+      s.state = QUEST_RESULT;
+      prompt(s, "[ENTER] Town  [F] Search the forest again: ");
+      return true;
+    }
+    prompt(s, "[A]ttack  [R]un? "); return true;
+  }
+  if (s.state == QUEST_RESULT) {
+    if (cmd == "F" && s.quest.fights) enterForest(s);
+    else if (!cmd.length() || cmd == "Q") questMenu(s);
+    else prompt(s, s.quest.fights ? "[ENTER] Town  [F] Search again: " : "No fights left. [ENTER] Town: ");
+    return true;
+  }
+  if (s.state == QUEST_SHOP) {
+    if (cmd == "Q" || !cmd.length()) { questMenu(s); return true; }
+    String verb = tokenAt(cmd, 0);
+    uint32_t tier;
+    if ((verb != "W" && verb != "A") || !readNumber(afterTokens(line, 1), tier) || tier < 1 || tier > MAX_GEAR) {
+      prompt(s, "Use W 1-3, A 1-3, or Q: "); return true;
+    }
+    Quest purchase = s.quest;
+    uint8_t &equipped = verb == "W" ? purchase.weapon : purchase.armor;
+    if (tier <= equipped) say(s, "You already have equal or better gear.");
+    else if (purchase.gold < gearPrice[tier]) say(s, "You cannot afford it.");
+    else {
+      equipped = tier;
+      purchase.gold -= gearPrice[tier];
+      if (saveQuest(purchase)) {
+        s.quest = purchase;
+        say(s, String("Equipped ") + (verb == "W" ? weapons[tier] : armorNames[tier]) +
+               ". Gold: " + s.quest.gold);
+      } else say(s, "Purchase could not be saved.");
+    }
+    prompt(s, "[W #] Weapon  [A #] Armour  [Q] Town: "); return true;
+  }
+  if (s.state == QUEST_BANK) {
+    if (cmd == "Q" || !cmd.length()) { questMenu(s); return true; }
+    String verb = tokenAt(cmd, 0);
+    uint32_t amount;
+    if ((verb != "D" && verb != "W") || !readNumber(afterTokens(line, 1), amount) || !amount) {
+      prompt(s, "Use D <amount>, W <amount>, or Q: "); return true;
+    }
+    Quest updated = s.quest;
+    uint32_t &from = verb == "D" ? updated.gold : updated.bank;
+    uint32_t &to = verb == "D" ? updated.bank : updated.gold;
+    if (from < amount || UINT32_MAX - to < amount) say(s, "That transfer is unavailable.");
+    else {
+      from -= amount;
+      to += amount;
+      if (saveQuest(updated)) {
+        s.quest = updated;
+        say(s, "Purse: " + String(updated.gold) + "  Bank: " + updated.bank);
+      } else say(s, "Transfer could not be saved.");
+    }
+    prompt(s, "Bank command? "); return true;
+  }
+  return false;
+}
+
+// Door interface hooks.
+static bool ownsLegend(const Session &s) { return playingQuest(s) && s.state != DICE_BET; }
+static void handleLegend(Session &s, String &line, const String &cmd) { legendCommand(s, line, cmd); }

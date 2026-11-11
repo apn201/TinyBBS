@@ -1,67 +1,64 @@
-# TinyBBS — Codex handoff
+# TinyBBS - notes for coding agents
 
 ## Workspace purpose
 
-This is an offline-first ESP32-S3 BBS project. The requested experience is a
-genuine 1990s ANSI BBS: browser and Telnet are transports for the same BBS
-core, not separate applications.
+An offline ESP32-S3 BBS on a Pocket-Dongle-S3 USB stick. The experience is a
+1990s ANSI BBS: browser and Telnet are two transports into the same BBS core,
+not separate applications.
 
 ## Read first
 
-1. `TinyBBS_READY_TO_CODE_SPEC.md` — the authoritative 1.0 target.
-2. `README.md` — current implementation and SD-card setup.
-3. `HARDWARE.md` — fixed, proven pin contract from TinyIRC.
-4. `ROADMAP.md` — honest current boundary and intended sequencing.
-5. `CURATION.md` — archive policy, provenance and Kouvosto area rules.
+1. `ROADMAP.md` - ground rules and the current slice plan. Work slice by
+   slice; each slice ends with a test on the real board.
+2. `README.md` - what exists now, technical overview and SD-card setup.
+3. `HARDWARE.md` - board, pins, display offsets, flashing and recovery.
+4. `CURATION.md` - archive policy and provenance.
+5. `TinyBBS_READY_TO_CODE_SPEC.md` - the original 1.0 specification. Where it
+   disagrees with `ROADMAP.md`, the roadmap wins.
 
-## Current implementation
+## Firmware layout
 
-- Firmware entry point: `src/main.cpp`.
-- Build definition: `platformio.ini` for `esp32-s3-devkitc1-n16r8`.
-- Hardware reference: TinyIRC, kept in its own repository. A local copy may
-  sit in the git-ignored `reference/` folder; do not modify it.
-- SD-card source content: `sd/BBS/`.
-- SD-card preparation helper: `tools/prepare-sd.ps1`.
-- `TinyBBS_SD_CARD_EMPTY_TREE.zip` is the supplied complete empty card tree.
-- `_sd_tree/` is its extracted local reference; it is not generated runtime
-  data and should not be treated as the deployed card.
+`src/main.cpp` holds `setup()` and `loop()` and includes the modules in order.
+The firmware is one translation unit split into headers, so a module may use
+anything included before it.
 
-The implemented vertical slice includes AP/captive DNS, browser polling
-terminal transport, Telnet, up to eight nodes, login/new-user persistence,
-salted SHA-256 password records, message posting/reading, basic conferences,
-chat, WHO, SysOp page, logs, LCD status, and editable ANSI/ASCII presentation
-assets.
+| Folder | Contents |
+| --- | --- |
+| `src/core` | Globals, helpers, SD storage and INI lookup, users, message store, sessions |
+| `src/bbs` | File areas, SysOp tools, menus and login, and one `cmd_*.h` per command area |
+| `src/doors` | One header per door plus `doors.h`, the door table |
+| `src/net` | Browser terminal page, HTTP routes, Telnet |
+| `src/hw` | LCD and splash logo |
 
-Kouvosto is the working board name. Its selected archive files are placed in
-native Kouvosto areas; source/capture metadata lives only in
-`/BBS/DATA/INDEX/KOUVOSTO_ORIGINS.json`. Do not add a caller-visible MPOLI
-folder.
+Adding a door: write `src/doors/<name>.h` with `enter`, `owns` and `handle`
+functions, include it in `main.cpp` before `doors/doors.h`, and add one line
+to the `DOORS` table.
 
-## Important constraints
+Build: `pio run` (profile `esp32-s3-devkitc1-n16r8`, build folder
+`.pio-tinybbs`). Flash with `pio run -t upload`, or the DIO recovery command
+in `README.md`.
 
-- Keep the BBS core transport-independent. Telnet and browser sessions must
-  remain adjacent nodes in the same session manager.
-- The board is deliberately AP-only at present. `ap_sta` in
-  `sd/BBS/CONFIG/NETWORK.INI` is a future LAN/WAN seam, not permission to
-  join an upstream network now.
-- Do not silently format an SD card or expose SD paths to callers.
-- Store replaceable presentation/content on SD, not embedded in firmware.
-- Do not claim QWK, file transfers, approval queues, door games, WebSocket
-  transport, or modem protocols are complete: those are next-stage work.
-- Do not modify user-maintained archive/data directories by hand:
-  `/BBS/DATA`, `/BBS/LOGS`, `/BBS/TEMP`, and `/BBS/QWK/WORK`.
-- Preserve original archive names and FILE_ID.DIZ/DESC.SDI/DESCRIPT.ION data.
-  Use the curator scripts instead of unpacking archives into file areas.
+SD-card source content is in `sd/BBS/`. `tools/prepare-sd.ps1` copies it to a
+card. `TinyBBS_SD_CARD_EMPTY_TREE.zip` is the empty card tree.
 
-## Verification status
+## Constraints
 
-The repository and referenced SD assets were checked for presence on
-2026-11-10. PlatformIO is not installed in this workspace environment, so
-there is no on-device compile/flash confirmation yet. Install/use PlatformIO
-before treating the firmware as hardware-verified.
+- Keep the BBS core transport-independent. Telnet and browser sessions stay
+  adjacent nodes in the same session pool.
+- AP-only. The board never joins another network.
+- Content and settings belong on the SD card, not in firmware. Prefer
+  discovering things from the card over hard-coding them.
+- Never show a menu option that does not work for that caller on that
+  transport.
+- Do not format an SD card or expose SD paths to callers.
+- Do not edit `/BBS/DATA`, `/BBS/LOGS` or `/BBS/TEMP` by hand.
+- Preserve original archive names and FILE_ID.DIZ, DESC.SDI and DESCRIPT.ION
+  data. `sd/BBS/FILES` is git-ignored and stays out of the repository.
+- Kouvosto provenance lives in `/BBS/DATA/INDEX/KOUVOSTO_ORIGINS.json`, not in
+  a caller-visible folder.
 
-## Recommended next work
+## Verification
 
-Follow the sequence in `ROADMAP.md`: WebSocket/reconnect transport first,
-then safe file-area transfers and ratios, QWK, door framework, physical
-profiling, and only then AP+STA/LAN/WAN bridging.
+PlatformIO is installed on the development PC and the firmware has been built
+and flashed to the Pocket-Dongle-S3. A slice counts as done only after its
+test in `ROADMAP.md` passes on the board.

@@ -73,14 +73,20 @@ out. Pins and display offsets are in [`HARDWARE.md`](HARDWARE.md).
 
 ### Firmware layout
 
-The firmware is Arduino on ESP32, one main file of about 2400 lines:
+The firmware is Arduino on ESP32, about 2400 lines. `src/main.cpp` has
+`setup()` and `loop()` and includes the modules in order, as one translation
+unit:
 
-| File | Contents |
+| Folder | Contents |
 | --- | --- |
-| `src/main.cpp` | BBS core, storage, doors, HTTP and Telnet transports, LCD |
-| `src/web_terminal.h` | The browser terminal page, compiled into flash |
-| `src/file_viewer.h` | CP437 to UTF-8 conversion for archive ANSI |
-| `src/scene_logo.h` | LCD splash logo as DOS palette indexes |
+| `src/core` | Globals, helpers, SD storage, users, message store, sessions |
+| `src/bbs` | File areas and viewer, SysOp tools, menus, login, one `cmd_*.h` per command area, CP437 conversion |
+| `src/doors` | Legend of Kouvola, VolaMUD, dice cabinet and `doors.h`, the door table |
+| `src/net` | Browser terminal page (compiled into flash), HTTP routes, Telnet |
+| `src/hw` | Status LCD and the splash logo as DOS palette indexes |
+
+A door is one header with `enter`, `owns` and `handle` functions plus one
+line in the door table.
 
 Libraries: Arduino GFX Library, the core `WebServer`, `DNSServer`, `SD_MMC`
 and mbedTLS for SHA-256. There are no extra RTOS tasks. `loop()` serves DNS,
@@ -177,7 +183,7 @@ caller or page.
 1. Install PlatformIO with the Espressif32 platform.
 2. Build and flash: `pio run -t upload`. On Windows,
    `tools\build-platformio.cmd` does the same. The proven target is the
-   Pocket-Dongle-S3 with the N16R8 profile in `platformio.flash.ini`; see
+   Pocket-Dongle-S3 with the N16R8 profile in `platformio.ini`; see
    **Flash and recovery** below before trying another board profile.
 3. Format a microSD card as FAT32. Extract `TinyBBS_SD_CARD_EMPTY_TREE.zip`
    to the card root, then copy this repository's `sd/BBS` into the card's
@@ -214,14 +220,14 @@ path below. Replace `COM10` with the actual port. It rewrites only firmware
 regions; it does not touch the SD card.
 
 ```powershell
-pio run -c platformio.flash.ini
+pio run
 $env:PYTHONIOENCODING = 'utf-8'
 & "$env:USERPROFILE\.platformio\penv\Scripts\esptool.exe" --chip esp32s3 --port COM10 --baud 921600 `
   write-flash --flash-mode dio --flash-freq 80m --flash-size 16MB `
-  0x0 .pio-tinybbs-flash\tinybbs_s3\bootloader.bin `
-  0x8000 .pio-tinybbs-flash\tinybbs_s3\partitions.bin `
+  0x0 .pio-tinybbs\tinybbs_s3\bootloader.bin `
+  0x8000 .pio-tinybbs\tinybbs_s3\partitions.bin `
   0xe000 "$env:USERPROFILE\.platformio\packages\framework-arduinoespressif32\tools\partitions\boot_app0.bin" `
-  0x10000 .pio-tinybbs-flash\tinybbs_s3\firmware.bin
+  0x10000 .pio-tinybbs\tinybbs_s3\firmware.bin
 ```
 
 `Hash of data verified` for every segment and a reset without repeating USB

@@ -599,3 +599,6 @@ static void handleMudInput(Session &s, const String &line) {
   say(s, "Unknown VolaMUD command. Type HELP.");
   mudPrompt(s);
 }
+
+// Door interface hooks.
+static void handleMud(Session &s, String &line, const String &cmd) { handleMudInput(s, line); }

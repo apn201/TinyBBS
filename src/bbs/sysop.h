@@ -1,5 +1,5 @@
 #pragma once
-// WHO, user list, SysOp menus and command-line parsing helpers.
+// WHO, user list and SysOp menus.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
 static void who(Session &s) {
@@ -7,36 +7,6 @@ static void who(Session &s) {
   for (auto &n : sessions) if (n.used && n.state != DEAD) { String h = n.user.handle.length() ? n.user.handle : "(logging in)"; char row[90]; snprintf(row, sizeof(row), "%-5u %-16s %s", n.node, h.c_str(), n.activity.c_str()); say(s, row); }
 }
 static bool isSysop(const Session &s) { return s.authenticated && !s.user.locked && s.user.level == 255 && hasFlag(s.user, "SYSOP"); }
-static String tokenAt(String text, uint8_t wanted) {
-  text.trim();
-  while (wanted--) { int cut = text.indexOf(' '); if (cut < 0) return ""; text = text.substring(cut + 1); text.trim(); }
-  int cut = text.indexOf(' '); return cut < 0 ? text : text.substring(0, cut);
-}
-static String afterTokens(String text, uint8_t count) {
-  text.trim();
-  while (count--) { int cut = text.indexOf(' '); if (cut < 0) return ""; text = text.substring(cut + 1); text.trim(); }
-  return text;
-}
-static String cleanFlags(const String &in) {
-  String out; bool comma = true;
-  for (uint16_t i = 0; i < in.length() && out.length() < 63; ++i) {
-    char c = in[i];
-    if (isalnum((unsigned char)c) || c == '_') { out += (char)toupper((unsigned char)c); comma = false; }
-    else if (c == ',' && !comma) { out += ','; comma = true; }
-  }
-  if (out.endsWith(",")) out.remove(out.length() - 1); return out;
-}
-static uint32_t numberAt(const String &line, uint8_t position) { return strtoul(tokenAt(line, position).c_str(), nullptr, 10); }
-static bool readNumber(const String &value, uint32_t &out) {
-  if (!value.length()) return false;
-  out = 0;
-  for (size_t i = 0; i < value.length(); ++i) {
-    char digit = value[i];
-    if (digit < '0' || digit > '9' || out > (UINT32_MAX - (digit - '0')) / 10) return false;
-    out = out * 10 + (digit - '0');
-  }
-  return true;
-}
 static void refreshLiveUser(const User &changed) {
   for (auto &n : sessions) if (n.used && n.user.id == changed.id) n.user = changed;
 }

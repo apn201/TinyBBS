@@ -16,8 +16,6 @@ static const FileArea FILE_AREAS[] = {
 static const uint8_t FILE_AREA_COUNT = sizeof(FILE_AREAS) / sizeof(FILE_AREAS[0]);
 static void fileMenu(Session &s);
 static void doorMenu(Session &s);
-static String tokenAt(String text, uint8_t wanted);
-static String afterTokens(String text, uint8_t count);
 static bool canUseArea(const Session &s, uint8_t area) { return area < FILE_AREA_COUNT && s.user.level >= FILE_AREAS[area].level && (!FILE_AREAS[area].flag[0] || hasFlag(s.user, FILE_AREAS[area].flag)); }
 static String shortName(const String &path) { int slash = path.lastIndexOf('/'); return slash >= 0 ? path.substring(slash + 1) : path; }
 static bool areaFile(Session &s, uint16_t wanted, String &path, String &name, size_t &bytes) {

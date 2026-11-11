@@ -118,7 +118,7 @@ repeating USB connect/disconnect sound and the serial log repeats
 `rst:0x7 (TG0WDT_SYS_RST)` before application output.
 
 This is recoverable. The ROM bootloader still accepts `esptool --chip esp32s3
---port COMx flash-id`. Rebuild with `platformio.flash.ini`, then rewrite the
+--port COMx flash-id`. Rebuild with `pio run`, then rewrite the
 bootloader at `0x0`, partitions at `0x8000`, `boot_app0.bin` at `0xe000` and
 the application at `0x10000`, explicitly using `--flash-mode dio`. Verify the
 hashes, reset, and check that `THE_BOARD` is visible again. Do not change the

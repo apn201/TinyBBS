@@ -28,8 +28,16 @@
 #include "bbs/files.h"
 #include "doors/volamud.h"
 #include "doors/legend.h"
+#include "doors/dice.h"
+#include "doors/doors.h"
 #include "bbs/sysop.h"
 #include "bbs/board.h"
+#include "bbs/cmd_login.h"
+#include "bbs/cmd_main.h"
+#include "bbs/cmd_sysop.h"
+#include "bbs/cmd_files.h"
+#include "bbs/cmd_messages.h"
+#include "bbs/cmd_doors.h"
 #include "bbs/commands.h"
 #include "net/web.h"
 #include "net/telnet.h"
@@ -53,8 +61,6 @@ void setup() {
   http.on("/", HTTP_GET, root); http.on("/api/out", HTTP_GET, apiOut); http.on("/api/in", HTTP_POST, apiIn); http.on("/download", HTTP_GET, downloadFile);
   http.on("/api/connect", HTTP_POST, apiConnect);
   http.on("/api/hangup", HTTP_POST, apiHangup);
-  // Compatibility with an early browser page that used /out and /in.
-  http.on("/out", HTTP_GET, apiOut); http.on("/in", HTTP_POST, apiIn);
   http.on("/status", HTTP_GET, status); http.on("/modem.mp3", HTTP_GET, modemAudio); http.onNotFound(notFound); http.begin(); telnet.begin(); event("BOOT", "TinyBBS started"); trace("NETWORK_READY", WiFi.softAPIP().toString());
 }
 void loop() {

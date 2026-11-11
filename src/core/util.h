@@ -49,3 +49,35 @@ static String sha256hex(const String &s) {
   char out[65]; for (uint8_t i = 0; i < 32; ++i) sprintf(out + i * 2, "%02x", digest[i]); out[64] = 0; return String(out);
 }
 static String salt() { char b[17]; snprintf(b, sizeof(b), "%08lx%08lx", (unsigned long)esp_random(), (unsigned long)esp_random()); return String(b); }
+
+// Command-line parsing for typed BBS commands.
+static String tokenAt(String text, uint8_t wanted) {
+  text.trim();
+  while (wanted--) { int cut = text.indexOf(' '); if (cut < 0) return ""; text = text.substring(cut + 1); text.trim(); }
+  int cut = text.indexOf(' '); return cut < 0 ? text : text.substring(0, cut);
+}
+static String afterTokens(String text, uint8_t count) {
+  text.trim();
+  while (count--) { int cut = text.indexOf(' '); if (cut < 0) return ""; text = text.substring(cut + 1); text.trim(); }
+  return text;
+}
+static String cleanFlags(const String &in) {
+  String out; bool comma = true;
+  for (uint16_t i = 0; i < in.length() && out.length() < 63; ++i) {
+    char c = in[i];
+    if (isalnum((unsigned char)c) || c == '_') { out += (char)toupper((unsigned char)c); comma = false; }
+    else if (c == ',' && !comma) { out += ','; comma = true; }
+  }
+  if (out.endsWith(",")) out.remove(out.length() - 1); return out;
+}
+static uint32_t numberAt(const String &line, uint8_t position) { return strtoul(tokenAt(line, position).c_str(), nullptr, 10); }
+static bool readNumber(const String &value, uint32_t &out) {
+  if (!value.length()) return false;
+  out = 0;
+  for (size_t i = 0; i < value.length(); ++i) {
+    char digit = value[i];
+    if (digit < '0' || digit > '9' || out > (UINT32_MAX - (digit - '0')) / 10) return false;
+    out = out * 10 + (digit - '0');
+  }
+  return true;
+}
