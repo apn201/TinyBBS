@@ -24,7 +24,7 @@
   // player does the audio itself, so pico is only a stand-in.
   function loadSid() {
     if (sidLoading) return sidLoading;
-    const files = ['stream.js', 'jssid.core.js', 'jssid.resid.js', 'jssid.mos6510.js', 'jssid.sidplayer.js'];
+    const files = ['jsxcompressor.min.js', 'stream.js', 'jssid.core.js', 'jssid.resid.js', 'jssid.mos6510.js', 'jssid.sidplayer.js'];
     sidLoading = files.reduce((p, f) => p.then(() => new Promise((ok, fail) => {
       const s = document.createElement('script');
       s.src = BASE + f; s.onload = ok;

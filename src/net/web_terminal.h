@@ -163,7 +163,7 @@ let playerLoad=null;
 const playerOpen=()=>!!(window.TinyPlayer&&window.TinyPlayer.isOpen());
 function closePlayer(){if(window.TinyPlayer)window.TinyPlayer.close();}
 function playTune(href,name,size,desc){
-  if(!playerLoad)playerLoad=new Promise((ok,fail)=>{const s=document.createElement('script');s.src='/player/player.js';s.onload=ok;s.onerror=()=>{playerLoad=null;fail();};document.head.appendChild(s);});
+  if(!playerLoad)playerLoad=new Promise((ok,fail)=>{const s=document.createElement('script');s.src='/player/player.js?t='+Date.now();s.onload=ok;s.onerror=()=>{playerLoad=null;fail();};document.head.appendChild(s);});
   playerLoad.then(()=>{window.TinyPlayer.open(href,name,size,streamKey,desc);focusTerminal();}).catch(()=>{});
 }
 document.addEventListener('click',()=>{if(playerOpen())focusTerminal();});

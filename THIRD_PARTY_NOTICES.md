@@ -87,6 +87,12 @@ are the source. They are not part of the TinyBBS firmware, which stays MIT:
 `player.js` only loads them in the browser next to it. jsSID's own audio
 layer (pico.js) is not shipped; `player.js` feeds the browser itself.
 
+reSID unpacks its waveform tables with JSXCompressor (`jsxcompressor.min.js`,
+from the same jsSID repository, unmodified), copyright 2008-2012 Matthias
+Ehmann, Michael Gerhaeuser, Carsten Miller, Bianca Valentin, Alfred
+Wassermann and Peter Wilfahrt, dual licensed under the Apache License 2.0 or
+the LGPL 3. Its licence header is kept in the file.
+
 ## SID tunes
 
 The C64 SID Music area (`tools/fetch-sids.py`) holds tunes from the High
