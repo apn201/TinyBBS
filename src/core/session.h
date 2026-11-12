@@ -59,7 +59,7 @@ struct Reader {
 };
 struct Session {
   bool used = false, web = false, ansi = true, hideInput = false, paged = false, ignoreNextLf = false;
-  uint8_t node = 0, conference = 0, fileArea = 0; uint16_t userPage = 0; State state = DEAD; WiFiClient socket;
+  uint8_t node = 0, conference = 0, fileArea = 0; uint16_t userPage = 0; State state = DEAD; NetClient socket;
   String token, input, output, pendingHandle, pendingPass, pendingReal, pendingTo, pendingSubject, activity;
   String editHandle;
   uint32_t editId = 0;

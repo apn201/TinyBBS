@@ -8,6 +8,8 @@
 // it under the lock and sends frames after releasing it, so the web server's
 // internal locks and ours are never held together.
 
+AsyncWebServer http(80);
+AsyncWebSocket ws("/ws");
 static String requestArg(AsyncWebServerRequest *r, const char *name) {
   return r->hasArg(name) ? r->arg(name) : String();
 }

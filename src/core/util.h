@@ -112,7 +112,7 @@ static String sha256hex(const String &s) {
   mbedtls_sha256_finish(&c, digest); mbedtls_sha256_free(&c);
   char out[65]; for (uint8_t i = 0; i < 32; ++i) sprintf(out + i * 2, "%02x", digest[i]); out[64] = 0; return String(out);
 }
-static String salt() { char b[17]; snprintf(b, sizeof(b), "%08lx%08lx", (unsigned long)esp_random(), (unsigned long)esp_random()); return String(b); }
+static String salt() { char b[17]; snprintf(b, sizeof(b), "%08lx%08lx", (unsigned long)bbsRandom(), (unsigned long)bbsRandom()); return String(b); }
 
 // Command-line parsing for typed BBS commands.
 static String tokenAt(String text, uint8_t wanted) {

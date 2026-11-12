@@ -2,6 +2,7 @@
 // Telnet listener and IAC filtering.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
+WiFiServer telnet(23);
 static void telnetInput(Session &s, uint8_t byte) {
   // Drop negotiation and subnegotiation before handing bytes to the BBS.
   switch (s.telnetState) {

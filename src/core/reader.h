@@ -75,7 +75,7 @@ static void indexText(Reader &r) {
 static constexpr uint32_t BLANK_CELL = ' ' | (7u << 16);
 static void renderAnsi(Reader &r) {
   uint32_t maxRows = ANSI_MAX_ROWS;
-  uint32_t *cells = (uint32_t *)heap_caps_malloc(maxRows * 80 * 4, MALLOC_CAP_SPIRAM);
+  uint32_t *cells = (uint32_t *)bigAlloc(maxRows * 80 * 4);
   if (!cells) { maxRows = 200; cells = (uint32_t *)malloc(maxRows * 80 * 4); }
   if (!cells) return;
   r.cells = std::shared_ptr<uint32_t>(cells, free);

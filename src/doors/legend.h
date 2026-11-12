@@ -216,7 +216,7 @@ static void tavernRumor(Session &s) {
     "Someone has been asking whether the SysOp keeps extra forest turns.",
     "The back table is covered in maps of a forest that is not on any chart."
   };
-  const char *rumor = rumors[esp_random() % (sizeof(rumors) / sizeof(rumors[0]))];
+  const char *rumor = rumors[bbsRandom() % (sizeof(rumors) / sizeof(rumors[0]))];
   say(s, String("\x1b[1;35mRumor from the back table:\x1b[0m ") + rumor);
   prompt(s, "Tavern command? ");
 }
@@ -287,7 +287,7 @@ static void duelAttack(Session &s) {
   const uint16_t strength = 8 + s.quest.level * 3 + s.quest.weapon * 3;
   const uint16_t defence = 2 + other->quest.level * 2 + other->quest.armor * 3;
   const uint16_t half = strength / 2 ? strength / 2 : 1;
-  const int swing = int(strength / 2) + int(esp_random() % half) - int(defence);
+  const int swing = int(strength / 2) + int(bbsRandom() % half) - int(defence);
   // The other fighter sits at a waiting prompt: their news starts a new line.
   if (swing <= 0) {
     say(s, "Your blade glances off " + other->user.handle + "'s guard.");
@@ -337,9 +337,9 @@ static void enterForest(Session &s) {
     return;
   }
   static const char *beasts[] = {"ash wolf", "barrow wraith", "forest troll", "marsh drake", "cave goblin"};
-  s.quest.monster = beasts[esp_random() % 5];
-  s.quest.monsterHp = 12 + s.quest.level * 8 + esp_random() % 10;
-  s.quest.monsterAtk = 3 + s.quest.level * 2 + esp_random() % 5;
+  s.quest.monster = beasts[bbsRandom() % 5];
+  s.quest.monsterHp = 12 + s.quest.level * 8 + bbsRandom() % 10;
+  s.quest.monsterAtk = 3 + s.quest.level * 2 + bbsRandom() % 5;
   s.state = QUEST_FIGHT;
   activity(s, "FOREST: " + s.quest.monster);
   say(s, "A " + s.quest.monster + " blocks the path!  HP " + s.quest.monsterHp);
@@ -364,14 +364,14 @@ static void fightResult(Session &s, const Quest &before, const String &report) {
 }
 static void questAttack(Session &s) {
   const Quest before = s.quest;
-  uint16_t hit = 4 + s.quest.level * 3 + esp_random() % 8 + gearPower[s.quest.weapon];
-  const bool critical = esp_random() % 10 == 0;
+  uint16_t hit = 4 + s.quest.level * 3 + bbsRandom() % 8 + gearPower[s.quest.weapon];
+  const bool critical = bbsRandom() % 10 == 0;
   if (critical) hit *= 2;
   const String strike = (critical ? String("\x1b[1;33mCritical strike!\x1b[0m ") : String()) +
                         "You hit for " + hit + ". ";
   if (hit >= s.quest.monsterHp) {
     s.quest.monsterHp = 0;
-    const uint32_t gold = std::min<uint32_t>(8u + s.quest.level * 7u + esp_random() % 14, UINT32_MAX - s.quest.gold);
+    const uint32_t gold = std::min<uint32_t>(8u + s.quest.level * 7u + bbsRandom() % 14, UINT32_MAX - s.quest.gold);
     const uint32_t xp = std::min<uint32_t>(10u + s.quest.level * 12u, UINT32_MAX - s.quest.exp);
     s.quest.gold += gold;
     s.quest.exp += xp;
@@ -384,7 +384,7 @@ static void questAttack(Session &s) {
     return;
   }
   s.quest.monsterHp -= hit;
-  const int attack = 1 + esp_random() % s.quest.monsterAtk;
+  const int attack = 1 + bbsRandom() % s.quest.monsterAtk;
   const uint16_t hurt = max(1, attack - int(gearPower[s.quest.armor]));
   if (hurt >= s.quest.hp) {
     const uint32_t loss = s.quest.gold - s.quest.gold / 2;

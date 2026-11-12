@@ -209,7 +209,7 @@ static void mudRollEncounter(Session &s) {
   if (mudHasSeededEnemy(s.mud.worldX, s.mud.worldY)) { s.mudEnemyKind = 1; return; }
   // A light, session-local encounter: ordinary skeletons, orcs and goblins
   // are not fixtures of the shared map and show up about two rooms in ten.
-  if (esp_random() % 10 < 2) { s.mudEnemyKind = 2; s.mudEnemyPick = esp_random() % 3; }
+  if (bbsRandom() % 10 < 2) { s.mudEnemyKind = 2; s.mudEnemyPick = bbsRandom() % 3; }
 }
 static bool loadMud(Session &s) {
   for (auto &other : sessions) {
@@ -302,12 +302,12 @@ static void mudFight(Session &s, bool targetNpc = false) {
   if (s.mudEnemyDefeated) { say(s, "The " + enemy + " has already left this place."); mudPrompt(s); return; }
   if (!s.mudEnemyHp) {
     if (s.mudEnemyKind == 1) s.mudEnemyHp = (s.mud.worldX == 13 && s.mud.worldY == -8) ? 120 + s.mud.level * 8 : 24 + (local % 25) + s.mud.level * 3;
-    else if (s.mudEnemyKind == 2) s.mudEnemyHp = 7 + (esp_random() % 9) + s.mud.level;
+    else if (s.mudEnemyKind == 2) s.mudEnemyHp = 7 + (bbsRandom() % 9) + s.mud.level;
     else s.mudEnemyHp = 120 + s.mud.level * 12;
     say(s, String(s.mudEnemyKind == 3 ? "\x1b[1;31mYou attack " : "\x1b[1;31mA ") + enemy +
            (s.mudEnemyKind == 3 ? ". This is a terrible idea.\x1b[0m" : " turns toward you.\x1b[0m"));
   }
-  const uint8_t hit = 3 + esp_random() % 7 + mudHitBonus(s);
+  const uint8_t hit = 3 + bbsRandom() % 7 + mudHitBonus(s);
   s.mudEnemyHp = hit >= s.mudEnemyHp ? 0 : s.mudEnemyHp - hit;
   say(s, "\x1b[1;32mYou hit " + enemy + " for " + String(hit) + ".\x1b[0m");
   if (!s.mudEnemyHp) {
@@ -315,7 +315,7 @@ static void mudFight(Session &s, bool targetNpc = false) {
     Wallet walletBefore = s.wallet;
     s.mudEnemyDefeated = true;
     uint16_t xp = s.mudEnemyKind == 1 ? (s.mud.worldX == 13 && s.mud.worldY == -8 ? 90 : 25) : s.mudEnemyKind == 2 ? 6 : 0;
-    uint16_t gold = s.mudEnemyKind == 1 ? (s.mud.worldX == 13 && s.mud.worldY == -8 ? 40 : 6 + (local % 8)) : s.mudEnemyKind == 2 ? 1 + (esp_random() % 3) : 0;
+    uint16_t gold = s.mudEnemyKind == 1 ? (s.mud.worldX == 13 && s.mud.worldY == -8 ? 40 : 6 + (local % 8)) : s.mudEnemyKind == 2 ? 1 + (bbsRandom() % 3) : 0;
     s.mud.experience += xp;
     s.wallet.gold += gold;
     if (s.mudEnemyKind == 1 && s.mud.worldX == 13 && s.mud.worldY == -8) s.mud.items |= MUD_BLACK_CROWN;
@@ -339,8 +339,8 @@ static void mudFight(Session &s, bool targetNpc = false) {
     mudPrompt(s);
     return;
   }
-  const uint8_t retaliation = s.mudEnemyKind == 3 ? 10 + esp_random() % 9 :
-                              s.mudEnemyKind == 1 ? 3 + esp_random() % 6 : 1 + esp_random() % 4;
+  const uint8_t retaliation = s.mudEnemyKind == 3 ? 10 + bbsRandom() % 9 :
+                              s.mudEnemyKind == 1 ? 3 + bbsRandom() % 6 : 1 + bbsRandom() % 4;
   if (retaliation >= s.mud.hp) {
     s.mud.hp = mudEffectiveMaxHp(s);
     s.mud.worldX = 0;

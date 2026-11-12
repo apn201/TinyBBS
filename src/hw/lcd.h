@@ -1,8 +1,11 @@
 #pragma once
 // The 160x80 status LCD.
-// Part of the single TinyBBS translation unit: included in order from main.cpp.
+// ESP32 only: not part of the shared core. Included from src/main.cpp.
 
 // ---------- physical SysOp panel ------------------------------------------------
+static const int LCD_SCLK = 10, LCD_MOSI = 11, LCD_CS = 12, LCD_DC = 13, LCD_RST = 14;
+Arduino_DataBus *lcdBus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCLK, LCD_MOSI, GFX_NOT_DEFINED);
+Arduino_GFX *gfx = new Arduino_ST7735(lcdBus, LCD_RST, 0, true, 80, 160, 26, 1, 26, 1);
 static void lcdText(int x, int y, const String &s, uint16_t c) { gfx->setTextSize(1); gfx->setTextColor(c); gfx->setCursor(x, y); gfx->print(s); }
 static void drawLcdLogo() {
   gfx->fillScreen(0);

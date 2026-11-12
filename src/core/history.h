@@ -51,7 +51,7 @@ static bool historyGrowText(uint32_t need) {
   if (historyTextLen + need <= historyTextCap) return true;
   uint32_t cap = max<uint32_t>(historyTextCap * 2, 65536);
   while (cap < historyTextLen + need) cap *= 2;
-  char *p = (char *)ps_realloc(historyText, cap);
+  char *p = (char *)bigRealloc(historyText, cap);
   if (!p) return false;
   historyText = p; historyTextCap = cap;
   return true;
@@ -59,7 +59,7 @@ static bool historyGrowText(uint32_t need) {
 static bool historyAdd(const HistoryMsg &m, const String &from, const String &to, const String &subject, const String &when) {
   if (historyCount == historyCap) {
     uint32_t cap = historyCap ? historyCap * 2 : 512;
-    HistoryMsg *p = (HistoryMsg *)ps_realloc(historyMsgs, cap * sizeof(HistoryMsg));
+    HistoryMsg *p = (HistoryMsg *)bigRealloc(historyMsgs, cap * sizeof(HistoryMsg));
     if (!p) return false;
     historyMsgs = p; historyCap = cap;
   }
@@ -141,7 +141,7 @@ static void indexHistoryFile(const String &path, uint8_t conference, uint16_t fi
 static String loadHistory() {
   historyCount = 0; historyTextLen = 0;
   historyFiles.clear(); historyEchoes.clear();
-  if (!sdReady || !psramFound()) return "no message history";
+  if (!sdReady || !bigMemory()) return "no message history";
   File root = SD_MMC.open(HISTORY_ROOT);
   if (!root || !root.isDirectory()) return "no message history";
   std::vector<std::pair<long, String>> dirs;
