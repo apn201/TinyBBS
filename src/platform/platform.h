@@ -13,6 +13,8 @@
 //   PlatformMutex                         recursive lock: init(), lock(), unlock()
 //   NetClient                             a Telnet caller's socket (WiFiClient API)
 //   platformName()                        "esp32" or "server", for logs
+//   platformMaxNodes()                    compile-time session-pool capacity
+//   platformSystemClock(uint32_t&)        host wall-clock time when available
 #if defined(ARDUINO_ARCH_ESP32)
 #include "esp32.h"
 #else

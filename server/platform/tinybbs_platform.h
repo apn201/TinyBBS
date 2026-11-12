@@ -16,11 +16,13 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <random>
 #include <string>
+#include <sstream>
 #include <system_error>
 #include <thread>
 #include <type_traits>
@@ -54,8 +56,8 @@ class String {
   String(unsigned long value) : value_(std::to_string(value)) {}
   String(long long value) : value_(std::to_string(value)) {}
   String(unsigned long long value) : value_(std::to_string(value)) {}
-  String(float value) : value_(std::to_string(value)) {}
-  String(double value) : value_(std::to_string(value)) {}
+  String(float value) : value_(formatFloat(value)) {}
+  String(double value) : value_(formatFloat(value)) {}
 
   String &operator=(const char *value) { value_ = value ? value : ""; return *this; }
   String &operator=(const std::string &value) { value_ = value; return *this; }
@@ -73,6 +75,7 @@ class String {
 
   String substring(size_t from) const { return from < value_.size() ? String(value_.substr(from)) : String(); }
   String substring(size_t from, size_t to) const {
+    if (from > to) std::swap(from, to);
     if (from >= value_.size() || to <= from) return String();
     return String(value_.substr(from, std::min(to, value_.size()) - from));
   }
@@ -116,7 +119,13 @@ class String {
     char *end = nullptr;
     errno = 0;
     const long parsed = std::strtol(value_.c_str(), &end, 10);
-    return end == value_.c_str() || errno == ERANGE ? 0 : parsed;
+    if (end == value_.c_str()) return 0;
+    // ESP32 Arduino's atol() has a 32-bit long. Keep that saturation on a
+    // 64-bit Linux host rather than accepting a larger value there.
+    if (errno == ERANGE) return parsed < 0 ? INT32_MIN : INT32_MAX;
+    if (parsed > INT32_MAX) return INT32_MAX;
+    if (parsed < INT32_MIN) return INT32_MIN;
+    return parsed;
   }
   bool equalsIgnoreCase(const String &other) const {
     if (value_.size() != other.value_.size()) return false;
@@ -149,6 +158,11 @@ class String {
   friend String operator+(char left, const String &right) { return String(left) + right; }
 
  private:
+  static std::string formatFloat(double value) {
+    std::ostringstream text;
+    text << std::fixed << std::setprecision(2) << value;
+    return text.str();
+  }
   std::string value_;
 };
 
@@ -179,6 +193,25 @@ class ServerSerial {
 inline ServerSerial Serial;
 
 inline const char *platformName() { return "server"; }
+inline constexpr uint8_t platformMaxNodes() { return 32; }
+inline bool platformSystemClock(uint32_t &seconds) {
+  const time_t now = std::time(nullptr);
+  if (now < 0) return false;
+#if defined(__linux__)
+  // clockText() deliberately has no time-zone machinery. Encode the Linux
+  // host's current local wall clock into its civil-time value instead of
+  // showing UTC on a host whose configured zone is, for example, Helsinki.
+  tm local{};
+  if (!localtime_r(&now, &local)) return false;
+  const int64_t wallClock = static_cast<int64_t>(now) + local.tm_gmtoff;
+  if (wallClock < 0 || static_cast<uint64_t>(wallClock) > UINT32_MAX) return false;
+  seconds = static_cast<uint32_t>(wallClock);
+#else
+  if (static_cast<uintmax_t>(now) > UINT32_MAX) return false;
+  seconds = static_cast<uint32_t>(now);
+#endif
+  return true;
+}
 inline uint32_t bbsRandom() {
   uint32_t value = 0;
 #if defined(__linux__)
@@ -372,10 +405,6 @@ class ServerSDMMC {
   File open(const String &logical, uint8_t mode = FILE_READ) {
     const auto host = tinybbs_server::mapPath(logical);
     if (host.empty()) return File();
-    if (mode != FILE_READ) {
-      std::error_code error;
-      std::filesystem::create_directories(host.parent_path(), error);
-    }
     return File::openHost(host, mode, logical);
   }
   bool exists(const String &logical) const { const auto host = tinybbs_server::mapPath(logical); std::error_code error; return !host.empty() && std::filesystem::exists(host, error); }
@@ -385,6 +414,7 @@ class ServerSDMMC {
     const auto source = tinybbs_server::mapPath(from), target = tinybbs_server::mapPath(to);
     if (source.empty() || target.empty()) return false;
     std::error_code error;
+    if (std::filesystem::exists(target, error) || error) return false;
     std::filesystem::rename(source, target, error);
     return !error;
   }

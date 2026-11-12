@@ -3,9 +3,10 @@
 // in src/hw, src/net and src/main.cpp, outside the shared core.
 // Part of the shared core: included in order from src/bbs_core.h.
 
-// Eight active BBS nodes is the current, deliberately conservative target.
-// Browser and Telnet callers share this one pool.
-static const uint8_t MAX_NODES = 8;
+// Browser and Telnet callers share one pool. Its storage is a platform choice:
+// the stick stays conservative; the server has room for more callers. The
+// card's max_nodes= setting remains the caller-visible limit.
+static constexpr uint8_t MAX_NODES = platformMaxNodes();
 static constexpr uint32_t LOGIN_TIMEOUT_MS = 120000;
 static constexpr uint32_t WEB_CARRIER_TIMEOUT_MS = 180000;
 static const char *ROOT = "/BBS";

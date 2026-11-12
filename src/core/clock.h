@@ -1,13 +1,16 @@
 #pragma once
 // The invented board clock: started from epoch= in SYSTEM.INI, saved to
 // CLOCK.DAT so it carries on after a power cut, and optionally pulled forward
-// to a browser caller's evening (clock_sync=browser).
+// to a browser caller's evening (clock_sync=browser) or set from a platform
+// system clock (clock_sync=system).
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
 static constexpr const char *CLOCK_FILE = "/BBS/DATA/STATE/CLOCK.DAT";
 static String clockEpoch;          // epoch= text the running clock was started from
 static bool clockSyncBrowser = false;
+static bool clockSyncSystem = false;
 static uint32_t clockSavedAt = 0;  // millis() of the last save
+static uint32_t clockSystemAt = 0; // millis() of the last system-clock check
 
 static void saveClock() {
   clockSavedAt = millis();
@@ -17,11 +20,24 @@ static void saveClock() {
   f.print(String(boardNow()) + "|" + clockEpoch + "\n");
   f.close();
 }
+// The ESP32 implementation reports no system clock; Linux supplies UTC. This
+// stays in the shared clock so clock_sync remains a card setting, not a
+// server-only behaviour.
+static bool syncSystemClock() {
+  if (!clockSyncSystem) return false;
+  uint32_t seconds = 0;
+  if (!platformSystemClock(seconds)) return false;
+  setBoardNow(seconds);
+  return true;
+}
 // Called from loadSettings() at boot and on RELOAD. The clock continues from
 // CLOCK.DAT. A changed epoch= restarts it there: that is how the SysOp resets it.
 static String startClock(const String &epochText) {
   String epoch = parseClock(epochText) ? epochText : String("1997-03-14 21:00");
-  if (clockEpoch == epoch) return clockText(boardNow());
+  if (clockEpoch == epoch) {
+    if (syncSystemClock()) saveClock();
+    return clockText(boardNow());
+  }
   bool booting = !clockEpoch.length();
   uint32_t t = 0;
   if (booting && sdReady) {
@@ -33,12 +49,18 @@ static String startClock(const String &epochText) {
   }
   clockEpoch = epoch;
   setBoardNow(t ? t : parseClock(epoch));
+  syncSystemClock();
   saveClock();
   return clockText(boardNow());
 }
 // Keeps the base fresh (millis() wraps after 49 days) and saves once a minute,
 // so unplugging the stick loses at most a minute of board time.
 static void tickClock() {
+  uint32_t now = millis();
+  if (clockSyncSystem && now - clockSystemAt >= 1000) {
+    syncSystemClock();
+    clockSystemAt = now;
+  }
   uint32_t secs = (millis() - clockBaseMs) / 1000;
   clockBase += secs; clockBaseMs += secs * 1000;
   if (millis() - clockSavedAt >= 60000) saveClock();

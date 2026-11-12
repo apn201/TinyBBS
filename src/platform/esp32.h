@@ -10,6 +10,10 @@
 #include <mbedtls/sha256.h>
 
 static inline const char *platformName() { return "esp32"; }
+static constexpr uint8_t platformMaxNodes() { return 8; }
+// The stick deliberately has no network time source. Its board clock is the
+// epoch/CLOCK.DAT clock maintained in core/clock.h.
+static inline bool platformSystemClock(uint32_t &) { return false; }
 static inline uint32_t bbsRandom() { return esp_random(); }
 // Big buffers (message history index, ANSI pictures) go to PSRAM.
 static inline void *bigAlloc(size_t n) { return heap_caps_malloc(n, MALLOC_CAP_SPIRAM); }

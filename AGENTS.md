@@ -83,16 +83,17 @@ PlatformIO is installed on the development PC and the firmware has been built
 and flashed to the Pocket-Dongle-S3. A slice counts as done only after its
 test in `docs/ROADMAP.md` passes on the board.
 
-The Linux platform compatibility check is built with:
+The Linux platform compatibility check and server process are built with:
 
 ```sh
 cmake -S server -B server/build
 cmake --build server/build
 ./server/build/tinybbs-phase1-smoke <folder-containing-BBS> [handle password]
+./server/build/tinybbs-server --root <folder-containing-BBS>
 ```
 
 Use a disposable copied card tree: the smoke check calls `bbsBegin()` and may
-create runtime files. For a change in `src/core`, `src/bbs`, `src/doors` or
+create runtime files; the server process does too. For a change in `src/core`, `src/bbs`, `src/doors` or
 `src/platform`, both the PlatformIO build and the applicable server build
 must pass. Server transports and deployment are later phases in
 `docs/APACHE_PORT.md`; do not add Linux headers to the shared core.

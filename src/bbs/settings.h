@@ -88,7 +88,7 @@ static String loadSettings() {
   BoardSettings b;
   Ini ini;
   String epoch;
-  bool sync = false;
+  String clockSync;
   if (iniLoad("/BBS/CONFIG/SYSTEM.INI", ini)) {
     b.name = iniGet(ini, "SYSTEM", "name", b.name);
     b.shortName = up(iniGet(ini, "SYSTEM", "short_name"));
@@ -109,7 +109,7 @@ static String loadSettings() {
     b.mainMenu = boardPath(iniGet(ini, "SYSTEM", "main_menu"), b.mainMenu);
     b.goodbye = boardPath(iniGet(ini, "SYSTEM", "goodbye"), b.goodbye);
     epoch = iniGet(ini, "SYSTEM", "epoch");
-    sync = up(iniGet(ini, "SYSTEM", "clock_sync")) == "BROWSER";
+    clockSync = up(iniGet(ini, "SYSTEM", "clock_sync"));
   }
   if (iniLoad("/BBS/CONFIG/CONFERENCES.INI", ini)) {
     for (const auto &sec : iniSections(ini)) {
@@ -158,11 +158,13 @@ static String loadSettings() {
   }
   board = b;
   lineCps = board.baud / 10;
-  clockSyncBrowser = sync;
+  clockSyncBrowser = clockSync == "BROWSER";
+  clockSyncSystem = clockSync == "SYSTEM";
   String clock = startClock(epoch);
   String areas = loadFileAreas();
   String history = loadHistory();
-  return areas + ", " + history + ", clock " + clock + (sync ? " (browser sync)" : "") + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
+  String syncDetail = clockSyncBrowser ? " (browser sync)" : (clockSyncSystem ? " (system sync)" : "");
+  return areas + ", " + history + ", clock " + clock + syncDetail + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
          board.maxNodes + " nodes, " + (board.baud ? String(board.baud) + " baud" : String("no speed limit"));
 }
 
