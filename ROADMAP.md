@@ -407,6 +407,10 @@ the Telnet listing shows them without a `[V]` option.
 Nice to have. They would make the board more period correct and impress
 nerds, but no visitor will use them.
 
+- File manager: select several files and move them to another area or
+  folder in one go, with their descriptions carried along in `FILES.BBS`, so
+  the SysOp can sort approved uploads out of Caller Uploads into the right
+  areas easily. Download counts follow the files.
 - QWK offline mail packets.
 - ZMODEM downloads over Telnet.
 - A full-screen message editor, nano-like (arrow keys, Ctrl-O save, Ctrl-X
