@@ -8,15 +8,9 @@ static constexpr uint8_t USERS_PER_PAGE = 15;
 
 static std::vector<User> allUsers() {
   std::vector<User> list;
-  File f = sdReady ? SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ) : File();
-  while (f && f.available()) { User u; if (parseUser(f.readStringUntil('\n'), u)) list.push_back(u); }
-  if (f) f.close();
+  eachUser([&](const User &u) { list.push_back(u); return true; });
   std::sort(list.begin(), list.end(), [](const User &a, const User &b) { return a.id < b.id; });
   return list;
-}
-static bool userById(uint32_t id, User &out) {
-  for (auto &u : allUsers()) if (u.id == id) { out = u; return true; }
-  return false;
 }
 static String ratioText(const User &u) { return u.ratioEnforced ? "1:" + String(u.ratio) : String("off"); }
 static String downloadText(const User &u) {
@@ -124,7 +118,7 @@ static void showFlags(Session &s, const User &u) {
 }
 static void openField(Session &s, uint8_t field) {
   User u;
-  if (!userById(s.editId, u)) { say(s, "That account is gone."); sysopUsers(s); return; }
+  if (!findUserById(s.editId, u)) { say(s, "That account is gone."); sysopUsers(s); return; }
   if (field == 3) {
     if (u.id == s.user.id) say(s, "You cannot lock your own account.");
     else { u.locked = !u.locked; saveRecord(s, u, u.locked ? "LOCK" : "UNLOCK"); }
@@ -149,7 +143,7 @@ static void openField(Session &s, uint8_t field) {
 // The value typed for the field picked in openField().
 static void fieldValue(Session &s, const String &line) {
   User u;
-  if (!userById(s.editId, u)) { s.hideInput = false; say(s, "That account is gone."); sysopUsers(s); return; }
+  if (!findUserById(s.editId, u)) { s.hideInput = false; say(s, "That account is gone."); sysopUsers(s); return; }
   String v = line; v.trim();
   uint32_t n = 0;
   if (s.editField == 2) {
@@ -267,7 +261,7 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
     if (!cmd.length()) { s.userPage++; sysopUsers(s); return true; }
     if (cmd == "P") { if (s.userPage) s.userPage--; sysopUsers(s); return true; }
     if (cmd == "A") { s.state = SYSOP_ADD_HANDLE; prompt(s, "Handle for the new account (ENTER cancels): "); return true; }
-    if ((readNumber(cmd, n) && userById(n, u)) || findUser(up(clean(line, 16, true)), u)) { showRecord(s, u); return true; }
+    if ((readNumber(cmd, n) && findUserById(n, u)) || findUser(up(clean(line, 16, true)), u)) { showRecord(s, u); return true; }
     say(s, "No account with that number or handle.");
     prompt(s, "User editor: "); return true;
   }
@@ -284,7 +278,7 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
       showRecord(s, users[at]); return true;
     }
     if (cmd == "D") {
-      if (!userById(s.editId, u)) { sysopUsers(s); return true; }
+      if (!findUserById(s.editId, u)) { sysopUsers(s); return true; }
       if (u.id == s.user.id) { say(s, "You cannot delete your own account."); prompt(s, "Field # or command: "); return true; }
       s.state = SYSOP_DELETE_CONFIRM;
       say(s, "\x1b[1;31mDelete " + u.handle + " for good? Their messages stay.\x1b[0m");
@@ -297,7 +291,7 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
   if (s.state == SYSOP_USER_FIELD) { fieldValue(s, line); return true; }
   if (s.state == SYSOP_DELETE_CONFIRM) {
     User u;
-    if (cmd != "YES" || !userById(s.editId, u)) { say(s, "Not deleted."); if (userById(s.editId, u)) showRecord(s, u); else sysopUsers(s); return true; }
+    if (cmd != "YES" || !findUserById(s.editId, u)) { say(s, "Not deleted."); if (findUserById(s.editId, u)) showRecord(s, u); else sysopUsers(s); return true; }
     if (!removeUser(u)) { say(s, "Delete failed. The account was left as it was."); showRecord(s, u); return true; }
     event("SYSOP_DELETE", s.user.handle + " removed " + u.handle);
     say(s, "\x1b[1;32m" + u.handle + " deleted.\x1b[0m");

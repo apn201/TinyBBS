@@ -92,7 +92,7 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
   if (s.state == USER_LIST) {
     if (cmd == "Q") { mainMenu(s); return true; }
     if (cmd == "Z" && isSysop(s)) { sysopUsers(s); return true; }
-    uint16_t pages = userListPages(false);
+    uint16_t pages = userListPages();
     if (cmd == "P" && s.userPage) s.userPage--;
     else if (!cmd.length() && s.userPage + 1 < pages) s.userPage++;
     userList(s); return true;

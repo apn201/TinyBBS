@@ -26,33 +26,31 @@ static void nodeMonitor(Session &s, State back) {
   s.nodesBack = back; s.state = SYSOP_NODES; activity(s, "NODE MONITOR");
   prompt(s, "Node # to disconnect, M <node|ALL> <text> to message (ENTER = back): ");
 }
-static uint16_t showUserList(Session &s, bool sysopView) {
-  const uint8_t PAGE = 10; uint16_t visible = 0, shown = 0, start = s.userPage * PAGE;
-  say(s, sysopView ? "\x1b[1;35m#     Handle           Access Lock Calls Location\x1b[0m" : "\x1b[1;36m#     Handle           Calls  Location\x1b[0m");
-  File f = sdReady ? SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ) : File();
-  while (f && f.available()) {
-    User candidate; if (!parseUser(f.readStringUntil('\n'), candidate) || (!sysopView && candidate.locked)) continue;
-    if (visible++ < start) continue;
-    if (shown++ >= PAGE) continue;
+// The caller-facing user list: locked accounts are not shown.
+static constexpr uint8_t USER_LIST_PAGE = 10;
+static uint16_t showUserList(Session &s) {
+  uint16_t visible = 0, shown = 0, start = s.userPage * USER_LIST_PAGE;
+  say(s, "\x1b[1;36m#     Handle           Calls  Location\x1b[0m");
+  eachUser([&](const User &u) {
+    if (u.locked || visible++ < start || shown >= USER_LIST_PAGE) return true;
+    shown++;
     char row[116];
-    if (sysopView) snprintf(row, sizeof(row), "%-5lu %-16s %-6u %-4s %-5lu %s", (unsigned long)candidate.id, candidate.handle.c_str(), candidate.level, candidate.locked ? "YES" : "NO", (unsigned long)candidate.calls, candidate.location.c_str());
-    else snprintf(row, sizeof(row), "%-5lu %-16s %-6lu %s", (unsigned long)candidate.id, candidate.handle.c_str(), (unsigned long)candidate.calls, candidate.location.c_str());
+    snprintf(row, sizeof(row), "%-5lu %-16s %-6lu %s", (unsigned long)u.id, u.handle.c_str(), (unsigned long)u.calls, u.location.c_str());
     say(s, row);
-  }
-  if (f) f.close();
+    return true;
+  });
   if (!shown) say(s, start ? "No more callers." : "No callers are listed.");
-  uint16_t pages = visible ? (visible + PAGE - 1) / PAGE : 1;
+  uint16_t pages = visible ? (visible + USER_LIST_PAGE - 1) / USER_LIST_PAGE : 1;
   say(s, "\x1b[1;33mPage " + String(s.userPage + 1) + "/" + String(pages) + "  " + String(visible) + " caller" + (visible == 1 ? "" : "s") + "\x1b[0m");
   return pages;
 }
-static uint16_t userListPages(bool sysopView) {
-  const uint8_t PAGE = 10; uint16_t visible = 0;
-  File f = sdReady ? SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ) : File();
-  while (f && f.available()) { User candidate; if (parseUser(f.readStringUntil('\n'), candidate) && (sysopView || !candidate.locked)) visible++; }
-  if (f) f.close(); return visible ? (visible + PAGE - 1) / PAGE : 1;
+static uint16_t userListPages() {
+  uint16_t visible = 0;
+  eachUser([&](const User &u) { if (!u.locked) visible++; return true; });
+  return visible ? (visible + USER_LIST_PAGE - 1) / USER_LIST_PAGE : 1;
 }
 static void userList(Session &s) {
-  s.state = USER_LIST; activity(s, "USER LIST"); uint16_t pages = showUserList(s, false);
+  s.state = USER_LIST; activity(s, "USER LIST"); uint16_t pages = showUserList(s);
   if (isSysop(s)) say(s, "[Z] User editor: levels, flags, limits and passwords");
   prompt(s, pages > 1 ? "ENTER next, P previous, Q board: " : "Q returns to board: ");
 }

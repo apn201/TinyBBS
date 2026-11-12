@@ -30,19 +30,7 @@ static String questLine(const Quest &q) {
          "|" + q.kills + "|" + q.pvpWins + "|" + q.pvpLosses + "|" + q.fame + "|" + q.day;
 }
 static constexpr const char *QUEST_DATA = "/BBS/DATA/DOORS/KOUVQUEST.DAT";
-static constexpr const char *QUEST_NEW = "/BBS/DATA/DOORS/KOUVQUEST.NEW";
-static constexpr const char *QUEST_BACKUP = "/BBS/DATA/DOORS/KOUVQUEST.BAK";
 static constexpr const char *WALLET_DATA = "/BBS/DATA/DOORS/WALLET.DAT";
-static constexpr const char *WALLET_NEW = "/BBS/DATA/DOORS/WALLET.NEW";
-static constexpr const char *WALLET_BACKUP = "/BBS/DATA/DOORS/WALLET.BAK";
-static bool recoverQuest() {
-  return SD_MMC.exists(QUEST_DATA) || !SD_MMC.exists(QUEST_BACKUP) ||
-         SD_MMC.rename(QUEST_BACKUP, QUEST_DATA);
-}
-static bool recoverWallet() {
-  return SD_MMC.exists(WALLET_DATA) || !SD_MMC.exists(WALLET_BACKUP) ||
-         SD_MMC.rename(WALLET_BACKUP, WALLET_DATA);
-}
 static bool parseWallet(const String &line, Wallet &wallet) {
   wallet = Wallet();
   wallet.id = strtoul(field(line, 0).c_str(), nullptr, 10);
@@ -53,39 +41,10 @@ static bool parseWallet(const String &line, Wallet &wallet) {
 static String walletLine(const Wallet &wallet) {
   return String(wallet.id) + "|" + wallet.gold + "|" + wallet.bank + "|V1";
 }
-static bool saveSharedWallet(const Wallet &wallet) {
-  if (!sdReady || !wallet.id || !recoverWallet()) return false;
-  const bool exists = SD_MMC.exists(WALLET_DATA);
-  File in = SD_MMC.open(WALLET_DATA, FILE_READ);
-  if (exists && !in) return false;
-  if (SD_MMC.exists(WALLET_NEW) && !SD_MMC.remove(WALLET_NEW)) { in.close(); return false; }
-  File out = SD_MMC.open(WALLET_NEW, FILE_WRITE);
-  if (!out) { in.close(); return false; }
-  bool found = false, ok = true;
-  while (in && in.available() && ok) {
-    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */
-    if (line.endsWith("\r")) line.remove(line.length() - 1);
-    Wallet current;
-    if (parseWallet(line, current) && current.id == wallet.id) {
-      if (!found) ok = out.println(walletLine(wallet));
-      found = true;
-    } else ok = out.println(line);
-  }
-  if (!found && ok) ok = out.println(walletLine(wallet));
-  in.close(); out.close();
-  if (!ok) return false;
-  if (SD_MMC.exists(WALLET_BACKUP) && !SD_MMC.remove(WALLET_BACKUP)) return false;
-  if (exists && !SD_MMC.rename(WALLET_DATA, WALLET_BACKUP)) return false;
-  if (!SD_MMC.rename(WALLET_NEW, WALLET_DATA)) {
-    if (exists) recoverWallet();
-    return false;
-  }
-  if (exists) SD_MMC.remove(WALLET_BACKUP);
-  return true;
-}
+static bool saveSharedWallet(const Wallet &wallet) { return putRecord(WALLET_DATA, wallet.id, walletLine(wallet)); }
 static bool loadSharedWallet(uint32_t id, Wallet &wallet) {
   wallet = Wallet(); wallet.id = id;
-  if (!sdReady || !id || !recoverWallet()) return false;
+  if (!sdReady || !id || !recoverFile(WALLET_DATA)) return false;
   File file = SD_MMC.open(WALLET_DATA, FILE_READ);
   if (file) {
     Wallet candidate;
@@ -116,7 +75,7 @@ static bool loadSharedWallet(uint32_t id, Wallet &wallet) {
 static bool loadQuest(uint32_t id, Quest &quest) {
   quest = Quest();
   quest.id = id;
-  if (!sdReady || !recoverQuest()) return false;
+  if (!sdReady || !recoverFile(QUEST_DATA)) return false;
   File file = SD_MMC.open(QUEST_DATA, FILE_READ);
   if (!file && SD_MMC.exists(QUEST_DATA)) return false;
   Quest candidate;
@@ -134,41 +93,9 @@ static bool loadQuest(uint32_t id, Quest &quest) {
   return true;
 }
 static bool saveQuest(const Quest &quest) {
-  if (!sdReady || !quest.id || !recoverQuest()) return false;
-  Wallet wallet;
+  Wallet wallet;  // gold and bank live in the purse the doors share
   wallet.id = quest.id; wallet.gold = quest.gold; wallet.bank = quest.bank;
-  if (!saveSharedWallet(wallet)) return false;
-  const bool exists = SD_MMC.exists(QUEST_DATA);
-  File in = SD_MMC.open(QUEST_DATA, FILE_READ);
-  if (exists && !in) return false;
-  if (SD_MMC.exists(QUEST_NEW) && !SD_MMC.remove(QUEST_NEW)) return false;
-  File out = SD_MMC.open(QUEST_NEW, FILE_WRITE);
-  if (!out) return false;
-  bool found = false, ok = true;
-  auto put = [&](String line) {
-    if (line.endsWith("\r")) line.remove(line.length() - 1);
-    return out.println(line) == line.length() + 2;
-  };
-  while (in && in.available() && ok) {
-    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */
-    Quest current;
-    if (parseQuest(line, current) && current.id == quest.id) {
-      if (!found) ok = put(questLine(quest));
-      found = true;
-    } else ok = put(line);
-  }
-  if (!found && ok) ok = put(questLine(quest));
-  in.close();
-  out.close();
-  if (!ok) return false;
-  if (SD_MMC.exists(QUEST_BACKUP) && !SD_MMC.remove(QUEST_BACKUP)) return false;
-  if (exists && !SD_MMC.rename(QUEST_DATA, QUEST_BACKUP)) return false;
-  if (!SD_MMC.rename(QUEST_NEW, QUEST_DATA)) {
-    if (exists) recoverQuest();
-    return false;
-  }
-  if (exists) SD_MMC.remove(QUEST_BACKUP);
-  return true;
+  return saveSharedWallet(wallet) && putRecord(QUEST_DATA, quest.id, questLine(quest));
 }
 static bool saveQuest(Session &s) {
   if (saveQuest(s.quest)) return true;

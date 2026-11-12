@@ -32,3 +32,6 @@ struct BbsLock {
 };
 // WebSocket clients to hang up after the lock is released.
 static std::vector<uint32_t> wsHangups;
+// The two files every part of the board reads.
+static constexpr const char *USERS_FILE = "/BBS/DATA/USERS/USERS.DAT";
+static constexpr const char *MSG_FILE = "/BBS/DATA/MSGS/MESSAGES.DAT";

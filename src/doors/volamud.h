@@ -6,8 +6,6 @@
 // one SD-card seed, so all callers see the same world without storing a room
 // database in firmware or allocating one in RAM.
 static constexpr const char *MUD_DATA = "/BBS/DATA/DOORS/VOLAMUD.DAT";
-static constexpr const char *MUD_NEW = "/BBS/DATA/DOORS/VOLAMUD.NEW";
-static constexpr const char *MUD_BACKUP = "/BBS/DATA/DOORS/VOLAMUD.BAK";
 static constexpr const char *MUD_CONFIG = "/BBS/CONFIG/VOLAMUD.INI";
 static constexpr const char *MUD_WORLD = "/BBS/DOORS/VOLAMUD/WORLD.TXT";
 enum MudItem : uint16_t {
@@ -165,13 +163,10 @@ static String mudLine(const MudCharacter &character) {
          character.taskType + "|" + character.taskX + "|" + character.taskY + "|" + character.boots + "|" +
          character.items + "|" + character.worn + "|V5";
 }
-static bool recoverMud() {
-  return SD_MMC.exists(MUD_DATA) || !SD_MMC.exists(MUD_BACKUP) || SD_MMC.rename(MUD_BACKUP, MUD_DATA);
-}
 static bool loadMud(uint32_t id, MudCharacter &character) {
   character = MudCharacter();
   character.id = id;
-  if (!sdReady || !recoverMud()) return false;
+  if (!sdReady || !recoverFile(MUD_DATA)) return false;
   File file = SD_MMC.open(MUD_DATA, FILE_READ);
   if (!file) return !SD_MMC.exists(MUD_DATA);
   MudCharacter candidate;
@@ -184,36 +179,7 @@ static bool loadMud(uint32_t id, MudCharacter &character) {
   file.close();
   return true;
 }
-static bool saveMud(const MudCharacter &character) {
-  if (!sdReady || !character.id || !recoverMud()) return false;
-  const bool exists = SD_MMC.exists(MUD_DATA);
-  File in = SD_MMC.open(MUD_DATA, FILE_READ);
-  if (exists && !in) return false;
-  if (SD_MMC.exists(MUD_NEW) && !SD_MMC.remove(MUD_NEW)) { in.close(); return false; }
-  File out = SD_MMC.open(MUD_NEW, FILE_WRITE);
-  if (!out) { in.close(); return false; }
-  bool found = false, ok = true;
-  while (in && in.available() && ok) {
-    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */
-    if (line.endsWith("\r")) line.remove(line.length() - 1);
-    MudCharacter current;
-    if (parseMud(line, current) && current.id == character.id) {
-      if (!found) ok = out.println(mudLine(character));
-      found = true;
-    } else ok = out.println(line);
-  }
-  if (!found && ok) ok = out.println(mudLine(character));
-  in.close(); out.close();
-  if (!ok) return false;
-  if (SD_MMC.exists(MUD_BACKUP) && !SD_MMC.remove(MUD_BACKUP)) return false;
-  if (exists && !SD_MMC.rename(MUD_DATA, MUD_BACKUP)) return false;
-  if (!SD_MMC.rename(MUD_NEW, MUD_DATA)) {
-    if (exists) recoverMud();
-    return false;
-  }
-  if (exists) SD_MMC.remove(MUD_BACKUP);
-  return true;
-}
+static bool saveMud(const MudCharacter &character) { return putRecord(MUD_DATA, character.id, mudLine(character)); }
 static bool playingMud(const Session &s) { return s.state == MUD_MENU; }
 static String mudEncounterName(const Session &s) {
   if (s.mudEnemyKind == 1) {

@@ -34,76 +34,48 @@ static bool parseUser(const String &raw, User &u) {
 static String userLine(const User &u) {
   return String(u.id) + "|" + enc(u.handle) + "|" + u.normalized + "|" + enc(u.realName) + "|" + enc(u.location) + "|" + u.salt + "|" + u.hash + "|" + u.level + "|" + u.calls + "|" + u.minutes + "|" + u.messages + "|" + u.flags + "|" + (u.locked ? "1" : "0") + "|" + (u.ratioEnforced ? "1" : "0") + "|" + u.uploadBytes + "|" + u.downloadBytes + "|" + u.credits + "|" + u.downloadQuota + "|" + u.uploads + "|" + u.downloads + "|" + u.ratio;
 }
+// Every account, oldest first. fn returns false to stop.
+template <typename F> static void eachUser(F fn) {
+  File f = sdReady ? SD_MMC.open(USERS_FILE, FILE_READ) : File();
+  while (f && f.available()) {
+    User u;
+    if (parseUser(f.readStringUntil('\n'), u) && !fn(u)) break;
+  }
+  if (f) f.close();
+}
 static void userCounters() {
-  if (!sdReady) return; File f = SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ); if (!f) return;
-  uint32_t high = 0; while (f.available()) { User u; if (parseUser(f.readStringUntil('\n'), u)) high = max(high, u.id); } f.close(); nextUserId = high + 1;
+  uint32_t high = 0;
+  eachUser([&](const User &u) { high = max(high, u.id); return true; });
+  nextUserId = high + 1;
 }
 static bool findUser(const String &normalized, User &found) {
-  if (!sdReady) return false; File f = SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ); if (!f) return false;
-  bool ok = false; while (f.available()) { User u; if (parseUser(f.readStringUntil('\n'), u) && u.normalized == normalized) { found = u; ok = true; break; } } f.close(); return ok;
+  bool ok = false;
+  eachUser([&](const User &u) { if (u.normalized != normalized) return true; found = u; ok = true; return false; });
+  return ok;
 }
 static bool findUserById(uint32_t id, User &found) {
-  if (!sdReady || !id) return false;
-  File f = SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ); if (!f) return false;
   bool ok = false;
-  while (f.available()) {
-    User u;
-    if (parseUser(f.readStringUntil('\n'), u) && u.id == id) { found = u; ok = true; break; }
-  }
-  f.close();
+  if (id) eachUser([&](const User &u) { if (u.id != id) return true; found = u; ok = true; return false; });
   return ok;
 }
 static bool anySysop() { User u; return findUser("SYSOP", u); }
 static bool appendUser(User &u) {
   if (!sdReady) { trace("USER_APPEND_FAIL", "SD unavailable: " + storageFault); return false; }
   u.id = nextUserId;
-  File f = SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_APPEND);
+  File f = SD_MMC.open(USERS_FILE, FILE_APPEND);
   if (!f) { trace("USER_APPEND_FAIL", "cannot open USERS.DAT"); return false; }
   bool ok = f.println(userLine(u)); f.close();
   if (ok) { nextUserId++; trace("USER_APPEND_OK", u.handle + " #" + u.id); }
   else trace("USER_APPEND_FAIL", "write error for " + u.handle);
   return ok;
 }
-static bool touchUser(User &changed) { // journal-style rewrite: .NEW first, then replace
-  if (!sdReady) { trace("USER_TOUCH_FAIL", "SD unavailable"); return false; }
-  File in = SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ);
-  if (!in) { trace("USER_TOUCH_FAIL", "cannot read USERS.DAT"); return false; }
-  SD_MMC.remove("/BBS/DATA/USERS/USERS.NEW");
-  File out = SD_MMC.open("/BBS/DATA/USERS/USERS.NEW", FILE_WRITE);
-  if (!out) { in.close(); trace("USER_TOUCH_FAIL", "cannot create USERS.NEW"); return false; }
-  bool wrote = true;
-  while (in.available()) {
-    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */ User u;
-    wrote = (parseUser(line, u) && u.id == changed.id) ? out.println(userLine(changed)) : out.println(line);
-    if (!wrote) break;
-  }
-  in.close(); out.close();
-  if (!wrote) { SD_MMC.remove("/BBS/DATA/USERS/USERS.NEW"); trace("USER_TOUCH_FAIL", "rewrite write error"); return false; }
-  SD_MMC.remove("/BBS/DATA/USERS/USERS.BAK");
-  if (!SD_MMC.rename("/BBS/DATA/USERS/USERS.DAT", "/BBS/DATA/USERS/USERS.BAK")) { SD_MMC.remove("/BBS/DATA/USERS/USERS.NEW"); trace("USER_TOUCH_FAIL", "cannot make backup"); return false; }
-  if (!SD_MMC.rename("/BBS/DATA/USERS/USERS.NEW", "/BBS/DATA/USERS/USERS.DAT")) {
-    SD_MMC.rename("/BBS/DATA/USERS/USERS.BAK", "/BBS/DATA/USERS/USERS.DAT");
-    trace("USER_TOUCH_FAIL", "cannot activate rewritten users"); return false;
-  }
-  SD_MMC.remove("/BBS/DATA/USERS/USERS.BAK"); trace("USER_TOUCH_OK", changed.handle); return true;
+static bool touchUser(User &changed) {
+  bool ok = putRecord(USERS_FILE, changed.id, userLine(changed), false);
+  trace(ok ? "USER_TOUCH_OK" : "USER_TOUCH_FAIL", changed.handle);
+  return ok;
 }
 static bool removeUser(const User &removed) {
-  if (!sdReady || !removed.id) return false;
-  File in = SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ);
-  if (!in) { trace("USER_DELETE_FAIL", "cannot read USERS.DAT"); return false; }
-  SD_MMC.remove("/BBS/DATA/USERS/USERS.NEW");
-  File out = SD_MMC.open("/BBS/DATA/USERS/USERS.NEW", FILE_WRITE);
-  if (!out) { in.close(); trace("USER_DELETE_FAIL", "cannot create USERS.NEW"); return false; }
-  bool found = false, wrote = true;
-  while (in.available()) {
-    String line = in.readStringUntil('\n'); line.replace("\r", ""); /* println() added a CR */ User candidate;
-    if (parseUser(line, candidate) && candidate.id == removed.id) { found = true; continue; }
-    if (!out.println(line)) { wrote = false; break; }
-  }
-  in.close(); out.close();
-  if (!found || !wrote) { SD_MMC.remove("/BBS/DATA/USERS/USERS.NEW"); trace("USER_DELETE_FAIL", found ? "rewrite write error" : "user vanished"); return false; }
-  SD_MMC.remove("/BBS/DATA/USERS/USERS.BAK");
-  if (!SD_MMC.rename("/BBS/DATA/USERS/USERS.DAT", "/BBS/DATA/USERS/USERS.BAK")) { SD_MMC.remove("/BBS/DATA/USERS/USERS.NEW"); trace("USER_DELETE_FAIL", "cannot make backup"); return false; }
-  if (!SD_MMC.rename("/BBS/DATA/USERS/USERS.NEW", "/BBS/DATA/USERS/USERS.DAT")) { SD_MMC.rename("/BBS/DATA/USERS/USERS.BAK", "/BBS/DATA/USERS/USERS.DAT"); trace("USER_DELETE_FAIL", "cannot activate rewrite"); return false; }
-  SD_MMC.remove("/BBS/DATA/USERS/USERS.BAK"); trace("USER_DELETE_OK", removed.handle); return true;
+  bool ok = putRecord(USERS_FILE, removed.id, "", false);
+  trace(ok ? "USER_DELETE_OK" : "USER_DELETE_FAIL", removed.handle);
+  return ok;
 }

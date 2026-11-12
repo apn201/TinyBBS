@@ -7,7 +7,6 @@
 // earlier lines are its change history.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-static constexpr const char *MSG_FILE = "/BBS/DATA/MSGS/MESSAGES.DAT";
 
 struct Message {
   uint32_t id = 0; uint8_t conference = 0;
