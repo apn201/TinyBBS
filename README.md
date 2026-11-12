@@ -195,7 +195,8 @@ directory, inflates it with the ROM inflater and caches the first lines in
 Listings show each file's size, its date on the card (MM-DD-YY) and how many
 times it has been downloaded. The counts are kept in
 `DATA/INDEX/DOWNLOADS.DAT`. `V` on a ZIP lists what is inside from the
-central directory, with sizes, dates and the archive comment.
+central directory, with sizes and dates, then the full `FILE_ID.DIZ`, any
+NFO inside and the archive comment.
 
 In the viewer, `N` and `P` open the next or previous viewable file in the
 same folder, so a folder of ANSI art can be flipped through.

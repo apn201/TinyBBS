@@ -224,6 +224,24 @@ static void folderDescriptions(const String &dir, std::vector<std::pair<String, 
 }
 static uint16_t le16(const uint8_t *p) { return p[0] | (p[1] << 8); }
 static uint32_t le32(const uint8_t *p) { return p[0] | (p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24); }
+// One stored or deflated entry of a ZIP, from its local header offset.
+static bool zipInflate(File &f, uint16_t method, uint32_t csize, uint32_t usize, uint32_t local,
+                       std::unique_ptr<uint8_t[]> &out, size_t &outLen) {
+  if (method != 0 && method != 8) return false;
+  uint8_t lh[30];
+  if (!f.seek(local) || f.read(lh, 30) != 30 || le32(lh) != 0x04034b50) return false;
+  if (!f.seek(local + 30 + le16(lh + 26) + le16(lh + 28))) return false;
+  std::unique_ptr<uint8_t[]> in(new (std::nothrow) uint8_t[csize + 1]);
+  out.reset(new (std::nothrow) uint8_t[usize + 1]);
+  if (!in || !out || f.read(in.get(), csize) != csize) return false;
+  outLen = usize;
+  if (method == 0) { memcpy(out.get(), in.get(), min(csize, usize)); outLen = min(csize, usize); return true; }
+  std::unique_ptr<tinfl_decompressor> d(new (std::nothrow) tinfl_decompressor);
+  if (!d) return false;
+  tinfl_init(d.get());
+  size_t inLen = csize;
+  return tinfl_decompress(d.get(), in.get(), &inLen, out.get(), out.get(), &outLen, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF) == TINFL_STATUS_DONE;
+}
 // FILE_ID.DIZ from a ZIP's central directory, stored or deflated.
 static String zipDiz(const String &path) {
   File f = SD_MMC.open(path, FILE_READ);
@@ -248,23 +266,10 @@ static String zipDiz(const String &path) {
       f.read((uint8_t *)name, min<uint16_t>(nameLen, 63));
       at += 46 + nameLen + extra + comment;
       String n2 = up(shortName(String(name)));
-      if (n2 != "FILE_ID.DIZ" || csize > 6000 || usize > 8000 || (method != 0 && method != 8)) continue;
-      uint8_t lh[30];
-      if (!f.seek(local) || f.read(lh, 30) != 30 || le32(lh) != 0x04034b50) break;
-      if (!f.seek(local + 30 + le16(lh + 26) + le16(lh + 28))) break;
-      std::unique_ptr<uint8_t[]> in(new (std::nothrow) uint8_t[csize + 1]);
-      std::unique_ptr<uint8_t[]> out(new (std::nothrow) uint8_t[usize + 1]);
-      if (!in || !out || f.read(in.get(), csize) != csize) break;
-      size_t outLen = usize;
-      if (method == 0) memcpy(out.get(), in.get(), min(csize, usize));
-      else {
-        std::unique_ptr<tinfl_decompressor> d(new (std::nothrow) tinfl_decompressor);
-        if (!d) break;
-        tinfl_init(d.get());
-        size_t inLen = csize;
-        tinfl_status st = tinfl_decompress(d.get(), in.get(), &inLen, out.get(), out.get(), &outLen, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
-        if (st != TINFL_STATUS_DONE) break;
-      }
+      if (n2 != "FILE_ID.DIZ" || csize > 6000 || usize > 8000) continue;
+      std::unique_ptr<uint8_t[]> out;
+      size_t outLen = 0;
+      if (!zipInflate(f, method, csize, usize, local, out, outLen)) break;
       String text;
       for (size_t i = 0; i < outLen; ++i) text += (char)(out[i] >= 128 ? '?' : out[i]);
       found = oneLine(text, 120);
@@ -377,7 +382,34 @@ static bool viewableName(const String &name) {
 }
 static bool fileReaderKey(Session &s, const String &k);
 static void fileReaderQuit(Session &s);
+// DOS text (an NFO, a DIZ, a ZIP comment) as screen rows: CP437 glyphs, ANSI
+// codes dropped, lines cut at 80 columns so art keeps its shape.
+static void dosTextRows(const uint8_t *b, size_t len, std::vector<String> &rows, size_t maxRows = 400) {
+  bool utf8 = sampleUtf8(b, min<size_t>(len, 768));
+  String line;
+  uint16_t cols = 0;
+  size_t first = rows.size();
+  for (size_t i = 0; i <= len && rows.size() - first < maxRows; ++i) {
+    uint8_t c = i < len ? b[i] : '\n';
+    if (c == 0x1a) { c = '\n'; len = i; }  // DOS end of file
+    if (c == '\r') continue;
+    if (c == '\n') { rows.push_back(line); line = ""; cols = 0; continue; }
+    if (c == 0x1b) { while (i + 1 < len && !isalpha(b[i + 1])) ++i; ++i; continue; }
+    if (c == '\t') { do { if (cols < 80) line += ' '; cols++; } while (cols % 8); continue; }
+    if (utf8 && c >= 0x80) {
+      if ((c & 0xc0) != 0x80) cols++;
+      if (cols <= 80) line += (char)c;
+      continue;
+    }
+    if (cols >= 80) { cols++; continue; }
+    if (c < 0x20 || c >= 0x80) appendDosGlyph(line, c); else line += (char)c;
+    cols++;
+  }
+  while (rows.size() > first && !rows.back().length()) rows.pop_back();
+  while (first < rows.size() && !rows[first].length()) rows.erase(rows.begin() + first);
+}
 // A ZIP's contents from its central directory, without unpacking anything.
+// FILE_ID.DIZ and NFO files inside are inflated and shown below the list.
 static bool zipContents(const String &path, std::vector<String> &rows) {
   File f = SD_MMC.open(path, FILE_READ);
   if (!f) return false;
@@ -392,9 +424,11 @@ static bool zipContents(const String &path, std::vector<String> &rows) {
   uint16_t entries = le16(tail.get() + eocd + 10);
   uint32_t at = le32(tail.get() + eocd + 16);
   uint16_t commentLen = le16(tail.get() + eocd + 20);
-  String comment;
-  for (uint16_t i = 0; i < commentLen && eocd + 22 + i < (int)tailLen && comment.length() < 400; ++i) comment += (char)tail[eocd + 22 + i];
+  std::vector<String> commentRows;
+  dosTextRows(tail.get() + eocd + 22, min<size_t>(commentLen, tailLen - eocd - 22), commentRows, 40);
   tail.reset();
+  struct Inside { String name; uint16_t method; uint32_t csize, usize, local; };
+  std::vector<Inside> texts;
   rows.push_back("\x1b[0;36m    Length  Packed  Ratio  Date      Time   Name\x1b[0m");
   rows.push_back("\x1b[0;36m  --------  ------  -----  --------  -----  ----\x1b[0m");
   uint64_t total = 0, packed = 0;
@@ -403,7 +437,7 @@ static bool zipContents(const String &path, std::vector<String> &rows) {
     uint8_t h[46];
     if (!f.seek(at) || f.read(h, 46) != 46 || le32(h) != 0x02014b50) break;
     uint16_t time = le16(h + 12), date = le16(h + 14), nameLen = le16(h + 28), extra = le16(h + 30), note = le16(h + 32);
-    uint32_t csize = le32(h + 20), usize = le32(h + 24);
+    uint32_t csize = le32(h + 20), usize = le32(h + 24), local = le32(h + 42);
     char name[81] = {0};
     f.read((uint8_t *)name, min<uint16_t>(nameLen, 80));
     at += 46 + nameLen + extra + note;
@@ -418,8 +452,10 @@ static bool zipContents(const String &path, std::vector<String> &rows) {
              time >> 11, (time >> 5) & 63, folder ? "\x1b[1;36m" : "\x1b[1;37m", shown.c_str());
     rows.push_back(row);
     if (!folder) { files++; total += usize; packed += csize; }
+    String u = up(shortName(shown));
+    if (!folder && usize && usize <= 32768 && csize <= 32768 && texts.size() < 4 && (u.endsWith(".DIZ") || u.endsWith(".NFO")))
+      texts.push_back({shown, le16(h + 10), csize, usize, local});
   }
-  f.close();
   char sum[100];
   snprintf(sum, sizeof(sum), "  %8llu  %6s  %4u%%                   %u file%s",
            (unsigned long long)total, sizeShort((uint32_t)min<uint64_t>(packed, UINT32_MAX)).c_str(),
@@ -427,16 +463,23 @@ static bool zipContents(const String &path, std::vector<String> &rows) {
   rows.push_back("\x1b[0;36m  --------  ------  -----                   ----\x1b[0m");
   rows.push_back(sum);
   if (entries > 1500) rows.push_back("  ... and " + String(entries - 1500) + " more");
-  if (comment.length()) {
+  // FILE_ID.DIZ first, then the NFOs.
+  std::stable_sort(texts.begin(), texts.end(), [](const Inside &a, const Inside &b) {
+    return (up(shortName(a.name)) == "FILE_ID.DIZ") > (up(shortName(b.name)) == "FILE_ID.DIZ");
+  });
+  for (const Inside &t : texts) {
+    std::unique_ptr<uint8_t[]> out;
+    size_t outLen = 0;
     rows.push_back("");
-    rows.push_back("\x1b[0;36mArchive comment:\x1b[0m");
-    String line;
-    for (size_t i = 0; i <= comment.length(); ++i) {
-      char c = i < comment.length() ? comment[i] : '\n';
-      if (c == '\r') continue;
-      if (c == '\n' || line.length() >= 79) { rows.push_back(line); line = ""; if (c == '\n') continue; }
-      line += (uint8_t)c < 32 || (uint8_t)c >= 127 ? ' ' : c;
-    }
+    rows.push_back("\x1b[1;36m---- " + t.name + " " + String("------------------------------------------------------------------------").substring(0, max(4, 72 - (int)t.name.length())) + "\x1b[0m");
+    if (zipInflate(f, t.method, t.csize, t.usize, t.local, out, outLen)) dosTextRows(out.get(), outLen, rows);
+    else rows.push_back("  (packed in a way this board cannot open)");
+  }
+  f.close();
+  if (!commentRows.empty()) {
+    rows.push_back("");
+    rows.push_back("\x1b[1;36m---- Archive comment ---------------------------------------------------\x1b[0m");
+    for (auto &r : commentRows) rows.push_back(r);
   }
   return true;
 }

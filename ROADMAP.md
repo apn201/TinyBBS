@@ -298,7 +298,8 @@ ANSI editing, and a normal user's menus show no Back Room or SysOp entries.
 Built. Listings have a column header and show size, the card's date for the
 file (MM-DD-YY), a download counter (`DATA/INDEX/DOWNLOADS.DAT`) and the
 description. `V` or the number on a ZIP opens its contents in the reader,
-read from the central directory, with totals and the archive comment.
+read from the central directory, with totals, the full FILE_ID.DIZ and any NFO inside
+(inflated, CP437 glyphs, cut at 80 columns) and the archive comment.
 
 Listings show name, size, date (from the card's file timestamps) and the
 description from slice 4. A download counter per file is shown, like a real
