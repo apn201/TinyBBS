@@ -11,7 +11,7 @@ h1{margin:0 0 6px;font:600 14px monospace;color:var(--acc)}
 #path{font:13px monospace;word-break:break-all}
 #path a{color:var(--acc);text-decoration:none}
 .bar{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-button,label.btn{background:#222;color:var(--fg);border:1px solid #444;border-radius:4px;padding:7px 10px;font:inherit;font-size:14px;cursor:pointer}
+button,.btn{background:#222;color:var(--fg);border:1px solid #444;border-radius:4px;padding:7px 10px;font:inherit;font-size:14px;cursor:pointer}
 button:disabled{opacity:.4;cursor:default}
 #status{margin-top:6px;font:13px monospace;color:var(--dim);min-height:1.2em}
 #status.bad{color:var(--bad)}
@@ -30,6 +30,10 @@ body.dragging #drop{display:flex}
 #editor.open{display:flex}
 #editor .bar{padding:10px 12px;margin:0;border-bottom:1px solid var(--line);align-items:center}
 #editor b{font:13px monospace;flex:1;word-break:break-all}
+#eimg{flex:1;min-height:0;display:none;align-items:center;justify-content:center;background:#000;overflow:auto}
+#eimg img{max-width:100%;max-height:100%;image-rendering:pixelated}
+#editor.picture #eimg{display:flex}
+#editor.picture textarea,#editor.picture #esave{display:none}
 textarea{flex:1;width:100%;background:#000;color:#ddd;border:0;padding:10px;font:13px/1.35 monospace;resize:none;white-space:pre;overflow:auto}
 input[type=file]{display:none}
 </style></head><body>
@@ -47,7 +51,8 @@ input[type=file]{display:none}
 </header>
 <table><tbody id="list"></tbody></table>
 <div id="drop">Drop files or folders to upload here</div>
-<div id="editor"><div class="bar"><b id="ename"></b><button id="esave">Save</button><button id="eclose">Close</button></div>
+<div id="editor"><div class="bar"><b id="ename"></b><button id="esave">Save</button><a class="btn" id="edown" style="text-decoration:none;color:inherit">Download</a><button id="eclose">Close</button></div>
+<div id="eimg"><img id="epic" alt=""></div>
 <textarea id="etext" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>
 <script>
 'use strict';
@@ -57,7 +62,10 @@ fetch('/api/board').then(r=>r.json()).then(b=>{
   document.title=(b.name||'TinyBBS')+' // File manager';
   document.getElementById('brand').textContent=(b.short||'TINYBBS')+' // SYSOP FILE MANAGER';
 }).catch(()=>{});
-const TEXT=/\.(ini|txt|ans|asc|bbs|ion|diz|nfo|md|cfg|json|csv|bas|sdi)$/i;
+const TEXT=/\.(ini|txt|ans|asc|bbs|ion|diz|nfo|md|cfg|json|csv|bas|sdi|log|old)$/i;
+const PICTURE={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',bmp:'image/bmp',webp:'image/webp'};
+const pictureType=name=>PICTURE[(name.split('.').pop()||'').toLowerCase()];
+const EDIT_MAX=262144,VIEW_MAX=4194304;  // edit up to 256 K, read up to 4 M
 let cwd='/BBS',ro=false,busy=false,editing=null;
 const qs=(p,extra={})=>'?'+new URLSearchParams({t:T,p,...extra});
 const join=(a,b)=>b?a+'/'+b:a;
@@ -84,10 +92,16 @@ function render(items){
     n.className='n';s.className='s';a.className='a';
     const link=document.createElement('a');link.textContent=it.n+(it.d?'/':'');
     if(it.d){link.className='dir';link.href='#';link.onclick=e=>{e.preventDefault();load(join(cwd,it.n));};}
-    else{link.href='/sysop/api/get'+qs(join(cwd,it.n),{dl:'1'});}
+    else{
+      // Text and pictures open here; anything else downloads.
+      const viewable=TEXT.test(it.n)||pictureType(it.n);
+      link.href='/sysop/api/get'+qs(join(cwd,it.n),{dl:'1'});
+      if(viewable)link.onclick=e=>{e.preventDefault();showFile(it.n,it.s,false);};
+    }
     n.append(link);
     s.textContent=it.d?'':size(it.s);
-    if(!it.d&&TEXT.test(it.n)){const e=btn('Edit',()=>edit(it.n,it.s));e.disabled=false;e.textContent=ro?'View':'Edit';a.append(e);}
+    if(!it.d&&TEXT.test(it.n)&&!ro&&it.s<=EDIT_MAX)a.append(btn('Edit',()=>showFile(it.n,it.s,true)));
+    if(!it.d){const d=document.createElement('a');d.className='btn';d.textContent='Download';d.style.cssText='padding:4px 8px;font-size:13px;margin-left:4px;text-decoration:none;color:inherit';d.href='/sysop/api/get'+qs(join(cwd,it.n),{dl:'1'});a.append(d);}
     a.append(btn('Rename',()=>rename(it.n)),btn('Delete',()=>remove(it.n,it.d)));
   }
   $('up').disabled=cwd.toUpperCase()==='/BBS';
@@ -164,17 +178,33 @@ addEventListener('drop',async e=>{
   uploadAll(jobs);
 });
 // Text files are loaded and saved byte for byte, so CP437 art survives an edit.
-async function edit(name,bytes){
-  if(bytes>262144){status('Too big to edit here (over 256 K). Download it instead.',true);return;}
+// Pictures show in the same panel. Logs open at their newest line.
+let picUrl='';
+async function showFile(name,bytes,write){
+  if(bytes>(write?EDIT_MAX:VIEW_MAX)){status('Too big to '+(write?'edit here (over 256 K)':'show here (over 4 M)')+'. Download it instead.',true);return;}
+  const path=join(cwd,name),type=pictureType(name);
   try{
-    const r=await api('/sysop/api/get'+qs(join(cwd,name)));
-    const buf=new Uint8Array(await r.arrayBuffer());let s='';
-    for(let i=0;i<buf.length;i+=4096)s+=String.fromCharCode.apply(null,buf.subarray(i,i+4096));
-    editing={name,dir:cwd};$('ename').textContent=join(cwd,name)+(ro?' (read-only)':'');
-    $('etext').value=s;$('esave').disabled=ro;$('editor').classList.add('open');
+    const r=await api('/sysop/api/get'+qs(path));
+    const ed=$('editor'),text=$('etext');
+    $('edown').href='/sysop/api/get'+qs(path,{dl:'1'});
+    ed.classList.toggle('picture',!!type);
+    if(type){
+      if(picUrl)URL.revokeObjectURL(picUrl);
+      picUrl=URL.createObjectURL(new Blob([await r.arrayBuffer()],{type}));
+      $('epic').src=picUrl;editing=null;$('ename').textContent=path+'  '+size(bytes);
+    }else{
+      const buf=new Uint8Array(await r.arrayBuffer());let s='';
+      for(let i=0;i<buf.length;i+=4096)s+=String.fromCharCode.apply(null,buf.subarray(i,i+4096));
+      editing=write?{name,dir:cwd}:null;
+      $('ename').textContent=path+(write?'':' (read only)');
+      text.value=s;text.readOnly=!write;$('esave').disabled=!write;$('esave').style.display=write?'':'none';
+    }
+    ed.classList.add('open');
+    if(!type)text.scrollTop=/\.(log|old)$/i.test(name)?text.scrollHeight:0;
   }catch(e){status(e.message,true);}
 }
-$('eclose').onclick=()=>{$('editor').classList.remove('open');editing=null;};
+$('eclose').onclick=()=>{$('editor').classList.remove('open');editing=null;if(picUrl){URL.revokeObjectURL(picUrl);picUrl='';$('epic').removeAttribute('src');}};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('editor').classList.contains('open')&&!editing)$('eclose').onclick();});
 $('esave').onclick=async()=>{
   if(!editing)return;
   const text=$('etext').value,out=new Uint8Array(text.length);
@@ -184,7 +214,7 @@ $('esave').onclick=async()=>{
     await sendOne(new Blob([out]),editing.dir,editing.name,'Saving '+editing.name);
     status('Saved '+editing.name);$('editor').classList.remove('open');editing=null;load(cwd);
   }catch(e){status(e.message,true);}
-  finally{$('esave').disabled=ro;}
+  finally{$('esave').disabled=false;}
 };
 if(!T)status('No admin token. Open the file manager from the SysOp menu.',true);else load('/BBS');
 </script></body></html>
