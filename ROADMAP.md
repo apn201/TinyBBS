@@ -363,7 +363,8 @@ and find it listed in the area with its description.
 Built. The audit is in `MENU_AUDIT.md`: every screen, its keys and who gets
 them. Fixed: Legend `[C]hallenge` only with someone to challenge, Dice on an
 empty purse, message reader K/E/H only when offered, no `[D]` on the SysOp's
-own record, gallery and menus for ASCII callers, message menu error text.
+own record, message menu error text, signup can be cancelled with ENTER,
+duel messages on their own lines, and the hidden ASCII toggle removed.
 
 Go through every screen on both transports and check that every advertised
 key works for that caller. Remove or hide anything that does not.

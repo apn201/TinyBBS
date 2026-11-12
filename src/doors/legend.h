@@ -351,18 +351,20 @@ static void duelAttack(Session &s) {
   const uint16_t defence = 2 + other->quest.level * 2 + other->quest.armor * 3;
   const uint16_t half = strength / 2 ? strength / 2 : 1;
   const int swing = int(strength / 2) + int(esp_random() % half) - int(defence);
+  // The other fighter sits at a waiting prompt: their news starts a new line.
   if (swing <= 0) {
     say(s, "Your blade glances off " + other->user.handle + "'s guard.");
+    say(*other, "\r\n" + s.user.handle + "'s blade glances off your guard.");
   } else {
     const uint16_t damage = min<uint16_t>(other->quest.hp, swing);
     other->quest.hp -= damage;
     say(s, "\x1b[1;33mYou strike " + other->user.handle + " for " + damage + "!\x1b[0m");
-    say(*other, "\x1b[1;31m" + s.user.handle + " strikes you for " + damage + "!\x1b[0m");
+    say(*other, "\r\n\x1b[1;31m" + s.user.handle + " strikes you for " + damage + "!\x1b[0m");
     if (!other->quest.hp) { finishDuel(s, *other); return; }
   }
   s.duelTurnNode = other->node;
   other->duelTurnNode = s.duelTurnNode;
-  prompt(s, "[A]ttack  [R]etreat: ");
+  prompt(s, "Waiting for " + other->user.handle + "... ([R] retreats) ");
   prompt(*other, "Your move. [A]ttack  [R]etreat: ");
 }
 static void questChallenge(Session &s, const String &line) {
@@ -538,7 +540,7 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
       activity(s, "ARENA DUEL"); activity(*other, "ARENA DUEL");
       say(s, "\r\nThe arena gate opens. " + other->user.handle + " has the initiative.");
       say(*other, "\r\nThe arena gate opens. You have the initiative.");
-      prompt(s, "Wait for the opening. [A]ttack  [R]etreat: ");
+      prompt(s, "Waiting for " + other->user.handle + "... ([R] retreats) ");
       prompt(*other, "[A]ttack  [R]etreat: ");
     } else if (cmd == "N" || cmd == "NO" || cmd == "Q") duelCancel(s, "the challenge was declined");
     else prompt(s, "Accept? [Y]es / [N]o: ");
@@ -547,7 +549,7 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
   if (s.state == QUEST_DUEL) {
     if (cmd == "R") { duelCancel(s, s.user.handle + " retreated"); return true; }
     if (cmd == "A") duelAttack(s);
-    else prompt(s, s.node == s.duelTurnNode ? "[A]ttack  [R]etreat: " : "Wait for your initiative... ");
+    else prompt(s, s.node == s.duelTurnNode ? "[A]ttack  [R]etreat: " : "Wait for your initiative... ([R] retreats) ");
     return true;
   }
   if (s.state == QUEST_DUEL_RESULT) {

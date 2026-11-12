@@ -12,7 +12,7 @@ are allowed: they never appear on screen.
 
 | Keys | Who | Notes |
 | --- | --- | --- |
-| N, L, G | everyone | Hidden: `ASCII` drops the pictures, `ANSI` brings them back. |
+| N, L, G | everyone | Signing up: ENTER at the handle or the password backs out. **Fixed.** The old hidden `ASCII` toggle is removed. |
 
 ## Main board
 
@@ -51,7 +51,7 @@ are allowed: they never appear on screen.
 
 | Key | Shown when | Notes |
 | --- | --- | --- |
-| A, F | ANSI callers | Pictures only, so hidden in ASCII mode. **Fixed.** |
+| A, F | always | |
 | G | an ANSI area is open to the caller | |
 | Q | always | |
 
@@ -62,9 +62,10 @@ are allowed: they never appear on screen.
 | Door menu | one per door in the door table, Q | |
 | Legend of Kouvola, town | F H B T M S L Q; C when someone in town can be challenged | C used to show with nobody to challenge. Now the town also lists who is in town. **Fixed.** |
 | Legend, tavern | R W L M Q; C as above | **Fixed.** |
-| Legend, forest, shop, bank, arena | as prompted | |
+| Legend, arena | A, R on your turn; R while waiting | Strikes and misses reach the waiting fighter on a new line, and the side without the initiative is told to wait. **Fixed.** |
+| Legend, forest, shop, bank | as prompted | |
 | VolaMUD | HELP lists LOOK, N/S/E/W, GO, TALK, BUY/SELL, INV, WEAR, TASK, BANK, SAY, FIGHT, WHO, STATS, QUIT | All handled. |
-| Dice cabinet | bet, Q | An empty purse is now told on entry instead of asking for a bet it cannot take. **Fixed.** |
+| Dice cabinet | bet, Q | An empty purse is told on entry, and when the last coin is lost, instead of asking for a bet it cannot take. **Fixed.** |
 
 ## SysOp
 
@@ -76,8 +77,3 @@ are allowed: they never appear on screen.
 | Node monitor | node #, M <node or ALL> text, ENTER | |
 | Door settings | F handle count, V handle, Q | |
 | Upload queue | A #, D #, Q | A and D only when something waits. |
-
-## Menus for ASCII callers
-
-Generated menus used to print no title when the art was skipped. They now
-print the title and list the options. **Fixed.**
