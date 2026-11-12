@@ -426,41 +426,47 @@ the Telnet listing shows them without a `[V]` option.
 
 ## Backburner
 
-Nice to have. They would make the board more period correct and impress
-nerds, but no visitor will use them.
+In priority order. The Apache port is the biggest one and is planned on its
+own in `APACHE_PORT_PLAN.md`.
 
-- File manager: select several files and move them to another area or
-  folder in one go, with their descriptions carried along in `FILES.BBS`, so
-  the SysOp can sort approved uploads out of Caller Uploads into the right
-  areas easily. Download counts follow the files.
-- QWK offline mail packets.
+1. **The Apache port.** The board on an Apache-hosted server, for when it
+   should be on the Internet: the same browser terminal, the same `/BBS`
+   folder and data, the server's own clock. Running DOS programs from the
+   file areas in the browser belongs there. Keep the core
+   transport-independent and the content on the card so the port stays
+   possible.
+2. **Full-screen message editor**, nano-like (arrow keys, Ctrl-O save, Ctrl-X
+   exit) and maybe a vi mode, as an option the caller switches to. Not period
+   correct; the line editor stays the default.
+3. **File area maintenance: mass move.** In the file manager, select several
+   files and move them to another area or folder in one go, with their
+   descriptions carried along in `FILES.BBS`, so the SysOp can sort approved
+   uploads out of Caller Uploads into the right areas easily. Download counts
+   follow the files.
+4. **Music that keeps playing.** The player can be shrunk to a strip at the
+   top of the screen and left playing while the caller browses the board.
+5. **Richer door content**: more VolaMUD world, task chains, NPC state. The
+   door interface from slice 0 is the hook for this.
+6. **What else did popular boards have?** Go through
+   [Break Into Chat](https://breakintochat.com/) and similar archives and list
+   the small features that made boards feel inhabited, then pick the cheap
+   ones. Candidates to check: last callers list, oneliners or graffiti wall,
+   voting booth, top uploaders and posters, new-files scan since last call,
+   BBS lists and ads, time bank, SysOp chat request with a buzzer, matrix or
+   pre-login screens, and random login quotes. Each one that survives becomes
+   its own slice, driven from SD like the rest.
+
+Low priority:
+
 - ZMODEM downloads over Telnet.
-- A full-screen message editor, nano-like (arrow keys, Ctrl-O save, Ctrl-X
-  exit) and maybe a vi mode, as an option the caller switches to. Not period
-  correct; the line editor stays the default.
 - Swappable tools: the reader, editor and similar parts behind a small
   interface, picked in the config, so others could bring their own as
   plugins. Only worth it if this became a real product.
-- A port to an Apache-hosted server, for when the board should be on the
-  Internet: the same browser terminal, the same `/BBS` folder and data, the
-  server's own clock. Keep the core transport-independent and the content on
-  the card so that stays possible.
-- ATASCII animations, like the
-  [Break Into Chat ATASCII collection](https://breakintochat.com/collections/atascii/).
-  Needs an ATASCII font and timed playback in the browser terminal.
-- Richer door content (more VolaMUD world, task chains, NPC state). The door
-  interface from slice 0 is the hook for this.
-- **Analysis: what else did every board have?** Go through
-  [Break Into Chat](https://breakintochat.com/) and similar archives and list
-  the small features that made boards feel inhabited, then pick the cheap
-  ones. Candidates to check: last callers list, oneliners or graffiti wall,
-  voting booth, top uploaders and posters, new-files scan since last call,
-  BBS lists and ads, time bank, SysOp chat request with a buzzer, matrix or
-  pre-login screens, and random login quotes. Each one that survives becomes
-  its own slice, driven from SD like the rest.
+- QWK offline mail packets. Not important.
 
 ## Not planned
 
+- ATASCII animations. Decided against.
 - AP plus station mode, LAN or Internet access, SSH, modem protocols. The
   board stays standalone. `NETWORK.INI` station settings are removed in
   slice 3.
