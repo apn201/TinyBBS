@@ -27,6 +27,7 @@ static void input(Session &s, const String &bytes) {
   // pauses and resumes, anything else skips to the end.
   if (s.state == READER && !streaming(s)) { readerInput(s, bytes); return; }
   if (s.state == FILE_IMAGE && !streaming(s)) { imageKey(s, bytes); return; }
+  if (s.state == FILE_MUSIC && !streaming(s)) { musicKey(s, bytes); return; }
   if (streaming(s)) {
     bool space = false, other = false;
     for (size_t i = 0; i < bytes.length(); ++i) {

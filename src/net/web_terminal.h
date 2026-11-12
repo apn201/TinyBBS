@@ -158,7 +158,27 @@ function armUpload(href,max){
   };
   links.replaceChildren(btn,pick,meter);
 }
+// Music: the player script comes from the card the first time it is needed.
+let playerLoad=null;
+const playerOpen=()=>!!(window.TinyPlayer&&window.TinyPlayer.isOpen());
+function closePlayer(){if(window.TinyPlayer)window.TinyPlayer.close();}
+function playTune(href,name,size){
+  if(!playerLoad)playerLoad=new Promise((ok,fail)=>{const s=document.createElement('script');s.src='/player/player.js';s.onload=ok;s.onerror=()=>{playerLoad=null;fail();};document.head.appendChild(s);});
+  playerLoad.then(()=>{window.TinyPlayer.open(href,name,size,streamKey);focusTerminal();}).catch(()=>{});
+}
+document.addEventListener('click',()=>{if(playerOpen())focusTerminal();});
 function downloadLink(message){
+  if(message.startsWith('9;MOD;')){
+    const rest=message.slice(6);
+    if(rest==='close'){closePlayer();return;}
+    const parts=rest.split(';');
+    try{
+      const url=new URL(parts[0],location.href);
+      if(url.origin!==location.origin||url.pathname!=='/music')return;
+      playTune(url.href,parts[1]||'',parts[2]||'');
+    }catch{}
+    return;
+  }
   if(message.startsWith('9;UP;')){
     const rest=message.slice(5);
     if(rest==='close'){if(!upXhr)links.replaceChildren();return;}
@@ -281,7 +301,7 @@ function frameIn(d){
   const k=d[0],v=d.slice(1);
   if(k==='o')render(v);
   else if(k==='p'){secret=v==='1';repaint();}
-  else if(k==='s'){streamOn=parseInt(v,10)||0;if(streamOn!==2)closeViewer();if(streamOn&&viewOff){viewOff=0;repaint();}}
+  else if(k==='s'){streamOn=parseInt(v,10)||0;if(streamOn!==2){closeViewer();closePlayer();}if(streamOn&&viewOff){viewOff=0;repaint();}}
   else if(k==='x')lost('KOUVOSTO // NO CARRIER');
 }
 function flushPending(){
@@ -382,7 +402,7 @@ async function exchange(){
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
     failures=0;lastOk=Date.now();
     carrier.textContent=connectText();
-    if(!sockReady){secret=response.secret;streamOn=response.stream;if(streamOn!==2)closeViewer();}
+    if(!sockReady){secret=response.secret;streamOn=response.stream;if(streamOn!==2){closeViewer();closePlayer();}}
     if(response.text)render(response.text);
   }catch{
     // Keep trying quietly while the phone rejoins the WiFi. Give up only
@@ -451,7 +471,8 @@ capture.addEventListener('input',()=>{
 });
 const PAGER_KEYS={ArrowUp:'\x1b[A',ArrowDown:'\x1b[B',PageUp:'\x1b[5~',PageDown:'\x1b[6~',Home:'\x1b[H',End:'\x1b[F',Escape:'q',Enter:'\r'};
 capture.addEventListener('keydown',e=>{
-  if(!viewer.hidden&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){e.preventDefault();streamKey(e.key==='ArrowRight'?'n':'p');return;}
+  if((!viewer.hidden||playerOpen())&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){e.preventDefault();streamKey(e.key==='ArrowRight'?'n':'p');return;}
+  if(playerOpen()&&e.key===' '){e.preventDefault();window.TinyPlayer.togglePause();return;}
   if(streamOn===2&&!e.isComposing){
     const k=PAGER_KEYS[e.key]||(e.key.length===1&&!e.ctrlKey&&!e.metaKey?e.key:null);
     if(k){e.preventDefault();streamKey(k);}

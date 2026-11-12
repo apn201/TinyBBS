@@ -31,3 +31,46 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## libopenmpt
+
+The browser music player plays tracker modules with libopenmpt 0.8.10, the
+official WebAssembly build (`libopenmpt-0.8.10+release.dev.js.tar.gz` from
+https://lib.openmpt.org/libopenmpt/download/), unmodified. It ships on the card
+as `/BBS/ASSETS/PLAYER/libopenmpt.js` and `libopenmpt.wasm`; the licences of
+libopenmpt and the libraries built into it (miniz, minimp3, stb_vorbis) are in
+`/BBS/ASSETS/PLAYER/LICENSES`. `player.js` next to them is TinyBBS code.
+
+Copyright (c) 2004-2026, OpenMPT Project Developers and Contributors
+Copyright (c) 1997-2003, Olivier Lapicque
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the OpenMPT project nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## Tracker modules
+
+The starter set in the Tracker Music area (`tools/fetch-modules.py`) comes
+from The Mod Archive, https://modarchive.org/ . Its upload terms (v2.2,
+section 1.2) let anyone redistribute a module that "has stayed in its
+original, unmodified, unbundled form". The modules are copied byte for byte,
+one file each, and each one's Mod Archive number is in the area's FILES.BBS.

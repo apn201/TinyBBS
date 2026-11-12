@@ -57,6 +57,9 @@ board at the same time and see each other in WHO and chat.
   descriptions from `FILES.BBS`, `DESCRIPT.ION` and `FILE_ID.DIZ`, file dates,
   per-file download counts, ZIP contents listed with `V`, and browser
   downloads that check quota and ratio.
+- Tracker music (MOD, S3M, XM, IT) plays with `V` in the browser: a
+  tracker-style screen with the live pattern and channel meters, played by
+  libopenmpt from the card. Fifty modules from The Mod Archive to start with.
 - Pictures (GIF, JPG, PNG, BMP) open with `V` in a full-screen image viewer
   in the browser; `N`/`P` step through the folder.
 - Uploads from the browser to areas that allow them, into a queue the SysOp

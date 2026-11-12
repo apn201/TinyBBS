@@ -547,11 +547,46 @@ static void imageKey(Session &s, const String &bytes) {
     }
   }
 }
+// ---------- the music player (browser only) ---------------------------------------------
+// Tracker modules play in the browser with libopenmpt from /BBS/ASSETS/PLAYER.
+// Like the image viewer: the board names the tune, keys come back to it.
+static bool musicName(const String &name) {
+  String u = up(name);
+  return u.endsWith(".MOD") || u.endsWith(".S3M") || u.endsWith(".XM") || u.endsWith(".IT");
+}
+static bool playerReady() { return sdReady && SD_MMC.exists("/BBS/ASSETS/PLAYER/player.js") && SD_MMC.exists("/BBS/ASSETS/PLAYER/libopenmpt.wasm"); }
+static bool openMusic(Session &s, uint16_t number, const String &name, size_t bytes) {
+  if (!s.web || !playerReady()) return false;
+  s.viewer.number = number; s.viewer.name = name; s.viewer.ansi = false;
+  s.state = FILE_MUSIC;
+  activity(s, "LISTENING " + clean(name, 30));
+  write(s, "\x1b]9;MOD;/music?n=" + String(s.node) + "&q=" + s.token + "&i=" + number + ";" + clean(name, 40) + ";" + sizeShort(bytes) + "\x07");
+  return true;
+}
+static void musicKey(Session &s, const String &bytes) {
+  for (size_t i = 0; i < bytes.length(); ++i) {
+    char c = toupper((unsigned char)bytes[i]);
+    if (c == 0 || c == '\n' || c == ' ') continue;  // SPACE pauses in the browser
+    if (c != 'N' && c != 'P') { write(s, "\x1b]9;MOD;close\x07"); listArea(s); return; }
+    auto list = folderEntries(s);
+    int step = c == 'N' ? 1 : -1;
+    for (int k = s.viewer.number + step; k >= 1 && k <= (int)list.size(); k += step) {
+      if (list[k - 1].dir || !musicName(list[k - 1].name)) continue;
+      openMusic(s, k, list[k - 1].name, list[k - 1].size);
+      break;
+    }
+  }
+}
 static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   String path, name;
   size_t bytes;
   if (!areaFile(s, number, path, name, bytes)) { if (!quiet) prompt(s, "No such file. File command? "); return false; }
   if (zipName(name)) return openZipList(s, number, path, name, bytes, quiet);
+  if (musicName(name)) {
+    if (openMusic(s, number, name, bytes)) return true;
+    if (!quiet) prompt(s, s.web ? "The music player is not on the card. File command? " : "Music plays in the browser terminal. File command? ");
+    return false;
+  }
   if (imageName(name)) {
     if (openImage(s, number, name, bytes)) return true;
     if (!quiet) prompt(s, "Pictures open in the browser terminal. File command? ");

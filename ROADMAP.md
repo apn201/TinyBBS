@@ -402,6 +402,13 @@ on top.
 
 ### Slice 11: MOD and SID music in the browser
 
+MOD, S3M, XM and IT built: libopenmpt 0.8.10 (WebAssembly, BSD) and
+`player.js` in `/BBS/ASSETS/PLAYER`, played with a ScriptProcessorNode because
+plain-HTTP pages may not use AudioWorklet. Fifty Mod Archive modules in
+`015_MUSIC` from `tools/fetch-modules.py`. SID is still open: the HVSC
+tunes may be redistributed freely, but a browser SID player still has to be
+picked.
+
 In reality you downloaded a MOD file from the board and played it on your PC.
 Here the browser plays it directly, which is a shortcut, but the point is to
 hear it. `[V]` on a `.MOD`, `.S3M`, `.XM`, `.IT` or `.SID` file in the browser

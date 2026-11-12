@@ -160,6 +160,30 @@ static void viewImage(AsyncWebServerRequest *r) {
   res->addHeader("Cache-Control", "no-store");
   r->send(res);
 }
+// The tune in the browser's music player. Like viewing, not a download.
+static void playMusic(AsyncWebServerRequest *r) {
+  BbsLock lock;
+  Session *s = requestSession(r); String path, name; size_t bytes = 0;
+  if (!s || !s->authenticated || s->state != FILE_MUSIC || !canUseArea(*s, s->fileArea) ||
+      !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || !musicName(name) || !SD_MMC.exists(path)) {
+    r->send(404, "text/plain", "Tune unavailable"); return;
+  }
+  AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, "application/octet-stream", false);
+  res->addHeader("Cache-Control", "no-store");
+  r->send(res);
+}
+// The player itself: /player/<file> from /BBS/ASSETS/PLAYER. Plain names only.
+static void playerFile(AsyncWebServerRequest *r) {
+  String name = r->url().substring(8);  // after "/player/"
+  bool ok = name.length() && name.length() < 40 && name.indexOf('/') < 0 && name.indexOf("..") < 0;
+  String path = String("/BBS/ASSETS/PLAYER/") + name;
+  if (!ok || !sdReady || !SD_MMC.exists(path)) { r->send(404, "text/plain", "Not found"); return; }
+  String u = up(name);
+  const char *type = u.endsWith(".WASM") ? "application/wasm" : u.endsWith(".JS") ? "text/javascript" : "text/plain";
+  AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, type, false);
+  res->addHeader("Cache-Control", "max-age=86400");  // the library is 1.3 MB: fetch it once
+  r->send(res);
+}
 static void modemAudio(AsyncWebServerRequest *r) {
   if (!sdReady || !SD_MMC.exists(MODEM_AUDIO)) { r->send(404, "text/plain", "Modem audio unavailable"); return; }
   AsyncWebServerResponse *res = r->beginResponse(SD_MMC, MODEM_AUDIO, "audio/mpeg");
@@ -257,6 +281,8 @@ static void startWeb() {
   http.on("/api/in", HTTP_POST, apiIn);
   http.on("/download", HTTP_GET, downloadFile);
   http.on("/view", HTTP_GET, viewImage);
+  http.on("/music", HTTP_GET, playMusic);
+  http.on("/player", HTTP_GET, playerFile);  // also matches /player/<file>
   http.on("/upload", HTTP_POST, uploadDone, uploadChunk);
   http.on("/status", HTTP_GET, status);
   http.on("/modem.mp3", HTTP_GET, modemAudio);

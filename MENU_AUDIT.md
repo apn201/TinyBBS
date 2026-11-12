@@ -44,6 +44,7 @@ are allowed: they never appear on screen.
 | Text and ANSI reader | SPACE B arrows S N/P Q | S plays at full speed on Telnet. |
 | ZIP contents | SPACE B arrows N/P Q | |
 | Image viewer | N P ESC, arrows, taps | Browser only; Telnet is told pictures open in the browser. |
+| Music player | N P SPACE ESC, arrows, taps | Browser only, and only when the player is on the card; Telnet is told music plays in the browser. |
 | Files that cannot be viewed | | Browser: "D #". Telnet: "from the browser terminal". |
 | Upload | description, CHOOSE FILE | Browser only. |
 
