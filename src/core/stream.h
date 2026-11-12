@@ -14,7 +14,7 @@ static bool streaming(const Session &s) {
 }
 // Key mode for the browser: 0 = line input, 1 = a file is streaming (keys skip
 // or pause it), 2 = the reader (every key goes to the board at once).
-static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == READER ? 2 : 0; }
+static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == READER || s.state == FILE_IMAGE ? 2 : 0; }
 static bool outputDone(const Session &s) { return s.jobs.empty() && !s.pending.length() && !s.output.length(); }
 
 // Append up to `want` bytes of the job's file to `out`. Returns true when the

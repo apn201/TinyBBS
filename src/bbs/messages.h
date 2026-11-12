@@ -449,9 +449,13 @@ static void saveDraft(Session &s) {
   m.subject = s.pendingSubject.length() ? s.pendingSubject : String("No subject");
   m.body = s.draft; m.when = nowText(); m.replyTo = s.replyTo; m.priv = s.pendingPrivate && m.to.length();
   if (appendMessage(m)) {
-    s.user.messages++; touchUser(s.user);
+    s.user.messages++;
+    // Posting earns download credit (SYSTEM.INI credits_per_message).
+    if (board.creditsPerMessage && s.user.credits < UINT32_MAX - board.creditsPerMessage) s.user.credits += board.creditsPerMessage;
+    touchUser(s.user);
     event("MESSAGE", s.user.handle + " #" + m.id);
-    say(s, "\x1b[1;32mMessage #" + String(m.id) + " posted.\x1b[0m");
+    say(s, "\x1b[1;32mMessage #" + String(m.id) + " posted.\x1b[0m" +
+           (board.creditsPerMessage ? "  +" + sizeText(board.creditsPerMessage) + " download credit." : String()));
   } else say(s, "Message not posted: the message base could not be written.");
   s.draft = "";
   if (s.replyTo) { s.state = MSG_VIEW; readerPrompt(s); }

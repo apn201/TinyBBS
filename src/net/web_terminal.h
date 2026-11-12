@@ -15,6 +15,11 @@ touch-action:none}
 #capture{position:absolute;width:1.2ch;height:1em;overflow:hidden;color:transparent;
 caret-color:transparent;outline:none;white-space:pre;pointer-events:none}
 #links:empty{display:none} a{color:#5ff}
+#viewer{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;z-index:10;cursor:pointer}
+#viewer[hidden]{display:none}
+#pic{flex:1;min-height:0;width:100%;object-fit:contain;image-rendering:pixelated;clip-path:inset(0 0 100% 0)}
+#pic.shown{clip-path:inset(0);transition:clip-path 1.4s steps(48)}
+#vbar{background:#00a;color:#fff;padding:4px 8px;white-space:pre;overflow:hidden;text-overflow:ellipsis}
 </style></head><body>
  <header><button id="dial">DIAL</button> <button id="modem" type="button">MODEM AUDIO</button> <button id="speed" type="button" title="Modem speed for ANSI pictures">SPEED</button> <span id="carrier" role="status">KOUVOSTO // NO CARRIER</span></header>
 <div id="screen"><canvas id="display" width="640" height="400" aria-label="80-column Kouvosto terminal"></canvas>
@@ -23,6 +28,7 @@ autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text"
 data-lpignore="true" data-1p-ignore data-bwignore></div></div>
 <footer><button id="enter" disabled>ENTER</button> <button id="back" disabled>BACKSPACE</button>
 <span id="links"></span></footer>
+<div id="viewer" hidden><img id="pic" alt=""><div id="vbar"></div></div>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -112,7 +118,33 @@ function control(params,cmd){
     eraseLine(mode===0?x:0,mode===1?x+1:cols);
   }
 }
+// The image viewer: the board names the picture, the picture is drawn in
+// top to bottom like a 90s viewer decoding it, and keys go back to the board.
+const viewer=$('viewer'),pic=$('pic'),vbar=$('vbar');
+function closeViewer(){if(viewer.hidden)return;viewer.hidden=true;pic.removeAttribute('src');}
+function showViewer(href,name,size){
+  viewer.hidden=false;pic.classList.remove('shown');void pic.offsetWidth;
+  vbar.textContent=' TINYVIEW  '+name+'  '+size+'  decoding...';
+  pic.onload=()=>{
+    vbar.textContent=' '+name+'  '+pic.naturalWidth+'x'+pic.naturalHeight+'  '+size+'    N next  P prev  ESC exit';
+    pic.classList.add('shown');
+  };
+  pic.onerror=()=>{vbar.textContent=' '+name+'  cannot be shown    N next  P prev  ESC exit';};
+  pic.src=href;focusTerminal();
+}
+viewer.addEventListener('click',e=>{const f=e.clientX/innerWidth;streamKey(f<0.3?'p':f>0.7?'n':'q');focusTerminal();});
 function downloadLink(message){
+  if(message.startsWith('9;IMG;')){
+    const rest=message.slice(6);
+    if(rest==='close'){closeViewer();return;}
+    const parts=rest.split(';');
+    try{
+      const url=new URL(parts[0],location.href);
+      if(url.origin!==location.origin||url.pathname!=='/view')return;
+      showViewer(url.href,parts[1]||'',parts[2]||'');
+    }catch{}
+    return;
+  }
   if(message.startsWith('9;LINK;')){
     const cut=message.indexOf(';',7);
     if(cut<0)return;
@@ -213,7 +245,7 @@ function frameIn(d){
   const k=d[0],v=d.slice(1);
   if(k==='o')render(v);
   else if(k==='p'){secret=v==='1';repaint();}
-  else if(k==='s'){streamOn=parseInt(v,10)||0;if(streamOn&&viewOff){viewOff=0;repaint();}}
+  else if(k==='s'){streamOn=parseInt(v,10)||0;if(streamOn!==2)closeViewer();if(streamOn&&viewOff){viewOff=0;repaint();}}
   else if(k==='x')lost('KOUVOSTO // NO CARRIER');
 }
 function flushPending(){
@@ -314,7 +346,7 @@ async function exchange(){
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
     failures=0;lastOk=Date.now();
     carrier.textContent=connectText();
-    if(!sockReady){secret=response.secret;streamOn=response.stream;}
+    if(!sockReady){secret=response.secret;streamOn=response.stream;if(streamOn!==2)closeViewer();}
     if(response.text)render(response.text);
   }catch{
     // Keep trying quietly while the phone rejoins the WiFi. Give up only
@@ -383,6 +415,7 @@ capture.addEventListener('input',()=>{
 });
 const PAGER_KEYS={ArrowUp:'\x1b[A',ArrowDown:'\x1b[B',PageUp:'\x1b[5~',PageDown:'\x1b[6~',Home:'\x1b[H',End:'\x1b[F',Escape:'q',Enter:'\r'};
 capture.addEventListener('keydown',e=>{
+  if(!viewer.hidden&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){e.preventDefault();streamKey(e.key==='ArrowRight'?'n':'p');return;}
   if(streamOn===2&&!e.isComposing){
     const k=PAGER_KEYS[e.key]||(e.key.length===1&&!e.ctrlKey&&!e.metaKey?e.key:null);
     if(k){e.preventDefault();streamKey(k);}

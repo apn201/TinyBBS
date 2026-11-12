@@ -71,6 +71,9 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
     else if (cmd == "S") {
       say(s, "System: " + board.name + (board.location.length() ? " // " + board.location : String()) + " // " + clockText(boardNow(), true));
       say(s, "SysOp: " + board.sysop + "  Nodes: " + String(board.maxNodes) + "  Messages: " + String(nextMessageId - 1));
+      say(s, "\r\n\x1b[1;36mYour stats\x1b[0m  Calls " + String(s.user.calls) + "  Messages " + s.user.messages +
+             "  Uploaded " + sizeText(s.user.uploadBytes) + "  Downloaded " + sizeText(s.user.downloadBytes) + " (" + s.user.downloads + " files)");
+      say(s, "Download credit: " + creditText(s.user) + (board.creditsPerMessage ? "  Each message posted earns " + sizeText(board.creditsPerMessage) + "." : String()));
       s.state = BULLETIN; prompt(s, "Press ENTER: ");
     }
     else if (cmd == "A") { ansiGallery(s); }

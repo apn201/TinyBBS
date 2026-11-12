@@ -18,6 +18,9 @@ struct BoardSettings {
   String name = "KOUVOSTO BBS", location, sysop = "SYSOP";
   uint8_t maxNodes = MAX_NODES, newUserLevel = 20;
   uint32_t baud = 28800;
+  // New callers: download credit and ratio. Credits are bytes.
+  uint32_t newUserCredits = 1048576, creditsPerMessage = 51200, creditsPerUploadKb = 0;
+  uint16_t newUserRatio = 3;  // 0 = no ratio
   String welcome = "/BBS/ANSI/LOGIN/WELCOME.ANS";
   String mainMenu = "/BBS/ANSI/MENUS/MAIN.ANS";
   String goodbye = "/BBS/ANSI/GOODBYE/GOODBYE.ANS";
@@ -26,6 +29,12 @@ struct BoardSettings {
   std::vector<MenuLayout> menus;
 };
 static BoardSettings board;
+// A new account's starting credit and ratio, from SYSTEM.INI.
+static void newUserDefaults(User &u) {
+  u.credits = board.newUserCredits;
+  u.ratioEnforced = board.newUserRatio > 0;
+  u.ratio = board.newUserRatio ? board.newUserRatio : 1;
+}
 static const MenuLayout *findMenu(const String &name) {
   for (const auto &m : board.menus) if (m.name == name) return &m;
   return nullptr;
@@ -68,6 +77,11 @@ static String loadSettings() {
     b.maxNodes = (uint8_t)constrain(iniGet(ini, "SYSTEM", "max_nodes", String(MAX_NODES)).toInt(), 1L, (long)MAX_NODES);
     b.newUserLevel = (uint8_t)constrain(iniGet(ini, "SYSTEM", "new_user_level", "20").toInt(), 0L, 254L);
     b.baud = (uint32_t)max(0L, iniGet(ini, "SYSTEM", "baud", "28800").toInt());
+    uint32_t size;
+    if (readSize(iniGet(ini, "SYSTEM", "new_user_credits", "1M"), size)) b.newUserCredits = size;
+    if (readSize(iniGet(ini, "SYSTEM", "credits_per_message", "50K"), size)) b.creditsPerMessage = size;
+    if (readSize(iniGet(ini, "SYSTEM", "credits_per_upload_kb", "0"), size)) b.creditsPerUploadKb = size;
+    b.newUserRatio = (uint16_t)constrain(iniGet(ini, "SYSTEM", "new_user_ratio", "3").toInt(), 0L, 999L);
     b.welcome = boardPath(iniGet(ini, "SYSTEM", "welcome"), b.welcome);
     b.mainMenu = boardPath(iniGet(ini, "SYSTEM", "main_menu"), b.mainMenu);
     b.goodbye = boardPath(iniGet(ini, "SYSTEM", "goodbye"), b.goodbye);

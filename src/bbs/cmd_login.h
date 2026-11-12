@@ -16,7 +16,7 @@ static bool loginCommand(Session &s, String &line, const String &cmd) {
   if (s.state == NEW_REAL) { s.pendingReal = clean(line, 40); s.state = NEW_LOCATION; prompt(s, "Location: "); return true; }
   if (s.state == NEW_LOCATION) {
     trace("NEW_USER_LOCATION", s.pendingHandle + " / " + clean(line, 40));
-    s.user = User(); s.user.handle = s.pendingHandle; s.user.normalized = up(s.pendingHandle); s.user.realName = s.pendingReal; s.user.location = clean(line, 40); s.user.salt = salt(); s.user.hash = sha256hex(s.user.salt + ":" + s.pendingPass); s.user.level = (s.user.normalized == "SYSOP" && !anySysop()) ? 255 : board.newUserLevel; if (s.user.level == 255) s.user.flags = "SYSOP";
+    s.user = User(); s.user.handle = s.pendingHandle; s.user.normalized = up(s.pendingHandle); s.user.realName = s.pendingReal; s.user.location = clean(line, 40); s.user.salt = salt(); s.user.hash = sha256hex(s.user.salt + ":" + s.pendingPass); s.user.level = (s.user.normalized == "SYSOP" && !anySysop()) ? 255 : board.newUserLevel; newUserDefaults(s.user); if (s.user.level == 255) s.user.flags = "SYSOP";
     if (!appendUser(s.user)) { say(s, "\r\nDatabase write failed: " + (storageFault.length() ? storageFault : "see Serial console") + "."); trace("NEW_USER_FAIL", s.pendingHandle); s.state = LOGIN_CHOICE; prompt(s, "(N)ew user, (L)ogin, or (G)oodbye? "); return true; }
     say(s, "\r\nAccount created. Welcome aboard."); event("NEW_USER", s.user.handle); trace("NEW_USER_OK", s.user.handle); finishLogin(s); return true;
   }

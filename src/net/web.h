@@ -98,6 +98,21 @@ static void downloadFile(AsyncWebServerRequest *r) {
   res->addHeader("Cache-Control", "no-store");
   r->send(res);
 }
+// The picture shown in the browser's image viewer. Viewing is not a download:
+// it is not counted and works in areas without downloads.
+static void viewImage(AsyncWebServerRequest *r) {
+  BbsLock lock;
+  Session *s = requestSession(r); String path, name; size_t bytes = 0;
+  if (!s || !s->authenticated || s->state != FILE_IMAGE || !canUseArea(*s, s->fileArea) ||
+      !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || !imageName(name) || !SD_MMC.exists(path)) {
+    r->send(404, "text/plain", "Picture unavailable"); return;
+  }
+  String u = up(name);
+  const char *type = u.endsWith(".GIF") ? "image/gif" : u.endsWith(".PNG") ? "image/png" : u.endsWith(".BMP") ? "image/bmp" : "image/jpeg";
+  AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, type, false);
+  res->addHeader("Cache-Control", "no-store");
+  r->send(res);
+}
 static void modemAudio(AsyncWebServerRequest *r) {
   if (!sdReady || !SD_MMC.exists(MODEM_AUDIO)) { r->send(404, "text/plain", "Modem audio unavailable"); return; }
   AsyncWebServerResponse *res = r->beginResponse(SD_MMC, MODEM_AUDIO, "audio/mpeg");
@@ -194,6 +209,7 @@ static void startWeb() {
   http.on("/api/out", HTTP_GET, apiOut);
   http.on("/api/in", HTTP_POST, apiIn);
   http.on("/download", HTTP_GET, downloadFile);
+  http.on("/view", HTTP_GET, viewImage);
   http.on("/status", HTTP_GET, status);
   http.on("/modem.mp3", HTTP_GET, modemAudio);
   http.onNotFound(notFound);

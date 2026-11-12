@@ -6,27 +6,6 @@
 
 static constexpr uint8_t USERS_PER_PAGE = 15;
 
-static String sizeText(uint32_t bytes) {
-  if (bytes < 1024) return String(bytes) + " B";
-  if (bytes < 1048576) return String((bytes + 512) / 1024) + " KB";
-  char b[16];
-  if (bytes >= 1073741824UL) snprintf(b, sizeof(b), "%.1f GB", bytes / 1073741824.0);
-  else snprintf(b, sizeof(b), "%.1f MB", bytes / 1048576.0); return String(b);
-}
-// "500", "64K", "1.5M", "2MB" -> bytes.
-static bool readSize(String v, uint32_t &out) {
-  v = up(v);
-  if (v.endsWith("B") && v.length() > 1 && !isdigit((unsigned char)v[v.length() - 2])) v.remove(v.length() - 1);
-  double mult = 1;
-  if (v.endsWith("K")) mult = 1024; else if (v.endsWith("M")) mult = 1048576; else if (v.endsWith("G")) mult = 1073741824.0;
-  if (mult > 1) v.remove(v.length() - 1);
-  v.trim();
-  if (!v.length()) return false;
-  char *end; double n = strtod(v.c_str(), &end);
-  if (*end || n < 0 || n * mult > 4294967295.0) return false;
-  out = (uint32_t)(n * mult + 0.5);
-  return true;
-}
 static std::vector<User> allUsers() {
   std::vector<User> list;
   File f = sdReady ? SD_MMC.open("/BBS/DATA/USERS/USERS.DAT", FILE_READ) : File();
@@ -325,6 +304,7 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
     u.handle = s.pendingHandle; u.normalized = up(u.handle);
     u.salt = salt(); u.hash = sha256hex(u.salt + ":" + line);
     u.level = board.newUserLevel;
+    newUserDefaults(u);
     s.pendingHandle = "";
     if (!appendUser(u)) { say(s, "Could not add the account."); sysopUsers(s); return true; }
     event("SYSOP_ADD", s.user.handle + " added " + u.handle);

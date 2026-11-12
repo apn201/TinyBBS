@@ -54,6 +54,10 @@ board at the same time and see each other in WHO and chat.
   descriptions from `FILES.BBS`, `DESCRIPT.ION` and `FILE_ID.DIZ`, file dates,
   per-file download counts, ZIP contents listed with `V`, and browser
   downloads that check quota and ratio.
+- Pictures (GIF, JPG, PNG, BMP) open with `V` in a full-screen image viewer
+  in the browser; `N`/`P` step through the folder.
+- Download credit: new accounts start with credit and a ratio from
+  `SYSTEM.INI`, and posting messages earns more.
 - ANSI pictures opened with `V` scroll in at modem speed. Any key skips,
   space pauses, and the browser's SPEED button picks the baud rate.
 - An invented 1990s board clock that only runs while the stick has power.

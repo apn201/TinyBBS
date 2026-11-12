@@ -186,6 +186,13 @@ static String fileDate(time_t t) {
   return b;
 }
 static bool zipName(const String &name) { return up(name).endsWith(".ZIP"); }
+// What the ratio and credits still let this caller download, in words.
+static String creditText(const User &u) {
+  if (!u.ratioEnforced) return "no ratio";
+  uint64_t may = (uint64_t)u.uploadBytes * u.ratio + u.credits;
+  uint64_t left = may > u.downloadBytes ? may - u.downloadBytes : 0;
+  return sizeText((uint32_t)min<uint64_t>(left, UINT32_MAX)) + " left (ratio 1:" + String(u.ratio) + ")";
+}
 
 static bool areaFile(Session &s, uint16_t wanted, String &path, String &name, size_t &bytes) {
   auto list = folderEntries(s);
@@ -347,7 +354,7 @@ static void listArea(Session &s) {
   else say(s, "\x1b[0;36m" + String(s.fileOffset + 1) + "-" + String(s.fileOffset + want.size()) + " of " + list.size() + "\x1b[0m");
   bool dl = s.web && a.downloads;
   String keys = "[#] Open  [V #] View or list ZIP  ";
-  if (dl) keys += "[D #] Download  ";
+  if (dl) { keys += "[D #] Download  "; say(s, "\x1b[0;36mDownload credit: " + creditText(s.user) + "\x1b[0m"); }
   if (list.size() > FILES_PER_PAGE) keys += "[N/P] Page  ";
   keys += s.filePath.length() ? "[Q] Up a folder" : "[Q] Back";
   say(s, keys);
@@ -499,15 +506,56 @@ static bool openZipList(Session &s, uint16_t number, const String &path, const S
   openReader(s, false);
   return true;
 }
+// ---------- the image viewer (browser only) ---------------------------------------------
+// The board tells the browser which picture to show; the browser draws it over
+// the terminal and sends N, P or any other key back.
+static bool imageName(const String &name) {
+  String u = up(name);
+  return u.endsWith(".GIF") || u.endsWith(".JPG") || u.endsWith(".JPEG") || u.endsWith(".PNG") || u.endsWith(".BMP");
+}
+static bool openImage(Session &s, uint16_t number, const String &name, size_t bytes) {
+  if (!s.web) return false;
+  s.viewer.number = number; s.viewer.name = name; s.viewer.ansi = false;
+  s.state = FILE_IMAGE;
+  activity(s, "VIEWING " + clean(name, 30));
+  write(s, "\x1b]9;IMG;/view?n=" + String(s.node) + "&q=" + s.token + "&i=" + number + ";" + clean(name, 40) + ";" + sizeShort(bytes) + "\x07");
+  return true;
+}
+static void closeImage(Session &s) {
+  write(s, "\x1b]9;IMG;close\x07");
+  listArea(s);
+}
+// N and P in the image viewer: the next or previous picture in the folder.
+static void imageKey(Session &s, const String &bytes) {
+  for (size_t i = 0; i < bytes.length(); ++i) {
+    char c = toupper((unsigned char)bytes[i]);
+    if (c == 0 || c == '\n') continue;
+    if (c != 'N' && c != 'P') { closeImage(s); return; }
+    auto list = folderEntries(s);
+    int step = c == 'N' ? 1 : -1;
+    for (int k = s.viewer.number + step; k >= 1 && k <= (int)list.size(); k += step) {
+      if (list[k - 1].dir || !imageName(list[k - 1].name)) continue;
+      openImage(s, k, list[k - 1].name, list[k - 1].size);
+      break;
+    }
+  }
+}
 static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   String path, name;
   size_t bytes;
   if (!areaFile(s, number, path, name, bytes)) { if (!quiet) prompt(s, "No such file. File command? "); return false; }
   if (zipName(name)) return openZipList(s, number, path, name, bytes, quiet);
+  if (imageName(name)) {
+    if (openImage(s, number, name, bytes)) return true;
+    if (!quiet) prompt(s, "Pictures open in the browser terminal. File command? ");
+    return false;
+  }
   String upper = up(name);
   const bool ansi = upper.endsWith(".ANS") || upper.endsWith(".ANSI");
   if (!viewableName(name) || !bytes || bytes > UINT32_MAX - 8300) {
-    if (!quiet) prompt(s, s.web && fileAreas[s.fileArea].downloads ? "That file can only be downloaded. File command? " : "Only text, ANSI and ZIP files can be viewed. File command? ");
+    if (!quiet) prompt(s, s.web && fileAreas[s.fileArea].downloads ? "That file can only be downloaded: D " + String(number) + ". File command? "
+                     : s.web ? String("That file cannot be viewed, and this area has no downloads. File command? ")
+                             : String("That file can only be downloaded, from the browser terminal. File command? "));
     return false;
   }
   File file = SD_MMC.open(path, FILE_READ);

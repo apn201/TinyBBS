@@ -311,6 +311,16 @@ files.
 
 ### Slice 7: viewing and downloading by file type
 
+Built. `V` on a GIF, JPG, PNG or BMP opens a full-screen image viewer in the
+browser: the picture is drawn in top to bottom, a blue status bar shows name,
+size and resolution, `N`/`P` (or the arrows, or a tap on the right/left)
+step through the pictures in the folder, any other key goes back. Telnet
+says pictures open in the browser. Files that cannot be viewed say `D #` in
+the browser and "from the browser terminal" on Telnet. New accounts get
+`new_user_credits` and `new_user_ratio`; each message earns
+`credits_per_message`; `credits_per_upload_kb` waits for uploads (slice 8).
+The S screen and the file list show the caller's download credit.
+
 - ANSI, ASCII and text (`.ANS`, `.ASC`, `.TXT`, `.NFO`, `.DIZ`, `.BAS`):
   paged view on both transports, as now.
 - Images (`.GIF`, `.JPG`, `.PNG`, `.BMP`): in the browser, `[V]` opens a full
