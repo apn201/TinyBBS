@@ -54,7 +54,7 @@ let node=0,token='',connected=false,busy=false,secret=false,frame=0,failures=0;
 // or pause it. 2 = the reader, every key goes to the board at once.
 // history/viewOff: lines that scrolled off the top, and how far back we look.
 let streamOn=0,history=[],viewOff=0;
-let pending=null,timer=0;
+let pending=null,pendingKey=false,timer=0;  // pendingKey: a single key, sent without ENTER
  let modemPlayer=null,modemPlaying=false;
  function playModem(){
    if(modemPlaying)return;
@@ -322,7 +322,7 @@ function frameIn(d){
 }
 function flushPending(){
   if(!sockReady||pending===null)return;
-  sock.send('k'+pending+'\r');pending=null;enter.disabled=false;
+  sock.send('k'+pending+(pendingKey?'':'\r'));pending=null;pendingKey=false;enter.disabled=false;
 }
 function dropSocket(){
   if(!sock)return;
@@ -333,7 +333,7 @@ function dropSocket(){
 function openSocket(){
   if(!connected||sock||!window.WebSocket)return;
   let s;
-  try{s=new WebSocket('ws://'+location.host+'/ws');}catch{return;}
+  try{s=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');}catch{return;}
   sock=s;
   const giveUp=setTimeout(()=>{if(!sockReady)s.close();},4000);
   s.onopen=()=>{
@@ -406,14 +406,14 @@ function wake(delay){
 async function exchange(){
   if(busy||!connected||sockReady)return;
   busy=true;
-  const line=pending;
-  pending=null;
+  const line=pending,key=pendingKey;
+  pending=null;pendingKey=false;
   let delay=550;
   try{
     const params=new URLSearchParams({n:node,q:token});
     const response=line===null
       ? await request('/api/out?'+params)
-      : await request('/api/in',{method:'POST',body:new URLSearchParams({n:node,q:token,k:line+'\r'})});
+      : await request('/api/in',{method:'POST',body:new URLSearchParams({n:node,q:token,k:key?line:line+'\r'})});
     if(response.status===404){lost(BRAND+' // NO CARRIER');return;}
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
     failures=0;lastOk=Date.now();
@@ -446,13 +446,13 @@ function streamKey(ch){
   if(!connected)return;
   viewOff=0;capture.textContent='';repaint();
   if(sockReady){sock.send('k'+ch);return;}
-  if(pending===null){pending=ch;if(!busy)wake(0);}
+  if(pending===null){pending=ch;pendingKey=true;if(!busy)wake(0);}
 }
 function submit(){
   if(streamOn){streamKey(streamOn===2?'\r':'\x1b');return;}
   viewOff=0;
   if(!connected||pending!==null)return;
-  pending=(capture.textContent||'').replace(/[\r\n]/g,'').slice(0,900);
+  pendingKey=false;pending=(capture.textContent||'').replace(/[\r\n]/g,'').slice(0,900);
   capture.textContent='';
   if(sockReady&&!busy){flushPending();repaint();return;}
   enter.disabled=true;

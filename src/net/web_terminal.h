@@ -49,7 +49,7 @@ const cols=80,rows=25,w=8,h=16;
 let fg=7,bg=0,bright=false,reverse=false,x=0,y=0,wrap=false,partial='',saved=[0,0];
 // Scroll region (ESC[top;bottom r): lines scroll only between these rows,
 // so a status bar below them stays put. The whole screen by default.
-let top=0,bottom=rows-1;
+let regionTop=0,regionBottom=rows-1;
 const blank=()=>({ch:' ',ink:7,paper:0});
 const row=()=>Array.from({length:cols},blank);
 let screen=Array.from({length:rows},row);
@@ -58,7 +58,7 @@ let node=0,token='',connected=false,busy=false,secret=false,frame=0,failures=0;
 // or pause it. 2 = the reader, every key goes to the board at once.
 // history/viewOff: lines that scrolled off the top, and how far back we look.
 let streamOn=0,history=[],viewOff=0;
-let pending=null,timer=0;
+let pending=null,pendingKey=false,timer=0;  // pendingKey: a single key, sent without ENTER
  let modemPlayer=null,modemPlaying=false;
  function playModem(){
    if(modemPlaying)return;
@@ -75,9 +75,9 @@ function move(nx,ny){
   wrap=false;
 }
 function down(){
-  if(y===bottom){
-    if(top===0&&bottom===rows-1){history.push(screen.shift());if(history.length>1000)history.shift();screen.push(row());}
-    else{screen.splice(top,1);screen.splice(bottom,0,row());}  // scroll inside the region only
+  if(y===regionBottom){
+    if(regionTop===0&&regionBottom===rows-1){history.push(screen.shift());if(history.length>1000)history.shift();screen.push(row());}
+    else{screen.splice(regionTop,1);screen.splice(regionBottom,0,row());}  // scroll inside the region only
   }
   else if(y<rows-1)y++;
 }
@@ -130,7 +130,7 @@ function control(params,cmd){
   else if(cmd==='J'&&args[0]===2){clear();move(0,0);}
   else if(cmd==='r'){
     const t=(args[0]||1)-1,b=(args[1]||rows)-1;
-    if(t<b&&b<rows){top=t;bottom=b;}else{top=0;bottom=rows-1;}
+    if(t<b&&b<rows){regionTop=t;regionBottom=b;}else{regionTop=0;regionBottom=rows-1;}
     move(0,0);
   }
   else if(cmd==='K'){
@@ -326,7 +326,7 @@ function frameIn(d){
 }
 function flushPending(){
   if(!sockReady||pending===null)return;
-  sock.send('k'+pending+'\r');pending=null;enter.disabled=false;
+  sock.send('k'+pending+(pendingKey?'':'\r'));pending=null;pendingKey=false;enter.disabled=false;
 }
 function dropSocket(){
   if(!sock)return;
@@ -337,7 +337,7 @@ function dropSocket(){
 function openSocket(){
   if(!connected||sock||!window.WebSocket)return;
   let s;
-  try{s=new WebSocket('ws://'+location.host+'/ws');}catch{return;}
+  try{s=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');}catch{return;}
   sock=s;
   const giveUp=setTimeout(()=>{if(!sockReady)s.close();},4000);
   s.onopen=()=>{
@@ -410,14 +410,14 @@ function wake(delay){
 async function exchange(){
   if(busy||!connected||sockReady)return;
   busy=true;
-  const line=pending;
-  pending=null;
+  const line=pending,key=pendingKey;
+  pending=null;pendingKey=false;
   let delay=550;
   try{
     const params=new URLSearchParams({n:node,q:token});
     const response=line===null
       ? await request('/api/out?'+params)
-      : await request('/api/in',{method:'POST',body:new URLSearchParams({n:node,q:token,k:line+'\r'})});
+      : await request('/api/in',{method:'POST',body:new URLSearchParams({n:node,q:token,k:key?line:line+'\r'})});
     if(response.status===404){lost(BRAND+' // NO CARRIER');return;}
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
     failures=0;lastOk=Date.now();
@@ -450,13 +450,13 @@ function streamKey(ch){
   if(!connected)return;
   viewOff=0;capture.textContent='';repaint();
   if(sockReady){sock.send('k'+ch);return;}
-  if(pending===null){pending=ch;if(!busy)wake(0);}
+  if(pending===null){pending=ch;pendingKey=true;if(!busy)wake(0);}
 }
 function submit(){
   if(streamOn){streamKey(streamOn===2?'\r':'\x1b');return;}
   viewOff=0;
   if(!connected||pending!==null)return;
-  pending=(capture.textContent||'').replace(/[\r\n]/g,'').slice(0,900);
+  pendingKey=false;pending=(capture.textContent||'').replace(/[\r\n]/g,'').slice(0,900);
   capture.textContent='';
   if(sockReady&&!busy){flushPending();repaint();return;}
   enter.disabled=true;
@@ -468,7 +468,7 @@ dial.onclick=async()=>{
     const response=await request('/api/connect',{method:'POST',body:new URLSearchParams({t:localTime()})});
     if(response.status!==200){lost(response.status===503?BRAND+' // ALL NODES BUSY':BRAND+' // NO CARRIER');return;}
     ({node,token}=JSON.parse(response.text));
-    clear();move(0,0);top=0;bottom=rows-1;partial='';fg=7;bg=0;bright=reverse=secret=false;
+    clear();move(0,0);regionTop=0;regionBottom=rows-1;partial='';fg=7;bg=0;bright=reverse=secret=false;
     carrier.textContent=connectText();attach();
   }catch{lost(BRAND+' // LINK ERROR');}
 };
