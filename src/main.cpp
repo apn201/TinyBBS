@@ -43,6 +43,7 @@
 #include "bbs/board.h"
 #include "bbs/messages.h"
 #include "bbs/admin.h"
+#include "bbs/uploads.h"
 #include "bbs/cmd_login.h"
 #include "bbs/cmd_main.h"
 #include "bbs/cmd_sysop.h"

@@ -54,6 +54,7 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
       return true;
     }
     if (cmd == "L") { listArea(s); return true; }
+    if (cmd == "U" && uploadsHere(s)) { startUpload(s); return true; }
     if (cmd == "N" || cmd == "P") {
       if (cmd == "N" && s.moreFiles) s.fileOffset += FILES_PER_PAGE;
       else if (cmd == "P" && s.fileOffset) s.fileOffset = s.fileOffset > FILES_PER_PAGE ? s.fileOffset - FILES_PER_PAGE : 0;

@@ -133,7 +133,43 @@ function showViewer(href,name,size){
   pic.src=href;focusTerminal();
 }
 viewer.addEventListener('click',e=>{const f=e.clientX/innerWidth;streamKey(f<0.3?'p':f>0.7?'n':'q');focusTerminal();});
+// Uploads: the board arms a one-file upload; the caller picks the file and a
+// transfer meter runs below the terminal while it is sent.
+let upXhr=null;
+function armUpload(href,max){
+  const pick=document.createElement('input');pick.type='file';pick.hidden=true;
+  const btn=document.createElement('button');btn.type='button';btn.textContent='CHOOSE FILE';
+  const meter=document.createElement('span');
+  btn.onclick=()=>pick.click();
+  pick.onchange=()=>{
+    const f=pick.files[0];if(!f)return;
+    if(max&&f.size>max){meter.textContent=' '+f.name+' is too large';return;}
+    btn.disabled=true;
+    const form=new FormData();form.append('file',f,f.name);
+    const xhr=new XMLHttpRequest();upXhr=xhr;const t0=Date.now();
+    xhr.upload.onprogress=e=>{
+      if(!e.lengthComputable)return;
+      const cps=Math.round(e.loaded/Math.max(.1,(Date.now()-t0)/1000));
+      meter.textContent=' SENDING '+f.name+'  '+Math.floor(e.loaded*100/e.total)+'%  '+cps+' cps';
+    };
+    xhr.onload=()=>{upXhr=null;if(xhr.status===200)links.replaceChildren();else{meter.textContent=' '+(xhr.responseText||'Upload failed');btn.disabled=false;}};
+    xhr.onerror=()=>{upXhr=null;meter.textContent=' Upload failed';btn.disabled=false;};
+    xhr.open('POST',href);xhr.send(form);
+  };
+  links.replaceChildren(btn,pick,meter);
+}
 function downloadLink(message){
+  if(message.startsWith('9;UP;')){
+    const rest=message.slice(5);
+    if(rest==='close'){if(!upXhr)links.replaceChildren();return;}
+    const cut=rest.indexOf(';');
+    try{
+      const url=new URL(cut<0?rest:rest.slice(0,cut),location.href);
+      if(url.origin!==location.origin||url.pathname!=='/upload')return;
+      armUpload(url.href,cut<0?0:parseInt(rest.slice(cut+1),10)||0);
+    }catch{}
+    return;
+  }
   if(message.startsWith('9;IMG;')){
     const rest=message.slice(6);
     if(rest==='close'){closeViewer();return;}

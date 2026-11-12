@@ -21,6 +21,7 @@ struct BoardSettings {
   // New callers: download credit and ratio. Credits are bytes.
   uint32_t newUserCredits = 1048576, creditsPerMessage = 51200, creditsPerUploadKb = 0;
   uint16_t newUserRatio = 3;  // 0 = no ratio
+  uint32_t uploadMax = 0;     // largest upload in bytes, 0 = no uploads
   String welcome = "/BBS/ANSI/LOGIN/WELCOME.ANS";
   String mainMenu = "/BBS/ANSI/MENUS/MAIN.ANS";
   String goodbye = "/BBS/ANSI/GOODBYE/GOODBYE.ANS";
@@ -81,6 +82,7 @@ static String loadSettings() {
     if (readSize(iniGet(ini, "SYSTEM", "new_user_credits", "1M"), size)) b.newUserCredits = size;
     if (readSize(iniGet(ini, "SYSTEM", "credits_per_message", "50K"), size)) b.creditsPerMessage = size;
     if (readSize(iniGet(ini, "SYSTEM", "credits_per_upload_kb", "0"), size)) b.creditsPerUploadKb = size;
+    if (readSize(iniGet(ini, "SYSTEM", "upload_max", "0"), size)) b.uploadMax = size;
     b.newUserRatio = (uint16_t)constrain(iniGet(ini, "SYSTEM", "new_user_ratio", "3").toInt(), 0L, 999L);
     b.welcome = boardPath(iniGet(ini, "SYSTEM", "welcome"), b.welcome);
     b.mainMenu = boardPath(iniGet(ini, "SYSTEM", "main_menu"), b.mainMenu);

@@ -98,6 +98,53 @@ static void downloadFile(AsyncWebServerRequest *r) {
   res->addHeader("Cache-Control", "no-store");
   r->send(res);
 }
+// A caller's upload: POST multipart to /upload?n=&q=&u=<ticket>. The ticket is
+// issued after the description is typed and is good for one file. Data goes
+// to a .part file in INCOMING; uploadArrived() files it in the queue.
+static void upFail(AsyncWebServerRequest *r, const char *why) {
+  if (r->_tempFile) { String part = r->_tempFile.path(); r->_tempFile.close(); SD_MMC.remove(part); }
+  if (!r->_tempObject) r->_tempObject = strdup(why);
+}
+static Session *uploadSession(AsyncWebServerRequest *r) {
+  Session *s = requestSession(r);
+  String ticket = requestArg(r, "u");
+  if (!s || !s->authenticated || s->state != FILE_UPLOAD_WAIT || !ticket.length() || ticket != s->uploadTicket) return nullptr;
+  return s;
+}
+static void uploadChunk(AsyncWebServerRequest *r, const String &filename, size_t index, uint8_t *data, size_t len, bool final) {
+  BbsLock lock;
+  if (r->_tempObject) return;
+  Session *s = uploadSession(r);
+  if (!s) return upFail(r, "Upload not expected");
+  if (!index) {
+    String name = uploadName(filename);
+    if (!name.length() || hiddenEntry(name)) return upFail(r, "Bad file name");
+    if (r->contentLength() > board.uploadMax + 4096) return upFail(r, "File too large");
+    SD_MMC.mkdir("/BBS/UPLOADS");
+    SD_MMC.mkdir(UPLOAD_DIR);
+    String part = String(UPLOAD_DIR) + "/" + s->node + ".part";
+    SD_MMC.remove(part);
+    r->_tempFile = SD_MMC.open(part, FILE_WRITE);
+    if (!r->_tempFile) return upFail(r, "Could not open file");
+  }
+  if (!r->_tempFile) return;
+  if (index + len > board.uploadMax) return upFail(r, "File too large");
+  if (len && r->_tempFile.write(data, len) != len) return upFail(r, "Write failed, card full?");
+  if (final) {
+    String part = r->_tempFile.path();
+    uint32_t size = index + len;
+    r->_tempFile.close();
+    if (!size) { SD_MMC.remove(part); return upFail(r, "Empty file"); }
+    write(*s, "\x1b]9;UP;close\x07");
+    uploadArrived(*s, part, uploadName(filename), size);
+  }
+}
+static void uploadDone(AsyncWebServerRequest *r) {
+  BbsLock lock;
+  if (r->_tempFile) { String part = r->_tempFile.path(); r->_tempFile.close(); SD_MMC.remove(part); }
+  if (r->_tempObject) { r->send(400, "text/plain", (const char *)r->_tempObject); return; }
+  r->send(200, "text/plain", "ok");
+}
 // The picture shown in the browser's image viewer. Viewing is not a download:
 // it is not counted and works in areas without downloads.
 static void viewImage(AsyncWebServerRequest *r) {
@@ -210,6 +257,7 @@ static void startWeb() {
   http.on("/api/in", HTTP_POST, apiIn);
   http.on("/download", HTTP_GET, downloadFile);
   http.on("/view", HTTP_GET, viewImage);
+  http.on("/upload", HTTP_POST, uploadDone, uploadChunk);
   http.on("/status", HTTP_GET, status);
   http.on("/modem.mp3", HTTP_GET, modemAudio);
   http.onNotFound(notFound);

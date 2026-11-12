@@ -20,7 +20,7 @@ static void handleLine(Session &s, String line) {
     return;
   }
   loginCommand(s, line, cmd) || mainCommand(s, line, cmd) || sysopCommand(s, line, cmd) || userEditorCommand(s, line, cmd) ||
-    fileCommand(s, line, cmd) || messageCommand(s, line, cmd) || doorCommand(s, line, cmd);
+    uploadCommand(s, line, cmd) || fileCommand(s, line, cmd) || messageCommand(s, line, cmd) || doorCommand(s, line, cmd);
 }
 static void input(Session &s, const String &bytes) {
   // While a picture or file is streaming, keys belong to the stream: space

@@ -19,6 +19,7 @@ static bool downloadAllowed(const User &u, size_t bytes, String &reason) {
   return true;
 }
 static void sysopUsers(Session &s);  // bbs/user_editor.h
+static size_t uploadsWaiting();      // bbs/uploads.h
 // W for the SysOp: who is on, and a node number disconnects that caller.
 static void nodeMonitor(Session &s, State back) {
   who(s);
@@ -60,6 +61,8 @@ static void sysopMenu(Session &s) {
   art(s, "/BBS/ANSI/MENUS/SYSOP.ANS", "KOUVOSTO // SYSOP");
   say(s, "[U] User editor                    [D] Door settings / forest fights");
   say(s, "[W] Node monitor   [S] Board statistics   [R] Reload settings   [Q] Main Board");
+  size_t waiting = uploadsWaiting();
+  say(s, "[I] Incoming uploads" + (waiting ? " \x1b[1;35m(" + String(waiting) + " waiting)\x1b[0m" : String(" (none waiting)")));
   if (s.web) say(s, "[F] File manager (opens a separate admin page)");
   prompt(s, "SysOp command? ");
 }

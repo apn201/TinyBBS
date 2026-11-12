@@ -56,6 +56,8 @@ board at the same time and see each other in WHO and chat.
   downloads that check quota and ratio.
 - Pictures (GIF, JPG, PNG, BMP) open with `V` in a full-screen image viewer
   in the browser; `N`/`P` step through the folder.
+- Uploads from the browser to areas that allow them, into a queue the SysOp
+  approves from the console. Approved uploads earn ratio and credit.
 - Download credit: new accounts start with credit and a ratio from
   `SYSTEM.INI`, and posting messages earns more.
 - ANSI pictures opened with `V` scroll in at modem speed. Any key skips,

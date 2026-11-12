@@ -339,6 +339,17 @@ only the options it can use.
 
 ### Slice 8: uploads (browser only, optional per area)
 
+Built. `upload_max` in `SYSTEM.INI` (0 = off) and `uploads=1` in an area's
+`AREA.INI` turn it on. `[U]` in that area's list asks for a one-line
+description, then a CHOOSE FILE button and a transfer meter appear below the
+terminal. The file waits in `UPLOADS/INCOMING`; the queue is
+`DATA/INDEX/UPLOADS.DAT`. SysOp console `I` lists it: `A #` moves the file
+into the area and sub-folder it was sent to, adds the description to that
+folder's `FILES.BBS` and credits the uploader (counters, ratio and
+`credits_per_upload_kb`); `D #` deletes it. An online SysOp is told when an
+upload arrives, an online uploader when it is approved. An empty area that
+takes uploads is listed for browser callers.
+
 A browser caller can upload to an area whose `AREA.INI` allows it. Files land
 in `/BBS/UPLOADS/INCOMING` with the caller's description. The SysOp approves
 or deletes them from the terminal, and approved files move to the target

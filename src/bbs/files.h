@@ -14,6 +14,7 @@ struct FileArea {
   String folder, name, flag;  // folder under /BBS/FILES, e.g. 014_BACKROOM_IMAGES
   uint8_t level = 0;
   bool downloads = true;
+  bool uploads = false;       // browser callers may upload here (AREA.INI uploads=1)
   uint16_t files = 0;         // files in the area and its sub-folders
 };
 static std::vector<FileArea> fileAreas;
@@ -73,6 +74,7 @@ static void migrateAreaIni() {
     f.print("; Lowest security level that sees this area.\nmin_security=" + iniGet(old, sec, "minimum_security", "0") + "\n");
     f.print("; A user flag the caller must also have, e.g. BACKROOM. Empty = none.\nrequired_flag=" + iniGet(old, sec, "required_flag") + "\n");
     f.print("; 0 = files can be viewed but not downloaded.\ndownloads=" + iniGet(old, sec, "download_allowed", "1") + "\n");
+    f.print("; 1 = browser callers may upload here, for the SysOp to approve.\nuploads=0\n");
     f.close();
   }
   SD_MMC.rename("/BBS/CONFIG/FILEAREAS.INI", "/BBS/CONFIG/FILEAREAS.OLD");
@@ -104,6 +106,7 @@ static String loadFileAreas() {
       a.level = (uint8_t)constrain(iniGet(ini, "AREA", "min_security", "0").toInt(), 0L, 255L);
       a.flag = up(iniGet(ini, "AREA", "required_flag"));
       a.downloads = iniGet(ini, "AREA", "downloads", "1").toInt() != 0;
+      a.uploads = iniGet(ini, "AREA", "uploads", "0").toInt() != 0;
     }
     a.files = countFiles(String(FILES_ROOT) + "/" + folder);
     fileAreas.push_back(a);
@@ -116,7 +119,10 @@ static bool canUseArea(const Session &s, uint8_t area) {
   return s.user.level >= a.level && (!a.flag.length() || hasFlag(s.user, a.flag));
 }
 // Areas listed in the file menu: ones this caller may enter that have files.
-static bool listedArea(const Session &s, uint8_t area) { return canUseArea(s, area) && fileAreas[area].files; }
+// An empty area that takes uploads is listed for browser callers, who can fill it.
+static bool listedArea(const Session &s, uint8_t area) {
+  return canUseArea(s, area) && (fileAreas[area].files || (s.web && fileAreas[area].uploads && board.uploadMax));
+}
 static String areaDir(const Session &s) {
   String dir = String(FILES_ROOT) + "/" + fileAreas[s.fileArea].folder;
   return s.filePath.length() ? dir + "/" + s.filePath : dir;
@@ -355,6 +361,7 @@ static void listArea(Session &s) {
   bool dl = s.web && a.downloads;
   String keys = "[#] Open  [V #] View or list ZIP  ";
   if (dl) { keys += "[D #] Download  "; say(s, "\x1b[0;36mDownload credit: " + creditText(s.user) + "\x1b[0m"); }
+  if (s.web && a.uploads && board.uploadMax) keys += "[U] Upload  ";
   if (list.size() > FILES_PER_PAGE) keys += "[N/P] Page  ";
   keys += s.filePath.length() ? "[Q] Up a folder" : "[Q] Back";
   say(s, keys);

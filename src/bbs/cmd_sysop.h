@@ -8,6 +8,7 @@ static bool sysopCommand(Session &s, String &line, const String &cmd) {
     if (cmd == "U") { sysopUsers(s); return true; }
     if (cmd == "D") { sysopDoors(s); return true; }
     if (cmd == "W") { nodeMonitor(s, SYSOP_MENU); return true; }
+    if (cmd == "I") { uploadQueue(s); return true; }
     if (cmd == "R" || cmd == "RELOAD") {
       say(s, "Settings reloaded: " + loadSettings() + ".");
       say(s, "Network settings take effect after a restart.");
@@ -20,7 +21,7 @@ static bool sysopCommand(Session &s, String &line, const String &cmd) {
     else if (cmd == "S") {
       say(s, "Calls: " + String(callers) + "  Users next #: " + String(nextUserId) + "  Messages: " + String(nextMessageId - 1));
       say(s, "Nodes: " + String(board.maxNodes) + "  SD: " + (sdReady ? "online" : "offline"));
-    } else say(s, s.web ? "Use U, D, W, S, R, F, or Q." : "Use U, D, W, S, R, or Q.");
+    } else say(s, s.web ? "Use U, D, W, I, S, R, F, or Q." : "Use U, D, W, I, S, R, or Q.");
     prompt(s, "SysOp command? "); return true;
   }
   if (s.state == SYSOP_DOORS) {
