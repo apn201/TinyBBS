@@ -205,10 +205,13 @@ allowed. Areas are read at boot and on `RELOAD`.
 Descriptions come from `FILES.BBS` or `DESCRIPT.ION` in the folder. For a ZIP
 without one, the board reads `FILE_ID.DIZ` from the archive's central
 directory, inflates it with the ROM inflater and caches the first lines in
-`DATA/INDEX/DIZ.DAT`. Archives are never unpacked or renamed.
+`DATA/INDEX/ZIPINFO.DAT`. DOS line-drawing characters in descriptions show as
+they did on a DOS screen. Archives are never unpacked or renamed.
 
-Listings show each file's size, its date on the card (MM-DD-YY) and how many
-times it has been downloaded. The counts are kept in
+Listings show each file's size, its date (MM-DD-YY) and how many
+times it has been downloaded. A ZIP shows the date of the newest file inside
+it, which is when the archive was made; other files show their date on the
+card. The counts are kept in
 `DATA/INDEX/DOWNLOADS.DAT`. `V` on a ZIP lists what is inside from the
 central directory, with sizes and dates, then the full `FILE_ID.DIZ`, any
 NFO inside and the archive comment.

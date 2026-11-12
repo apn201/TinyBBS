@@ -7,7 +7,8 @@
 #include "miniz.h"  // the inflater in the ESP32-S3 ROM
 
 static constexpr const char *FILES_ROOT = "/BBS/FILES";
-static constexpr const char *DIZ_CACHE = "/BBS/DATA/INDEX/DIZ.DAT";
+// Replaces DIZ.DAT, whose descriptions had DOS characters turned into "?".
+static constexpr const char *ZIP_CACHE = "/BBS/DATA/INDEX/ZIPINFO.DAT";
 static constexpr uint16_t FILES_PER_PAGE = 16;
 
 struct FileArea {
@@ -210,14 +211,21 @@ static bool areaFile(Session &s, uint16_t wanted, String &path, String &name, si
 }
 
 // ---------- descriptions ------------------------------------------------------------
+// One line of description text, at most `max` screen columns. DOS text (bytes
+// 128-255 that are not UTF-8) shows its CP437 line-drawing characters.
 static String oneLine(String text, uint16_t max) {
+  const bool utf8 = sampleUtf8((const uint8_t *)text.c_str(), text.length());
   String out; bool space = false;
-  for (size_t i = 0; i < text.length() && out.length() < max; ++i) {
+  uint16_t cols = 0;
+  for (size_t i = 0; i < text.length(); ++i) {
     uint8_t c = text[i];
     if (c == 4) break;  // 4DOS DESCRIPT.ION: extended data follows
-    if (c < 32 || c == ' ') { space = out.length() > 0; continue; }
-    if (space) { out += ' '; space = false; }
-    out += (char)c;
+    if (utf8 && (c & 0xc0) == 0x80) { if (cols <= max) out += (char)c; continue; }  // rest of a UTF-8 character
+    if (c < 32 || c == ' ') { space = cols > 0; continue; }
+    if (cols + (space ? 1 : 0) >= max) { cols = max + 1; continue; }
+    if (space) { out += ' '; cols++; space = false; }
+    if (c >= 128 && !utf8) appendDosGlyph(out, c); else out += (char)c;
+    cols++;
   }
   return out;
 }
@@ -257,8 +265,11 @@ static bool zipInflate(File &f, uint16_t method, uint32_t csize, uint32_t usize,
   size_t inLen = csize;
   return tinfl_decompress(d.get(), in.get(), &inLen, out.get(), out.get(), &outLen, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF) == TINFL_STATUS_DONE;
 }
-// FILE_ID.DIZ from a ZIP's central directory, stored or deflated.
-static String zipDiz(const String &path) {
+// FILE_ID.DIZ and the newest file date from a ZIP's central directory. The
+// date is the DOS stamp (date << 16 | time) of its newest entry: when the
+// archive was made, not when it was copied to the card.
+static String zipInfo(const String &path, uint32_t &newest) {
+  newest = 0;
   File f = SD_MMC.open(path, FILE_READ);
   if (!f) return "";
   String found;
@@ -270,23 +281,28 @@ static String zipDiz(const String &path) {
   for (int i = (int)got - 22; i >= 0; --i) if (le32(tail + i) == 0x06054b50) { eocd = i; break; }
   if (eocd >= 0) {
     uint16_t entries = le16(tail + eocd + 10);
-    uint32_t cdOffset = le32(tail + eocd + 16);
-    uint32_t at = cdOffset;
-    for (uint16_t n = 0; n < entries && n < 400 && found.length() == 0; ++n) {
+    uint32_t at = le32(tail + eocd + 16);
+    struct { uint16_t method; uint32_t csize, usize, local; bool have = false; } diz;
+    for (uint16_t n = 0; n < entries && n < 400; ++n) {
       uint8_t h[46];
       if (!f.seek(at) || f.read(h, 46) != 46 || le32(h) != 0x02014b50) break;
-      uint16_t method = le16(h + 10), nameLen = le16(h + 28), extra = le16(h + 30), comment = le16(h + 32);
-      uint32_t csize = le32(h + 20), usize = le32(h + 24), local = le32(h + 42);
+      uint16_t nameLen = le16(h + 28), extra = le16(h + 30), comment = le16(h + 32);
+      uint32_t stamp = (uint32_t)le16(h + 14) << 16 | le16(h + 12);
       char name[64] = {0};
       f.read((uint8_t *)name, min<uint16_t>(nameLen, 63));
       at += 46 + nameLen + extra + comment;
       String n2 = up(shortName(String(name)));
-      if (n2 != "FILE_ID.DIZ" || csize > 6000 || usize > 8000) continue;
-      std::unique_ptr<uint8_t[]> out;
-      size_t outLen = 0;
-      if (!zipInflate(f, method, csize, usize, local, out, outLen)) break;
+      if (n2.length() && !n2.endsWith("/") && stamp > newest) newest = stamp;
+      if (!diz.have && n2 == "FILE_ID.DIZ" && le32(h + 20) <= 6000 && le32(h + 24) <= 8000) {
+        diz.method = le16(h + 10); diz.csize = le32(h + 20); diz.usize = le32(h + 24); diz.local = le32(h + 42); diz.have = true;
+      }
+    }
+    std::unique_ptr<uint8_t[]> out;
+    size_t outLen = 0;
+    if (diz.have && zipInflate(f, diz.method, diz.csize, diz.usize, diz.local, out, outLen)) {
       String text;
-      for (size_t i = 0; i < outLen; ++i) text += (char)(out[i] >= 128 ? '?' : out[i]);
+      text.reserve(outLen);
+      for (size_t i = 0; i < outLen; ++i) text += (char)out[i];
       found = oneLine(text, 120);
       if (!found.length()) found = " ";
     }
@@ -294,28 +310,64 @@ static String zipDiz(const String &path) {
   f.close();
   return found;
 }
-// Descriptions for ZIPs come from their FILE_ID.DIZ, read once and kept in
-// /BBS/DATA/INDEX/DIZ.DAT as "path|size|description".
-static void zipDescriptions(const String &dir, std::vector<std::pair<String, String>> &want, const std::vector<uint32_t> &sizes) {
-  std::vector<size_t> missing;
-  for (size_t i = 0; i < want.size(); ++i) if (!want[i].second.length() && up(want[i].first).endsWith(".ZIP")) missing.push_back(i);
-  if (missing.empty()) return;
-  File c = SD_MMC.open(DIZ_CACHE, FILE_READ);
+// A DOS date and time stamp as seconds since 1970, 0 when it makes no sense.
+static time_t dosTime(uint32_t stamp) {
+  unsigned d = stamp >> 16, t = stamp & 0xffff;
+  int y = 1980 + (d >> 9);
+  unsigned m = (d >> 5) & 15, day = d & 31;
+  if (!stamp || m < 1 || m > 12 || day < 1 || y > 2107) return 0;
+  // Days from 1970-01-01 to y-m-day (proleptic Gregorian).
+  int yy = y - (m <= 2);
+  int era = yy / 400;
+  unsigned yoe = yy - era * 400, doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+  long days = era * 146097L + (yoe * 365 + yoe / 4 - yoe / 100 + doy) - 719468;
+  return (time_t)(days * 86400 + (t >> 11) * 3600 + ((t >> 5) & 63) * 60);
+}
+// ZIP details for a listing page: the FILE_ID.DIZ where no description came
+// from the folder, and the archive's own date. Read once per ZIP and kept in
+// /BBS/DATA/INDEX/ZIPINFO.DAT as "path|size|dos stamp|description".
+static void zipDetails(const String &dir, std::vector<std::pair<String, String>> &want, const std::vector<uint32_t> &sizes,
+                       std::vector<time_t> &when) {
+  when.assign(want.size(), 0);
+  std::vector<size_t> zips;
+  for (size_t i = 0; i < want.size(); ++i) if (zipName(want[i].first)) zips.push_back(i);
+  if (zips.empty()) return;
+  std::vector<bool> known(want.size(), false);
+  std::vector<String> diz(want.size());
+  File c = SD_MMC.open(ZIP_CACHE, FILE_READ);
   while (c && c.available()) {
     String line = c.readStringUntil('\n');
     String path = dec(field(line, 0));
     uint32_t size = strtoul(field(line, 1).c_str(), nullptr, 10);
-    for (size_t i : missing) if (path == dir + "/" + want[i].first && size == sizes[i]) want[i].second = dec(field(line, 2));
+    for (size_t i : zips)
+      if (size == sizes[i] && path == dir + "/" + want[i].first) {
+        known[i] = true;
+        when[i] = dosTime(strtoul(field(line, 2).c_str(), nullptr, 10));
+        diz[i] = dec(field(line, 3));
+      }
   }
   if (c) c.close();
-  for (size_t i : missing) {
-    if (want[i].second.length()) continue;
-    String d = zipDiz(dir + "/" + want[i].first);
-    if (!d.length()) d = " ";  // remember that there is none
-    File w = SD_MMC.open(DIZ_CACHE, FILE_APPEND);
-    if (w) { w.print(enc(dir + "/" + want[i].first) + "|" + sizes[i] + "|" + enc(d) + "\n"); w.close(); }
-    want[i].second = d;
+  for (size_t i : zips) {
+    if (!known[i]) {
+      uint32_t stamp = 0;
+      String d = zipInfo(dir + "/" + want[i].first, stamp);
+      if (!d.length()) d = " ";  // remember that there is none
+      File w = SD_MMC.open(ZIP_CACHE, FILE_APPEND);
+      if (w) { w.print(enc(dir + "/" + want[i].first) + "|" + sizes[i] + "|" + stamp + "|" + enc(d) + "\n"); w.close(); }
+      when[i] = dosTime(stamp);
+      diz[i] = d;
+    }
+    if (!want[i].second.length()) want[i].second = diz[i];
   }
+}
+// At most `cols` screen columns of UTF-8 text.
+static String fitCols(const String &s, uint16_t cols) {
+  uint16_t n = 0;
+  for (size_t i = 0; i < s.length(); ++i) {
+    if (((uint8_t)s[i] & 0xc0) == 0x80) continue;
+    if (n++ == cols) return s.substring(0, i);
+  }
+  return s;
 }
 
 // ---------- listing -------------------------------------------------------------------
@@ -342,17 +394,19 @@ static void listArea(Session &s) {
   }
   String dir = areaDir(s);
   folderDescriptions(dir, want);
-  zipDescriptions(dir, want, sizes);
+  std::vector<time_t> zipWhen;
+  zipDetails(dir, want, sizes, zipWhen);
   if (!want.empty()) say(s, "\x1b[0;36m  #   Name               Size Date      DL Description\x1b[0m");
   for (size_t k = 0; k < want.size(); ++k) {
     const FileEntry &f = list[s.fileOffset + k];
-    char row[180];
+    char row[280];  /* a DOS character is up to 3 bytes */
     String desc = want[k].second; desc.trim();
     if (f.dir) snprintf(row, sizeof(row), "\x1b[1;33m[%3u]\x1b[0m \x1b[1;36m%-16.16s  <DIR>\x1b[0m \x1b[0;32m%s\x1b[0m", (unsigned)(s.fileOffset + k + 1), f.name.c_str(), fileDate(f.when).c_str());
     else {
       uint16_t dls = downloadCount(dir + "/" + f.name);
-      snprintf(row, sizeof(row), "\x1b[1;33m[%3u]\x1b[0m \x1b[1;37m%-16.16s\x1b[0m \x1b[0;36m%6s\x1b[0m \x1b[0;32m%s\x1b[0m %s%3u\x1b[0m \x1b[0;37m%.36s\x1b[0m",
-               (unsigned)(s.fileOffset + k + 1), f.name.c_str(), sizeShort(f.size).c_str(), fileDate(f.when).c_str(),
+      desc = fitCols(desc, 36);  // by columns: DOS characters take several bytes
+      snprintf(row, sizeof(row), "\x1b[1;33m[%3u]\x1b[0m \x1b[1;37m%-16.16s\x1b[0m \x1b[0;36m%6s\x1b[0m \x1b[0;32m%s\x1b[0m %s%3u\x1b[0m \x1b[0;37m%s\x1b[0m",
+               (unsigned)(s.fileOffset + k + 1), f.name.c_str(), sizeShort(f.size).c_str(), fileDate(zipWhen[k] ? zipWhen[k] : f.when).c_str(),
                dls ? "\x1b[1;35m" : "\x1b[0;35m", (unsigned)dls, desc.c_str());
     }
     say(s, row);
