@@ -43,8 +43,10 @@ static void ansiGallery(Session &s) {
   s.state = ANSI_GALLERY;
   activity(s, "ANSI GALLERY");
   std::vector<MenuItem> items;
-  items.push_back({"A", "Kouvosto login splash"});
-  items.push_back({"F", "File cabinet screen"});
+  if (s.ansi) {  // pictures: not for an ASCII caller
+    items.push_back({"A", "Kouvosto login splash"});
+    items.push_back({"F", "File cabinet screen"});
+  }
   if (galleryArea(s) >= 0) items.push_back({"G", "Browse ANSI / ASCII files"});
   items.push_back({"Q", "Main Board"});
   showMenu(s, "GALLERY", items, "ANSI GALLERY");

@@ -18,10 +18,10 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
     if (cmd == "Q" || !cmd.length()) { mainMenu(s); return true; }
     int gallery = galleryArea(s);
     if (cmd == "G" && gallery >= 0) { s.galleryCabinet = true; openArea(s, gallery); return true; }
-    if (cmd == "A") art(s, "/BBS/ANSI/LOGIN/WELCOME.ANS");
-    else if (cmd == "F") art(s, "/BBS/ANSI/MENUS/FILES.ANS");
-    else say(s, gallery >= 0 ? "Try A, F, G, or Q." : "Try A, F, or Q.");
-    prompt(s, String("[A] Login splash  [F] File cabinet  ") + (gallery >= 0 ? "[G] Browse art  " : "") + "[Q] Main board: ");
+    if (cmd == "A" && s.ansi) art(s, "/BBS/ANSI/LOGIN/WELCOME.ANS");
+    else if (cmd == "F" && s.ansi) art(s, "/BBS/ANSI/MENUS/FILES.ANS");
+    else say(s, String("Try ") + (s.ansi ? "A, F, " : "") + (gallery >= 0 ? "G, " : "") + "or Q.");
+    prompt(s, String(s.ansi ? "[A] Login splash  [F] File cabinet  " : "") + (gallery >= 0 ? "[G] Browse art  " : "") + "[Q] Main board: ");
     return true;
   }
   if (s.state == FILE_MENU) {

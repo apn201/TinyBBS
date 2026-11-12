@@ -240,6 +240,14 @@ static bool loadQuest(Session &s) {
   say(s, "Door storage is unavailable.");
   return false;
 }
+static bool duelLocation(const Session &s);
+// Adventurers in town who can be challenged right now, by handle.
+static String duelRivals(const Session &s) {
+  String out;
+  for (auto &o : sessions)
+    if (&o != &s && o.used && o.authenticated && duelLocation(o)) { if (out.length()) out += ", "; out += o.user.handle; }
+  return out;
+}
 static void questMenu(Session &s, bool entering = false) {
   if (entering) art(s, "/BBS/ANSI/DOORS/KOUVOLA_LEGEND.ANS", "LEGEND OF KOUVOLA");
   s.state = QUEST_MENU;
@@ -249,7 +257,9 @@ static void questMenu(Session &s, bool entering = false) {
          "  BANK " + s.quest.bank);
   say(s, "Forest fights: " + String(s.quest.fights) + "  EXP: " + s.quest.exp +
           "  Slays: " + s.quest.kills + "  Fame: " + s.quest.fame);
-  say(s, "[F]orest [H]ealer [B]ank [T]avern [M]aster [S]hop [L]egend board [C]hallenge [Q]uit");
+  String rivals = duelRivals(s);
+  say(s, String("[F]orest [H]ealer [B]ank [T]avern [M]aster [S]hop [L]egend board ") + (rivals.length() ? "[C]hallenge " : "") + "[Q]uit");
+  if (rivals.length()) say(s, "In town: " + rivals + ". C <name> challenges one to the arena.");
   prompt(s, "Town command? ");
 }
 static void questTavern(Session &s, bool entering = false);
@@ -268,7 +278,7 @@ static void questTavern(Session &s, bool entering) {
   s.state = QUEST_TAVERN; activity(s, "COPPER WIRE TAVERN");
   say(s, "\x1b[1;33mTHE COPPER WIRE TAVERN\x1b[0m  A smoky room beneath the town board.");
   say(s, "A brass bell rings whenever an adventurer enters the forest.");
-  say(s, "[R]umor  [W]ho is in town  [L]egend board  [C]hallenge  [M]eal  [Q]Town");
+  say(s, String("[R]umor  [W]ho is in town  [L]egend board  ") + (duelRivals(s).length() ? "[C]hallenge  " : "") + "[M]eal  [Q]Town");
   prompt(s, "Tavern command? ");
 }
 static void tavernRumor(Session &s) {
@@ -503,7 +513,7 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
       return true;
     }
     if (cmd == "B") { s.state=QUEST_BANK; activity(s,"KOUVOLA BANK"); say(s,"Bank holds "+String(s.quest.bank)+" gold. Use D <amount>, W <amount>, or Q."); prompt(s,"Bank command? "); return true; }
-    say(s,"Use F, H, B, T, M, S, L, C <name>, or Q."); prompt(s,"Town command? "); return true;
+    say(s, duelRivals(s).length() ? "Use F, H, B, T, M, S, L, C <name>, or Q." : "Use F, H, B, T, M, S, L, or Q."); prompt(s,"Town command? "); return true;
   }
   if (s.state == QUEST_TAVERN) {
     if (cmd == "Q" || !cmd.length()) { questMenu(s); return true; }
@@ -512,7 +522,7 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
     if (cmd == "L") { questLeaderboard(s); questTavern(s); return true; }
     if (cmd == "M") { questMeal(s); return true; }
     if (cmd == "C" || cmd.startsWith("C ")) { questChallenge(s, line); return true; }
-    say(s, "Use R, W, L, C <name>, M, or Q."); prompt(s, "Tavern command? "); return true;
+    say(s, duelRivals(s).length() ? "Use R, W, L, C <name>, M, or Q." : "Use R, W, L, M, or Q."); prompt(s, "Tavern command? "); return true;
   }
   if (s.state == QUEST_DUEL_WAIT) {
     if (cmd == "Q") duelCancel(s, "you withdrew the challenge");

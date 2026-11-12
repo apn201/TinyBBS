@@ -101,7 +101,8 @@ static void showRecord(Session &s, const User &u) {
   fieldLine(s, 9, "Real name", u.realName.length() ? u.realName : String("-"));
   fieldLine(s, 10, "Location", u.location.length() ? u.location : String("-"));
   say(s, "");
-  say(s, " \x1b[1;33m[N]\x1b[0m Next user  \x1b[1;33m[P]\x1b[0m Previous  \x1b[1;33m[D]\x1b[0m Delete  \x1b[1;33m[Q]\x1b[0m User list");
+  say(s, String(" \x1b[1;33m[N]\x1b[0m Next user  \x1b[1;33m[P]\x1b[0m Previous  ") +
+         (u.id != s.user.id ? "\x1b[1;33m[D]\x1b[0m Delete  " : "") + "\x1b[1;33m[Q]\x1b[0m User list");
   prompt(s, "Field # or command: ");
 }
 static void saveRecord(Session &s, User &u, const String &what) {

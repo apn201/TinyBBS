@@ -17,7 +17,12 @@ static bool messageCommand(Session &s, String &line, const String &cmd) {
     else if (cmd == "P") startPost(s);
     else if (cmd == "A" || cmd == "J") areaList(s);
     else if (cmd == "Q" || !cmd.length()) mainMenu(s);
-    else { say(s, "Use R, N, P, A or Q."); prompt(s, "Message command? "); }
+    else {
+      uint8_t areas = 0;
+      for (const auto &c : board.conferences) if (canJoinConference(s.user, c.id)) areas++;
+      say(s, areas > 1 ? "Use R, N, P, A or Q." : "Use R, N, P or Q.");
+      prompt(s, "Message command? ");
+    }
     return true;
   }
   if (s.state == MSG_READ) {

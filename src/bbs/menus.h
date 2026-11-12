@@ -20,7 +20,7 @@ static void showMenu(Session &s, const String &name, const std::vector<MenuItem>
   const MenuLayout *m = findMenu(name);
   // Without a MENUS.INI section: the usual picture, options below it.
   String path = m ? m->art : name == "MAIN" ? board.mainMenu : "/BBS/ANSI/MENUS/" + name + ".ANS";
-  bool haveArt = path.length() && sdReady && SD_MMC.exists(path);
+  bool haveArt = s.ansi && path.length() && sdReady && SD_MMC.exists(path);  // ASCII callers get the title
   bool slots = haveArt && s.ansi && m && m->rows && m->height;
   if (haveArt) {
     if (slots) write(s, "\x1b[0m\x1b[2J\x1b[H");  // the slots are screen positions in the art

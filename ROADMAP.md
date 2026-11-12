@@ -360,6 +360,11 @@ and find it listed in the area with its description.
 
 ### Slice 9: menu audit
 
+Built. The audit is in `MENU_AUDIT.md`: every screen, its keys and who gets
+them. Fixed: Legend `[C]hallenge` only with someone to challenge, Dice on an
+empty purse, message reader K/E/H only when offered, no `[D]` on the SysOp's
+own record, gallery and menus for ASCII callers, message menu error text.
+
 Go through every screen on both transports and check that every advertised
 key works for that caller. Remove or hide anything that does not.
 

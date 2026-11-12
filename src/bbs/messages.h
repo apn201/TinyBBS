@@ -311,7 +311,10 @@ static void startReply(Session &s);
 static void startKill(Session &s);
 static void startEdit(Session &s);
 static bool msgReaderKey(Session &s, const String &k) {
-  if (k == "k" || k == "K" || k == "e" || k == "E" || k == "h" || k == "H") {
+  // K, E and H only where the status bar offers them; otherwise k scrolls.
+  Message cur;
+  bool known = getMessage(s.msgId, cur), mine = known && canModify(s, cur), history = known && cur.versions > 1;
+  if ((mine && (k == "k" || k == "K" || k == "e" || k == "E")) || (history && (k == "h" || k == "H"))) {
     s.reader = Reader();
     write(s, "\x1b[0m\x1b[2J\x1b[H");
     s.state = MSG_VIEW;
