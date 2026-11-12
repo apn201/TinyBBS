@@ -100,6 +100,7 @@ static void showRecord(Session &s, const User &u) {
   fieldLine(s, 8, "Forest fights", String(q.fights) + " left today (Legend of Kouvola)");
   fieldLine(s, 9, "Real name", u.realName.length() ? u.realName : String("-"));
   fieldLine(s, 10, "Location", u.location.length() ? u.location : String("-"));
+  fieldLine(s, 11, "Gold", String(q.gold) + " in the purse, " + q.bank + " banked (all doors)");
   say(s, "");
   say(s, String(" \x1b[1;33m[N]\x1b[0m Next user  \x1b[1;33m[P]\x1b[0m Previous  ") +
          (u.id != s.user.id ? "\x1b[1;33m[D]\x1b[0m Delete  " : "") + "\x1b[1;33m[Q]\x1b[0m User list");
@@ -141,6 +142,7 @@ static void openField(Session &s, uint8_t field) {
     case 9: prompt(s, "Real name (now " + (u.realName.length() ? u.realName : String("empty")) + ", - clears): "); break;
     case 10: prompt(s, "Location (now " + (u.location.length() ? u.location : String("empty")) + ", - clears): "); break;
     case 8: loadQuest(u.id, q); prompt(s, "Forest fights left today, 0-255 (now " + String(q.fights) + "): "); break;
+    case 11: loadQuest(u.id, q); prompt(s, "Gold in the purse (now " + String(q.gold) + "): "); break;
     default: showRecord(s, u);
   }
 }
@@ -202,6 +204,21 @@ static void fieldValue(Session &s, const String &line) {
       q.id = u.id; q.fights = n;
       if (saveQuest(q)) { if (live) live->quest.fights = n; event("SYSOP_FIGHTS", s.user.handle + " -> " + u.handle + " " + n); say(s, "\x1b[1;32mSaved.\x1b[0m"); }
       else say(s, "Door storage could not be written.");
+      break;
+    }
+    case 11: {  // the purse shared by Legend of Kouvola, the dice cabinet and VolaMUD
+      if (!readNumber(v, n) || n > 1000000) { say(s, "Gold is a number from 0 to 1000000."); break; }
+      Session *live = nullptr;
+      for (auto &o : sessions) if (o.used && o.user.id == u.id && (playingQuest(o) || playingMud(o))) { live = &o; break; }
+      Quest q;
+      if (live && playingQuest(*live)) q = live->quest; else loadQuest(u.id, q);
+      if (live && playingMud(*live)) q.bank = live->wallet.bank;
+      q.id = u.id; q.gold = n;
+      if (saveQuest(q)) {
+        if (live) { live->quest.gold = n; live->wallet.gold = n; }
+        event("SYSOP_GOLD", s.user.handle + " -> " + u.handle + " " + n);
+        say(s, "\x1b[1;32mSaved.\x1b[0m");
+      } else say(s, "Door storage could not be written.");
       break;
     }
   }
@@ -273,8 +290,8 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
       say(s, "\x1b[1;31mDelete " + u.handle + " for good? Their messages stay.\x1b[0m");
       prompt(s, "Type YES to delete: "); return true;
     }
-    if (readNumber(cmd, n) && n >= 1 && n <= 10) { openField(s, n); return true; }
-    say(s, "Pick a field 1-10, or N, P, D, Q.");
+    if (readNumber(cmd, n) && n >= 1 && n <= 11) { openField(s, n); return true; }
+    say(s, "Pick a field 1-11, or N, P, D, Q.");
     prompt(s, "Field # or command: "); return true;
   }
   if (s.state == SYSOP_USER_FIELD) { fieldValue(s, line); return true; }

@@ -73,7 +73,7 @@ are allowed: they never appear on screen.
 | --- | --- | --- |
 | Console | U D W I S R Q; F in the browser | |
 | User editor list | #, handle, A, Q; ENTER and P with more than one page | |
-| User record | 1-10, N, P, Q; D for other accounts | D used to show on your own record and then refuse. **Fixed.** |
+| User record | 1-11 (11 = gold, shared by all doors), N, P, Q; D for other accounts | D used to show on your own record and then refuse. **Fixed.** |
 | Node monitor | node #, M <node or ALL> text, ENTER | |
 | Door settings | F handle count, V handle, Q | |
 | Upload queue | A #, D #, Q | A and D only when something waits. |
