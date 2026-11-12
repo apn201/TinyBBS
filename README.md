@@ -94,22 +94,25 @@ board at the same time and see each other in WHO and chat.
 | Power | USB, from a computer or a phone charger |
 
 Nothing is attached and no GPIO is exposed. No modem, no keyboard, no audio
-out. Pins and display offsets are in [`HARDWARE.md`](HARDWARE.md).
+out. Pins and display offsets are in [`docs/HARDWARE.md`](docs/HARDWARE.md).
 
 ### Firmware layout
 
-The firmware is Arduino on ESP32, about 4400 lines of C++ plus the two web
-pages. `src/main.cpp` has
-`setup()` and `loop()` and includes the modules in order, as one translation
-unit:
+The firmware is Arduino on ESP32, about 6000 lines of C++ plus the two web
+pages. `src/main.cpp` has `setup()` and `loop()` and includes the modules in
+order, as one translation unit:
 
 | Folder | Contents |
 | --- | --- |
-| `src/core` | Globals, helpers, the board clock, SD storage and INI reader, users, message store, sessions, paced output |
-| `src/bbs` | Settings, file areas and viewer, messages, SysOp tools and user editor, menus, login, one `cmd_*.h` per command area, CP437 conversion |
+| `src/core` | Globals, helpers, the board clock, SD storage and INI reader, users, message store, message history from the card, sessions, paced output, the reader |
+| `src/bbs` | Settings, menus, file areas, ZIP reading, viewers, uploads, messages, SysOp tools and user editor, login, one `cmd_*.h` per command area, CP437 conversion |
 | `src/doors` | Legend of Kouvola, VolaMUD, dice cabinet and `doors.h`, the door table |
 | `src/net` | Browser terminal and SysOp file manager pages (compiled into flash), HTTP and WebSocket routes, Telnet |
 | `src/hw` | Status LCD and the splash logo as DOS palette indexes |
+
+The music player is not in the firmware. It is `player.js` plus libopenmpt
+and jsSID in `/BBS/ASSETS/PLAYER` on the card, and the board only serves the
+files.
 
 A door is one header with `enter`, `owns` and `handle` functions plus one
 line in the door table.
@@ -169,7 +172,8 @@ can open it on a PC.
   `USERS/USERS.DAT` and `MSGS/MESSAGES.DAT` under `/BBS/DATA`.
 - Messages are append-only.
 - User updates and door saves are written to a `.NEW` file first and then
-  swapped in, with a `.BAK` for recovery.
+  swapped in, with a `.BAK` for recovery. One function does this for every
+  record file.
 - Messages carry the message they answer, so replies form threads.
 - Per-user last-read pointers, one per message area, are small files in
   `DATA/STATE`.
@@ -194,13 +198,15 @@ browser.
 
 Every folder in `/BBS/FILES` is a file area, in the order of its number
 prefix. `014_BACKROOM_IMAGES` becomes "Backroom Images". Folders starting
-with `_` or `.` are hidden, and so is an area with no files in it.
+with `_` or `.` are hidden, and so is an area with no files in it (unless
+it takes uploads). Areas behind a flag, like the back room, are always last
+in the list.
 Sub-folders nest as deep as the card has them. A number opens a folder or
 views a file, and `Q` goes up one level.
 
 An optional `AREA.INI` in the folder sets the name, the lowest security
-level, a required user flag such as `BACKROOM`, and whether downloads are
-allowed. Areas are read at boot and on `RELOAD`.
+level, a required user flag such as `BACKROOM`, and whether downloads and
+uploads are allowed. Areas are read at boot and on `RELOAD`.
 
 Descriptions come from `FILES.BBS` or `DESCRIPT.ION` in the folder. For a ZIP
 without one, the board reads `FILE_ID.DIZ` from the archive's central
@@ -217,7 +223,13 @@ central directory, with sizes and dates, then the full `FILE_ID.DIZ`, any
 NFO inside and the archive comment.
 
 In the viewer, `N` and `P` open the next or previous viewable file in the
-same folder, so a folder of ANSI art can be flipped through.
+same folder, so a folder of ANSI art can be flipped through. Pictures and
+music work the same way, on a screen of their own in the browser.
+
+Uploads are browser only. The caller types a description and picks a file,
+it waits in `/BBS/UPLOADS/INCOMING`, and the SysOp approves or deletes it
+from the console. An approved file moves to the folder it was sent to and its
+description goes into that folder's `FILES.BBS`.
 
 ### Doors
 
@@ -241,7 +253,7 @@ of Kouvosto is a real archive task, held by seeded Lord Korja at `13,-8`.
 Gold and bank funds are one shared purse across VolaMUD, Legend of Kouvola
 and the dice cabinet. It is a playable vertical slice rather than a deep MUD:
 there is no inventory UI, trading economy, party system, NPC memory or
-multi-stage quest engine yet. See [`VOLA_MUD.md`](VOLA_MUD.md).
+multi-stage quest engine yet. See [`docs/VOLA_MUD.md`](docs/VOLA_MUD.md).
 
 ### LCD
 
@@ -256,35 +268,47 @@ caller or page.
    `tools\build-platformio.cmd` does the same. The proven target is the
    Pocket-Dongle-S3 with the N16R8 profile in `platformio.ini`; see
    **Flash and recovery** below before trying another board profile.
-3. Format a microSD card as FAT32. Extract `TinyBBS_SD_CARD_EMPTY_TREE.zip`
-   to the card root, then copy this repository's `sd/BBS` into the card's
-   `BBS` folder. Or run:
+3. Optional content that is not in the repository. Each script downloads
+   once and writes into `sd/BBS`:
+
+   ```powershell
+   python tools\fidonet-seed.py
+   python tools\fetch-modules.py
+   python tools\fetch-sids.py
+   ```
+
+   The first one is the FidoNet message history (150 MB download), the other
+   two the Tracker Music and C64 SID Music areas.
+4. Format a microSD card as FAT32 and copy this repository's `sd/BBS` into
+   the card's `BBS` folder. Or run:
 
    ```powershell
    .\tools\prepare-sd.ps1 -CardRoot X:\
    ```
 
-   Add `-PresentationOnly` to update screens, static door data and VolaMUD's
-   seed configuration on a card that already has users and messages. The
-   script does not format the card.
-4. Insert the card and power the board from USB.
-5. Join `THE_BOARD`. Press DIAL in the browser, or Telnet to
+   It also creates the folders the board needs. Add `-PresentationOnly` to
+   update screens, static door data and VolaMUD's seed configuration on a
+   card that already has users and messages. The script does not format the
+   card.
+5. Insert the card and power the board from USB.
+6. Join `THE_BOARD`. Press DIAL in the browser, or Telnet to
    `192.168.4.1:23`.
-6. Create a user named `SYSOP` first. While no SysOp exists, that handle
+7. Create a user named `SYSOP` first. While no SysOp exists, that handle
    becomes the level-255 SysOp. Change its password.
 
 Settings live in `sd/BBS/CONFIG`, each file explained in its comments:
 
 - `SYSTEM.INI`: board name, node limit, new-user level, modem speed for ANSI
-  pictures, the board clock, art paths.
+  pictures, the board clock, art paths, download credit and ratio for new
+  users, credit per message, the upload size limit.
 - `CONFERENCES.INI`: message bases with their security level and flag.
 - `BULLETINS.INI`: bulletins, and which ones are shown at every login.
 - `NETWORK.INI`: SSID, password, channel, Telnet port.
 - `MENUS.INI`: the art for each menu and where in it the options go. The
   options themselves are generated: only what exists and what the caller may
   use is listed, so a new door or file area shows up without editing ANSI.
-- `FILES/<area>/AREA.INI`: name, level, flag and downloads for one file
-  area. Optional.
+- `FILES/<area>/AREA.INI`: name, level, flag, downloads and uploads for one
+  file area. Optional.
 
 After editing (on the card, or in the SysOp file manager) type `RELOAD` as
 SysOp, or `Z` then `R`. `NETWORK.INI` needs a restart.
@@ -335,7 +359,7 @@ Do not edit `DATA`, `LOGS` or `TEMP` by hand while the board is in use.
 Callers never see SD paths.
 
 The file archive itself is not in this repository. `sd/BBS/FILES` is ignored
-by git. Archive rules are in [`CURATION.md`](CURATION.md).
+by git. Archive rules are in [`docs/CURATION.md`](docs/CURATION.md).
 
 `sd/BBS/MSGBASE` is not in the repository either. Make it with
 `python tools/fidonet-seed.py`, which downloads the 150 MB source archive once
@@ -355,6 +379,8 @@ A level-255 account with the `SYSOP` flag gets `Z`, the SysOp console.
   disconnects that caller, `M <node|ALL> <text>` sends a one-way message.
 - **Page answering**: when a caller pages, `/A` from any prompt pulls both
   into chat and `/R` refuses.
+- **Upload queue** (`Z` then `I`): uploads waiting for approval. `A #`
+  approves, `D #` deletes. The uploader gets the credit when it is approved.
 - **File manager** (`Z` then `F`, browser only): a separate page for the SD
   card. Upload, download, rename, delete and edit text files without
   pulling the card. `DATA` and `LOGS` are read-only there.
@@ -362,27 +388,25 @@ A level-255 account with the `SYSOP` flag gets `Z`, the SysOp console.
 
 ## Limits
 
-- Caller uploads, the SysOp approval queue, Telnet file transfers (no ZMODEM yet)
-  and QWK are not done.
+- Telnet has no file transfers (no ZMODEM) and there is no QWK mail. Both
+  are on the backburner in the roadmap.
+- SID tunes play with jsSID, which does not run RSID tunes.
 - Eight nodes is a firmware limit. It has not been tested with eight real
   callers on the board.
 - AP only. The board does not join any other network.
 
-More in [`ROADMAP.md`](ROADMAP.md). The full 1.0 target is in
-[`TinyBBS_READY_TO_CODE_SPEC.md`](TinyBBS_READY_TO_CODE_SPEC.md).
+More in [`docs/ROADMAP.md`](docs/ROADMAP.md). The original 1.0 target is in
+[`docs/SPEC_1.0.md`](docs/SPEC_1.0.md).
 
 ## Repository map
 
 | Path | Contents |
 | --- | --- |
 | `src/` | Firmware |
-| `sd/BBS/` | SD card content and config |
-| `tools/` | SD preparation and archive curation scripts |
-| `HARDWARE.md` | Pins, display, SD and network details |
-| `ROADMAP.md` | What is done and what is next |
-| `CURATION.md` | Archive and provenance policy |
-| `VOLA_MUD.md` | VolaMUD notes |
-| `TinyBBS_READY_TO_CODE_SPEC.md` | 1.0 specification |
+| `sd/BBS/` | SD card content and config, including the music player |
+| `tools/` | SD preparation, content download and archive curation scripts |
+| `docs/` | Hardware, roadmap, curation policy, menu audit, VolaMUD notes, the 1.0 spec |
+| `art/` | Source images for the splash screen |
 
 ## Credits
 
@@ -395,11 +419,18 @@ Message history: FidoNet traffic captured on the ExecPC BBS (1993-1999) and
 archived by Josh Renaud at
 [Break Into Chat](https://breakintochat.com/collections/messages/fidonet/).
 Names and addresses are replaced before anything reaches the card.
-GoMud was evaluated as a mechanics/world reference. See
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+Music: modules from [The Mod Archive](https://modarchive.org/) and SID tunes
+from the [High Voltage SID Collection](https://hvsc.c64.org/), copied as
+they are. Played with [libopenmpt](https://lib.openmpt.org/) and
+[jsSID](https://github.com/jhohertz/jsSID).
+
+GoMud was evaluated as a mechanics/world reference. Licences for all of the
+above are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Licence
 
 MIT, see [`LICENSE`](LICENSE). That covers the code, the ANSI screens and the
-Kouvosto splash image. GoMud's notice is in
+Kouvosto splash image. The player libraries on the card keep their own
+licences (libopenmpt BSD, jsSID GPL v2), listed in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
