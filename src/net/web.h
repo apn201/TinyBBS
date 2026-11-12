@@ -91,6 +91,7 @@ static void downloadFile(AsyncWebServerRequest *r) {
   if (s->user.downloads != UINT16_MAX) s->user.downloads++;
   if (!touchUser(s->user)) trace("DOWNLOAD_ACCOUNT_WARN", s->user.handle);
   refreshLiveUser(s->user);
+  countDownload(path);
   event("DOWNLOAD", s->user.handle + " " + name);
   trace("DOWNLOAD", name);
   AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, "application/octet-stream", true);

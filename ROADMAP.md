@@ -295,6 +295,11 @@ ANSI editing, and a normal user's menus show no Back Room or SysOp entries.
 
 ### Slice 6: file listings that look the part
 
+Built. Listings have a column header and show size, the card's date for the
+file (MM-DD-YY), a download counter (`DATA/INDEX/DOWNLOADS.DAT`) and the
+description. `V` or the number on a ZIP opens its contents in the reader,
+read from the central directory, with totals and the archive comment.
+
 Listings show name, size, date (from the card's file timestamps) and the
 description from slice 4. A download counter per file is shown, like a real
 board. `[V]` on a ZIP lists the archive contents from its central directory,

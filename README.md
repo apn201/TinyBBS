@@ -51,7 +51,8 @@ board at the same time and see each other in WHO and chat.
 - Multi-node chat, WHO, page the SysOp, bulletins (ANSI files or a line of
   text), ANSI gallery.
 - File areas made from the folders on the card, with sub-folders,
-  descriptions from `FILES.BBS`, `DESCRIPT.ION` and `FILE_ID.DIZ`, and browser
+  descriptions from `FILES.BBS`, `DESCRIPT.ION` and `FILE_ID.DIZ`, file dates,
+  per-file download counts, ZIP contents listed with `V`, and browser
   downloads that check quota and ratio.
 - ANSI pictures opened with `V` scroll in at modem speed. Any key skips,
   space pauses, and the browser's SPEED button picks the baud rate.
@@ -190,6 +191,11 @@ Descriptions come from `FILES.BBS` or `DESCRIPT.ION` in the folder. For a ZIP
 without one, the board reads `FILE_ID.DIZ` from the archive's central
 directory, inflates it with the ROM inflater and caches the first lines in
 `DATA/INDEX/DIZ.DAT`. Archives are never unpacked or renamed.
+
+Listings show each file's size, its date on the card (MM-DD-YY) and how many
+times it has been downloaded. The counts are kept in
+`DATA/INDEX/DOWNLOADS.DAT`. `V` on a ZIP lists what is inside from the
+central directory, with sizes, dates and the archive comment.
 
 In the viewer, `N` and `P` open the next or previous viewable file in the
 same folder, so a folder of ANSI art can be flipped through.

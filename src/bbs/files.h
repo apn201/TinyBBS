@@ -123,7 +123,7 @@ static String areaDir(const Session &s) {
 }
 
 // ---------- one folder ------------------------------------------------------------
-struct FileEntry { String name; uint32_t size = 0; bool dir = false; };
+struct FileEntry { String name; uint32_t size = 0; bool dir = false; time_t when = 0; };
 // The folder's entries in listing order: sub-folders first, then files, by name.
 static std::vector<FileEntry> folderEntries(const Session &s) {
   std::vector<FileEntry> list;
@@ -131,7 +131,7 @@ static std::vector<FileEntry> folderEntries(const Session &s) {
   File dir = SD_MMC.open(areaDir(s));
   File e;
   while (dir && dir.isDirectory() && (e = dir.openNextFile())) {
-    FileEntry f; f.name = e.name(); f.dir = e.isDirectory(); f.size = f.dir ? 0 : e.size();
+    FileEntry f; f.name = e.name(); f.dir = e.isDirectory(); f.size = f.dir ? 0 : e.size(); f.when = e.getLastWrite();
     e.close();
     if (!hiddenEntry(f.name)) list.push_back(f);
   }
@@ -141,6 +141,52 @@ static std::vector<FileEntry> folderEntries(const Session &s) {
   });
   return list;
 }
+// ---------- download counts --------------------------------------------------------
+// One line per file that has been downloaded: "path|count", the path under
+// /BBS/FILES. Kept in memory once read; rewritten on each download.
+static constexpr const char *DL_COUNTS = "/BBS/DATA/INDEX/DOWNLOADS.DAT";
+static std::vector<std::pair<String, uint16_t>> dlCounts;
+static bool dlLoaded = false;
+static void loadDownloadCounts() {
+  if (dlLoaded || !sdReady) return;
+  dlLoaded = true;
+  File f = SD_MMC.open(DL_COUNTS, FILE_READ);
+  while (f && f.available()) {
+    String line = f.readStringUntil('\n');
+    line.trim();
+    if (line.length()) dlCounts.push_back({dec(field(line, 0)), (uint16_t)field(line, 1).toInt()});
+  }
+  if (f) f.close();
+}
+static String countKey(const String &path) { return path.startsWith(FILES_ROOT) ? path.substring(strlen(FILES_ROOT) + 1) : path; }
+static uint16_t downloadCount(const String &path) {
+  loadDownloadCounts();
+  String key = countKey(path);
+  for (const auto &c : dlCounts) if (c.first == key) return c.second;
+  return 0;
+}
+static void countDownload(const String &path) {
+  loadDownloadCounts();
+  String key = countKey(path);
+  bool found = false;
+  for (auto &c : dlCounts) if (c.first == key) { if (c.second < 999) c.second++; found = true; }
+  if (!found) dlCounts.push_back({key, 1});
+  File f = SD_MMC.open(DL_COUNTS, FILE_WRITE);
+  if (!f) return;
+  for (const auto &c : dlCounts) f.print(enc(c.first) + "|" + c.second + "\n");
+  f.close();
+}
+// A file's date from the card, as on a 90s listing: MM-DD-YY.
+static String fileDate(time_t t) {
+  if (t < 315532800) return "--------";  // before 1980: no date
+  int y; unsigned m, d;
+  civilFromDays((int32_t)(t / 86400), y, m, d);
+  char b[12];
+  snprintf(b, sizeof(b), "%02u-%02u-%02d", m, d, y % 100);
+  return b;
+}
+static bool zipName(const String &name) { return up(name).endsWith(".ZIP"); }
+
 static bool areaFile(Session &s, uint16_t wanted, String &path, String &name, size_t &bytes) {
   auto list = folderEntries(s);
   if (!wanted || wanted > list.size() || list[wanted - 1].dir) return false;
@@ -277,19 +323,25 @@ static void listArea(Session &s) {
   String dir = areaDir(s);
   folderDescriptions(dir, want);
   zipDescriptions(dir, want, sizes);
+  if (!want.empty()) say(s, "\x1b[0;36m  #   Name               Size Date      DL Description\x1b[0m");
   for (size_t k = 0; k < want.size(); ++k) {
     const FileEntry &f = list[s.fileOffset + k];
-    char row[140];
+    char row[180];
     String desc = want[k].second; desc.trim();
-    if (f.dir) snprintf(row, sizeof(row), "\x1b[1;33m[%3u]\x1b[0m \x1b[1;36m%-24.24s  <DIR>\x1b[0m", (unsigned)(s.fileOffset + k + 1), f.name.c_str());
-    else snprintf(row, sizeof(row), "\x1b[1;33m[%3u]\x1b[0m %-24.24s %6s  \x1b[0;37m%.40s\x1b[0m", (unsigned)(s.fileOffset + k + 1), f.name.c_str(), sizeShort(f.size).c_str(), desc.c_str());
+    if (f.dir) snprintf(row, sizeof(row), "\x1b[1;33m[%3u]\x1b[0m \x1b[1;36m%-16.16s  <DIR>\x1b[0m \x1b[0;32m%s\x1b[0m", (unsigned)(s.fileOffset + k + 1), f.name.c_str(), fileDate(f.when).c_str());
+    else {
+      uint16_t dls = downloadCount(dir + "/" + f.name);
+      snprintf(row, sizeof(row), "\x1b[1;33m[%3u]\x1b[0m \x1b[1;37m%-16.16s\x1b[0m \x1b[0;36m%6s\x1b[0m \x1b[0;32m%s\x1b[0m %s%3u\x1b[0m \x1b[0;37m%.36s\x1b[0m",
+               (unsigned)(s.fileOffset + k + 1), f.name.c_str(), sizeShort(f.size).c_str(), fileDate(f.when).c_str(),
+               dls ? "\x1b[1;35m" : "\x1b[0;35m", (unsigned)dls, desc.c_str());
+    }
     say(s, row);
   }
   s.moreFiles = s.fileOffset + FILES_PER_PAGE < list.size();
   if (list.empty()) say(s, "This cabinet is empty tonight.");
   else say(s, "\x1b[0;36m" + String(s.fileOffset + 1) + "-" + String(s.fileOffset + want.size()) + " of " + list.size() + "\x1b[0m");
   bool dl = s.web && a.downloads;
-  String keys = "[#] Open  [V #] View  ";
+  String keys = "[#] Open  [V #] View or list ZIP  ";
   if (dl) keys += "[D #] Download  ";
   if (list.size() > FILES_PER_PAGE) keys += "[N/P] Page  ";
   keys += s.filePath.length() ? "[Q] Up a folder" : "[Q] Back";
@@ -325,14 +377,94 @@ static bool viewableName(const String &name) {
 }
 static bool fileReaderKey(Session &s, const String &k);
 static void fileReaderQuit(Session &s);
+// A ZIP's contents from its central directory, without unpacking anything.
+static bool zipContents(const String &path, std::vector<String> &rows) {
+  File f = SD_MMC.open(path, FILE_READ);
+  if (!f) return false;
+  uint32_t size = f.size();
+  // The end record sits in the last 22 bytes plus up to 64K of comment.
+  uint32_t tailLen = min<uint32_t>(size, 22 + 4096);
+  std::unique_ptr<uint8_t[]> tail(new (std::nothrow) uint8_t[tailLen]);
+  if (!tail || !f.seek(size - tailLen) || f.read(tail.get(), tailLen) != tailLen) { f.close(); return false; }
+  int eocd = -1;
+  for (int i = (int)tailLen - 22; i >= 0; --i) if (le32(tail.get() + i) == 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) { f.close(); return false; }
+  uint16_t entries = le16(tail.get() + eocd + 10);
+  uint32_t at = le32(tail.get() + eocd + 16);
+  uint16_t commentLen = le16(tail.get() + eocd + 20);
+  String comment;
+  for (uint16_t i = 0; i < commentLen && eocd + 22 + i < (int)tailLen && comment.length() < 400; ++i) comment += (char)tail[eocd + 22 + i];
+  tail.reset();
+  rows.push_back("\x1b[0;36m    Length  Packed  Ratio  Date      Time   Name\x1b[0m");
+  rows.push_back("\x1b[0;36m  --------  ------  -----  --------  -----  ----\x1b[0m");
+  uint64_t total = 0, packed = 0;
+  uint16_t files = 0;
+  for (uint16_t n = 0; n < entries && n < 1500; ++n) {
+    uint8_t h[46];
+    if (!f.seek(at) || f.read(h, 46) != 46 || le32(h) != 0x02014b50) break;
+    uint16_t time = le16(h + 12), date = le16(h + 14), nameLen = le16(h + 28), extra = le16(h + 30), note = le16(h + 32);
+    uint32_t csize = le32(h + 20), usize = le32(h + 24);
+    char name[81] = {0};
+    f.read((uint8_t *)name, min<uint16_t>(nameLen, 80));
+    at += 46 + nameLen + extra + note;
+    String shown;
+    for (const char *p = name; *p; ++p) shown += (uint8_t)*p < 32 ? '?' : *p;
+    if (nameLen > 80) shown += "...";
+    bool folder = shown.endsWith("/");
+    unsigned ratio = usize ? (unsigned)(100 - min<uint64_t>(100, (uint64_t)csize * 100 / usize)) : 0;
+    char row[160];
+    snprintf(row, sizeof(row), "  %8lu  %6s  %4u%%  %02u-%02u-%02u  %02u:%02u  %s%s\x1b[0m",
+             (unsigned long)usize, sizeShort(csize).c_str(), ratio, (date >> 5) & 15, date & 31, ((date >> 9) + 80) % 100,
+             time >> 11, (time >> 5) & 63, folder ? "\x1b[1;36m" : "\x1b[1;37m", shown.c_str());
+    rows.push_back(row);
+    if (!folder) { files++; total += usize; packed += csize; }
+  }
+  f.close();
+  char sum[100];
+  snprintf(sum, sizeof(sum), "  %8llu  %6s  %4u%%                   %u file%s",
+           (unsigned long long)total, sizeShort((uint32_t)min<uint64_t>(packed, UINT32_MAX)).c_str(),
+           total ? (unsigned)(100 - min<uint64_t>(100, packed * 100 / total)) : 0, files, files == 1 ? "" : "s");
+  rows.push_back("\x1b[0;36m  --------  ------  -----                   ----\x1b[0m");
+  rows.push_back(sum);
+  if (entries > 1500) rows.push_back("  ... and " + String(entries - 1500) + " more");
+  if (comment.length()) {
+    rows.push_back("");
+    rows.push_back("\x1b[0;36mArchive comment:\x1b[0m");
+    String line;
+    for (size_t i = 0; i <= comment.length(); ++i) {
+      char c = i < comment.length() ? comment[i] : '\n';
+      if (c == '\r') continue;
+      if (c == '\n' || line.length() >= 79) { rows.push_back(line); line = ""; if (c == '\n') continue; }
+      line += (uint8_t)c < 32 || (uint8_t)c >= 127 ? ' ' : c;
+    }
+  }
+  return true;
+}
+static bool openZipList(Session &s, uint16_t number, const String &path, const String &name, size_t bytes, bool quiet) {
+  std::vector<String> rows;
+  rows.push_back("\x1b[1;36m" + clean(name, 40) + "\x1b[0m  " + sizeShort(bytes));
+  rows.push_back("");
+  if (!zipContents(path, rows)) { if (!quiet) prompt(s, "Not a ZIP this board can read. File command? "); return false; }
+  s.viewer.number = number; s.viewer.path = path; s.viewer.name = name; s.viewer.ansi = false;
+  Reader &r = s.reader;
+  r = Reader();
+  r.kind = READER_ROWS; r.rows.swap(rows);
+  r.title = clean(name, 24);
+  r.hint = "SPACE page  B back  \x18\x19 line  N/P file  Q quit";
+  r.onKey = fileReaderKey; r.onQuit = fileReaderQuit;
+  activity(s, "LISTING " + clean(name, 30));
+  openReader(s, false);
+  return true;
+}
 static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   String path, name;
   size_t bytes;
   if (!areaFile(s, number, path, name, bytes)) { if (!quiet) prompt(s, "No such file. File command? "); return false; }
+  if (zipName(name)) return openZipList(s, number, path, name, bytes, quiet);
   String upper = up(name);
   const bool ansi = upper.endsWith(".ANS") || upper.endsWith(".ANSI");
   if (!viewableName(name) || !bytes || bytes > UINT32_MAX - 8300) {
-    if (!quiet) prompt(s, s.web && fileAreas[s.fileArea].downloads ? "That file can only be downloaded. File command? " : "Only ANSI and text files can be viewed. File command? ");
+    if (!quiet) prompt(s, s.web && fileAreas[s.fileArea].downloads ? "That file can only be downloaded. File command? " : "Only text, ANSI and ZIP files can be viewed. File command? ");
     return false;
   }
   File file = SD_MMC.open(path, FILE_READ);
@@ -385,7 +517,7 @@ static bool stepViewer(Session &s, bool forward) {
   auto list = folderEntries(s);
   int at = s.viewer.number;  // 1-based
   for (int i = forward ? at + 1 : at - 1; i >= 1 && i <= (int)list.size(); i += forward ? 1 : -1) {
-    if (list[i - 1].dir || !viewableName(list[i - 1].name)) continue;
+    if (list[i - 1].dir || !(viewableName(list[i - 1].name) || zipName(list[i - 1].name))) continue;
     if (openFileViewer(s, i, true)) return true;
   }
   return false;
