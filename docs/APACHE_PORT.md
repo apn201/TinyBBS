@@ -192,7 +192,9 @@ Check: CI is green, and the same transcripts pass on the stick.
 - `apache-tinybbs.conf`: a virtual host with TLS, `ProxyPass /ws
   ws://127.0.0.1:8080/ws`, `ProxyPass / http://127.0.0.1:8080/`, the matching
   `ProxyPassReverse`, and no caching of `/api/*`. Needs `mod_proxy`,
-  `mod_proxy_http`, `mod_proxy_wstunnel`, `mod_ssl`.
+  `mod_proxy_http`, `mod_proxy_wstunnel`, `mod_ssl`. Target host is Rocky
+  Linux (RHEL family): the file goes in `/etc/httpd/conf.d/`, and SELinux must
+  allow Apache to connect to the local port (`httpd_can_network_connect`).
 - Backups: `/srv/tinybbs/BBS/DATA` nightly. The rest is content and can be
   copied from the repository or a card.
 
@@ -227,46 +229,64 @@ in order, with threads intact.
 
 Check: `grep -ri kouvo src shared` finds only fallbacks and comments.
 
+## Moving the live board to the server
+
+The repository's `sd/BBS` has content and settings only. Users, messages,
+door saves, read pointers and the clock are in `BBS/DATA` on the stick's SD
+card, and the file areas and message history are on the card too. To carry
+the current state over, copy the whole `BBS` folder from the card to
+`/srv/tinybbs/BBS` (all of it, including `DATA`; `TEMP` and `LOGS` can be
+left out). Password hashes are the same on both, so accounts keep working.
+
+Do this when the server is about to go live, not before: until phase 7 there
+is no sync, so after the copy the stick and the server drift apart. Decide
+which one is the main board until then.
+
 ## Prompt for the server setup agent
 
 Give this to the agent that prepares the server (OpenClaw). Replace
-`<your-domain>` and `<repo-url>`. The TinyBBS server program itself only
-exists after phases 1-4; until then the agent prepares the machine and the
-Apache side, and the last step waits.
+`<your-domain>` and `<repo-url>`. The host runs Rocky Linux. The TinyBBS
+server program does not exist yet: `server/` is written in phases 1-4. Until
+then the agent prepares the machine and Apache (steps 1-6) and stops; step 7
+is for later.
 
 ```
-Set up hosting for TinyBBS, a 1990s-style BBS, on this Linux server.
+Prepare this Rocky Linux server to host TinyBBS, a 1990s-style BBS.
 Domain: <your-domain>. Source: <repo-url> (branch main).
 
-TinyBBS runs as one long-running C++ process, tinybbs-server, that listens
+TinyBBS will run as one long-running C++ process, tinybbs-server, listening
 on 127.0.0.1:8080 for HTTP and WebSocket. Apache sits in front and only
 proxies; it serves no files itself. Its data is a folder /srv/tinybbs/BBS
-with the same layout as the repository's sd/BBS.
+with the same layout as the repository's sd/BBS. The server program is not
+written yet (the repository has no server/ folder): do steps 1-6 now and
+stop; step 7 is for later.
 
-1. Install: git, build-essential, cmake, libmbedtls-dev, python3,
-   apache2 with mod_proxy, mod_proxy_http, mod_proxy_wstunnel, mod_ssl,
-   mod_headers, and certbot with its Apache plugin.
+1. Packages: dnf install epel-release, then git gcc-c++ make cmake
+   mbedtls-devel python3 httpd mod_ssl certbot python3-certbot-apache.
+   (mod_proxy, mod_proxy_http and mod_proxy_wstunnel come with httpd.)
 2. Create a system user "tinybbs" with no login shell. Create /srv/tinybbs
    owned by it. Clone the repository to /srv/tinybbs/src.
-3. Copy /srv/tinybbs/src/sd/BBS to /srv/tinybbs/BBS. Optional content:
-   run tools/fidonet-seed.py, tools/fetch-modules.py and tools/fetch-sids.py
-   from the repository, then copy sd/BBS/MSGBASE and sd/BBS/FILES across.
-4. Apache: a virtual host for <your-domain> with TLS from certbot,
+3. Do not create /srv/tinybbs/BBS yet: the owner will copy the live board's
+   data there when it goes live.
+4. Apache: /etc/httpd/conf.d/tinybbs.conf, a virtual host for <your-domain>
        ProxyPreserveHost On
        ProxyPass        /ws ws://127.0.0.1:8080/ws
        ProxyPassReverse /ws ws://127.0.0.1:8080/ws
        ProxyPass        /   http://127.0.0.1:8080/
        ProxyPassReverse /   http://127.0.0.1:8080/
        <Location /api/> Header set Cache-Control "no-store" </Location>
-   and HTTP redirected to HTTPS. Use server/deploy/apache-tinybbs.conf from
-   the repository if it exists.
-5. Firewall: allow 80 and 443. Keep the Telnet port (2323) closed unless
-   asked. Do not expose 8080.
-6. Backups: copy /srv/tinybbs/BBS/DATA nightly and keep 14 days.
-7. When server/CMakeLists.txt exists in the repository: build it
-   (cmake -S server -B build && cmake --build build), install the binary to
-   /usr/local/bin/tinybbs-server, install server/deploy/tinybbs.service to
-   systemd, enable and start it, and check that https://<your-domain>/
-   shows the TinyBBS terminal and that "DIAL" connects.
+   Get TLS with certbot --apache and redirect HTTP to HTTPS.
+   SELinux: setsebool -P httpd_can_network_connect 1 (Apache may not connect
+   to 127.0.0.1:8080 otherwise). Enable and start httpd. Until TinyBBS runs,
+   the site answers 503; that is expected.
+5. firewalld: allow the http and https services. Keep the Telnet port (2323)
+   closed unless asked. Do not open 8080.
+6. Backups: a nightly copy of /srv/tinybbs/BBS/DATA, kept 14 days (the
+   folder appears later; the job should skip it while it is missing).
+7. Later, when server/CMakeLists.txt exists in the repository: git pull,
+   build (cmake -S server -B build && cmake --build build), install the
+   binary to /usr/local/bin/tinybbs-server, install
+   server/deploy/tinybbs.service to systemd, enable and start it, and check
+   that https://<your-domain>/ shows the TinyBBS terminal and DIAL connects.
 Report what was installed, the Apache config used, and anything that failed.
 ```
