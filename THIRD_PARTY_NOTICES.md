@@ -1,5 +1,33 @@
 # Third-party notices
 
+## miniz (server ZIP inflater)
+
+The Linux phase-1 compatibility target vendors miniz's `tinfl` inflater in
+`server/platform/` from <https://github.com/richgel999/miniz>. It is used only
+so the shared `src/bbs/zip.h` compiles unchanged on the server. The upstream
+source retains its own MIT licence notice.
+
+Copyright (c) 2013-2014 RAD Game Tools and Valve Software
+Copyright (c) 2010-2014 Rich Geldreich and Tenacious Software LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 ## GoMud
 
 GoMud was inspected as a mechanics and world-design reference during VolaMUD
