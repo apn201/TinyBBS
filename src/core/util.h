@@ -141,7 +141,6 @@ static String cleanFlags(const String &in) {
   take();
   return out;
 }
-static uint32_t numberAt(const String &line, uint8_t position) { return strtoul(tokenAt(line, position).c_str(), nullptr, 10); }
 static bool readNumber(const String &value, uint32_t &out) {
   if (!value.length()) return false;
   out = 0;

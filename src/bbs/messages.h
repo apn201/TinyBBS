@@ -97,11 +97,25 @@ static std::vector<Message> messageVersions(uint32_t id) {
 // The author and the SysOp may kill or edit a message.
 // History from the card is read-only for everyone.
 static bool canModify(const Session &s, const Message &m) { return !m.history && (isSysop(s) || up(m.from) == up(s.user.handle)); }
+// Messages and new ones in every conference, in one pass over the message
+// file (it is read twice per pass, so one pass per area adds up).
+struct AreaCount { uint32_t total = 0, fresh = 0; };
+static void allAreaCounts(const Session &s, AreaCount counts[256]) {
+  std::unique_ptr<uint64_t[]> marks(new uint64_t[256]);  // heap: web input runs on a small stack
+  for (int c = 0; c < 256; ++c) marks[c] = msgOrder(lastReadIn(s, c));
+  eachMessage([&](const Message &m) {
+    if (!canRead(s, m)) return true;
+    AreaCount &a = counts[m.conference];
+    a.total++;
+    if (!m.history && msgOrder(m.id) > marks[m.conference]) a.fresh++;
+    return true;
+  });
+}
 static void areaCounts(const Session &s, uint8_t conference, uint32_t &total, uint32_t &fresh) {
   total = fresh = 0;
-  uint32_t mark = lastReadIn(s, conference);
+  uint64_t mark = msgOrder(lastReadIn(s, conference));
   eachMessage([&](const Message &m) {
-    if (m.conference == conference && canRead(s, m)) { total++; if (!m.history && msgOrder(m.id) > msgOrder(mark)) fresh++; }
+    if (m.conference == conference && canRead(s, m)) { total++; if (!m.history && msgOrder(m.id) > mark) fresh++; }
     return true;
   });
 }
@@ -118,15 +132,6 @@ static uint32_t stepMessage(const Session &s, uint32_t id, bool forward) {
   });
   return found;
 }
-static void sayBody(Session &s, const String &body) {
-  int start = 0;
-  while (start <= (int)body.length()) {
-    int nl = body.indexOf('\n', start);
-    if (nl < 0) nl = body.length();
-    say(s, body.substring(start, nl));
-    start = nl + 1;
-  }
-}
 
 static void messageArea(Session &s);
 
@@ -134,10 +139,11 @@ static void messageArea(Session &s);
 static void areaList(Session &s) {
   s.state = JOIN_CONF; activity(s, "MESSAGE AREAS");
   say(s, "\r\n\x1b[1;36mMESSAGE AREAS\x1b[0m");
+  std::unique_ptr<AreaCount[]> counts(new AreaCount[256]);  // 2 KB: off the stack
+  allAreaCounts(s, counts.get());
   for (const auto &c : board.conferences) {
     if (!canJoinConference(s.user, c.id)) continue;
-    uint32_t total, fresh;
-    areaCounts(s, c.id, total, fresh);
+    uint32_t total = counts[c.id].total, fresh = counts[c.id].fresh;
     say(s, String(c.id == s.conference ? "\x1b[1;33m* " : "  ") + "[" + c.id + "] " + c.name + "\x1b[0m  (" + total +
            (fresh ? ", \x1b[1;32m" + String(fresh) + " new\x1b[0m" : String()) + ")" +
            (c.description.length() ? "  " + c.description : String()));
@@ -146,13 +152,11 @@ static void areaList(Session &s) {
 }
 static void messageArea(Session &s) {
   s.state = MSG_MENU; activity(s, "MESSAGES");
-  uint8_t areas = 0;
-  for (const auto &c : board.conferences) if (canJoinConference(s.user, c.id)) areas++;
   std::vector<MenuItem> items;
   items.push_back({"R", "Read / list"});
   items.push_back({"N", "Read new"});
   items.push_back({"P", "Post a message"});
-  if (areas > 1) items.push_back({"A", "Change area"});
+  if (severalAreas(s.user)) items.push_back({"A", "Change area"});
   items.push_back({"Q", "Main Board"});
   showMenu(s, "MESSAGES", items, "MESSAGE BASES");
   uint32_t total, fresh;

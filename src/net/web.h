@@ -79,13 +79,24 @@ static void apiIn(AsyncWebServerRequest *r) {
 }
 // Downloads stream from the SD card in the web server's task, so the other
 // caller keeps working. The download is counted when it starts.
+// The file in the caller's current folder that a /download, /view or /music
+// request names (?i=<number>), if the caller is on the right screen for it.
+static Session *requestAreaFile(AsyncWebServerRequest *r, State state, bool (*kind)(const String &), String &path, String &name, size_t &bytes) {
+  Session *s = requestSession(r);
+  if (!s || !s->authenticated || s->state != state || !canUseArea(*s, s->fileArea) ||
+      !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || (kind && !kind(name)) || !SD_MMC.exists(path)) return nullptr;
+  return s;
+}
+static void sendCardFile(AsyncWebServerRequest *r, const String &path, const char *type, bool download) {
+  AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, type, download);
+  res->addHeader("Cache-Control", "no-store");
+  r->send(res);
+}
 static void downloadFile(AsyncWebServerRequest *r) {
   BbsLock lock;
-  Session *s = requestSession(r); String path, name; size_t bytes = 0;
-  if (!s || !s->authenticated || s->state != FILE_LIST || !fileAreas[s->fileArea].downloads || !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || !SD_MMC.exists(path)) {
-    r->send(404, "text/plain", "File unavailable"); return;
-  }
-  String reason;
+  String path, name, reason; size_t bytes = 0;
+  Session *s = requestAreaFile(r, FILE_LIST, nullptr, path, name, bytes);
+  if (!s || !fileAreas[s->fileArea].downloads) { r->send(404, "text/plain", "File unavailable"); return; }
   if (!downloadAllowed(s->user, bytes, reason)) { r->send(403, "text/plain", reason); return; }
   s->user.downloadBytes += bytes;
   if (s->user.downloads != UINT16_MAX) s->user.downloads++;
@@ -93,10 +104,7 @@ static void downloadFile(AsyncWebServerRequest *r) {
   refreshLiveUser(s->user);
   countDownload(path);
   event("DOWNLOAD", s->user.handle + " " + name);
-  trace("DOWNLOAD", name);
-  AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, "application/octet-stream", true);
-  res->addHeader("Cache-Control", "no-store");
-  r->send(res);
+  sendCardFile(r, path, "application/octet-stream", true);
 }
 // A caller's upload: POST multipart to /upload?n=&q=&u=<ticket>. The ticket is
 // issued after the description is typed and is good for one file. Data goes
@@ -149,28 +157,17 @@ static void uploadDone(AsyncWebServerRequest *r) {
 // it is not counted and works in areas without downloads.
 static void viewImage(AsyncWebServerRequest *r) {
   BbsLock lock;
-  Session *s = requestSession(r); String path, name; size_t bytes = 0;
-  if (!s || !s->authenticated || s->state != FILE_IMAGE || !canUseArea(*s, s->fileArea) ||
-      !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || !imageName(name) || !SD_MMC.exists(path)) {
-    r->send(404, "text/plain", "Picture unavailable"); return;
-  }
+  String path, name; size_t bytes = 0;
+  if (!requestAreaFile(r, FILE_IMAGE, imageName, path, name, bytes)) { r->send(404, "text/plain", "Picture unavailable"); return; }
   String u = up(name);
-  const char *type = u.endsWith(".GIF") ? "image/gif" : u.endsWith(".PNG") ? "image/png" : u.endsWith(".BMP") ? "image/bmp" : "image/jpeg";
-  AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, type, false);
-  res->addHeader("Cache-Control", "no-store");
-  r->send(res);
+  sendCardFile(r, path, u.endsWith(".GIF") ? "image/gif" : u.endsWith(".PNG") ? "image/png" : u.endsWith(".BMP") ? "image/bmp" : "image/jpeg", false);
 }
 // The tune in the browser's music player. Like viewing, not a download.
 static void playMusic(AsyncWebServerRequest *r) {
   BbsLock lock;
-  Session *s = requestSession(r); String path, name; size_t bytes = 0;
-  if (!s || !s->authenticated || s->state != FILE_MUSIC || !canUseArea(*s, s->fileArea) ||
-      !areaFile(*s, requestArg(r, "i").toInt(), path, name, bytes) || !musicName(name) || !SD_MMC.exists(path)) {
-    r->send(404, "text/plain", "Tune unavailable"); return;
-  }
-  AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, "application/octet-stream", false);
-  res->addHeader("Cache-Control", "no-store");
-  r->send(res);
+  String path, name; size_t bytes = 0;
+  if (!requestAreaFile(r, FILE_MUSIC, musicName, path, name, bytes)) { r->send(404, "text/plain", "Tune unavailable"); return; }
+  sendCardFile(r, path, "application/octet-stream", false);
 }
 // The player itself: /player/<file> from /BBS/ASSETS/PLAYER. Plain names only.
 static void playerFile(AsyncWebServerRequest *r) {

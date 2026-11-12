@@ -165,3 +165,9 @@ static bool canJoinConference(const User &u, uint8_t id) {
   const Conference *c = findConference(id);
   return c && canSee(u, c->level, c->flag);
 }
+// More than one area to choose from: only then is "change area" offered.
+static bool severalAreas(const User &u) {
+  uint8_t n = 0;
+  for (const auto &c : board.conferences) if (canJoinConference(u, c.id) && ++n > 1) return true;
+  return false;
+}

@@ -88,7 +88,7 @@ static void indexHistoryFile(const String &path, uint8_t conference, uint16_t fi
   File f = SD_MMC.open(path, FILE_READ);
   if (!f) return;
   const uint32_t first = historyCount;
-  uint8_t buf[2048];
+  static uint8_t buf[2048];  // static: RELOAD can run on the web server's small stack
   size_t len = 0, pos = 0;
   uint32_t base = 0;     // file offset of buf[0]
   String line;

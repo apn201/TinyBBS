@@ -11,10 +11,8 @@ static bool sysopOnline(const Session &s) {
 static void mainMenu(Session &s) {
   s.state = MAIN; activity(s, "MAIN MENU");
   bool files = false, bulletins = false;
-  uint8_t areas = 0;
   for (size_t i = 0; i < fileAreas.size(); ++i) files |= listedArea(s, i);
   for (const auto &b : board.bulletins) bulletins |= canSee(s.user, b.level, b.flag);
-  for (const auto &c : board.conferences) if (canJoinConference(s.user, c.id)) areas++;
   std::vector<MenuItem> items;
   items.push_back({"M", "Message bases"});
   items.push_back({"N", "New scan"});
@@ -23,7 +21,7 @@ static void mainMenu(Session &s) {
   items.push_back({"D", "Doors & games"});
   items.push_back({"C", "Node chat"});
   if (bulletins) items.push_back({"B", "Bulletins"});
-  if (areas > 1) items.push_back({"J", "Conferences"});
+  if (severalAreas(s.user)) items.push_back({"J", "Conferences"});
   items.push_back({"W", "Who is online"});
   if (sysopOnline(s)) items.push_back({"P", "Page SysOp"});
   items.push_back({"U", "User list"});
@@ -126,16 +124,7 @@ static void newSession(Session &s) {
 static void closeSession(Session &s) {
   if (!s.used) return;
   if (playingMud(s)) mudBroadcastRoom(s, s.user.handle + " loses carrier.");
-  if (s.duelNode) {
-    Session *other = sessionByNode(s.duelNode);
-    if (other && other != &s) {
-      other->duelNode = other->duelTurnNode = 0;
-      if (other->state == QUEST_DUEL_OFFER || other->state == QUEST_DUEL_WAIT || other->state == QUEST_DUEL) {
-        say(*other, "\r\nYour arena opponent lost carrier.");
-        questMenu(*other);
-      }
-    }
-  }
+  if (s.duelNode) duelLostCarrier(s);
   trace("SESSION_CLOSE", String("node ") + s.node + " " + (s.user.handle.length() ? s.user.handle : "anonymous"));
   event("LOGOFF", s.user.handle.length() ? s.user.handle : "anonymous");
   if (s.socket) s.socket.stop();

@@ -234,6 +234,16 @@ static void tavernWho(Session &s) {
 static bool duelLocation(const Session &s) {
   return s.state == QUEST_MENU || s.state == QUEST_TAVERN || s.state == QUEST_RESULT || s.state == QUEST_BANK || s.state == QUEST_SHOP;
 }
+// The caller hung up: a waiting or fighting opponent goes back to town.
+static void duelLostCarrier(Session &s) {
+  Session *other = sessionByNode(s.duelNode);
+  if (!other || other == &s) return;
+  other->duelNode = other->duelTurnNode = 0;
+  if (other->state == QUEST_DUEL_OFFER || other->state == QUEST_DUEL_WAIT || other->state == QUEST_DUEL) {
+    say(*other, "\r\nYour arena opponent lost carrier.");
+    questMenu(*other);
+  }
+}
 static void duelCancel(Session &s, const String &reason) {
   Session *other = sessionByNode(s.duelNode);
   if (other && other != &s) {
