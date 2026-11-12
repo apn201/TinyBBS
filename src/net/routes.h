@@ -68,23 +68,108 @@ static Session *webAreaFile(const WebRouteRequest &request, State state, bool (*
   return s;
 }
 
-static bool webFmName(const String &name) { if (!name.length() || name.length() > 120 || name == "." || name == "..") return false; for (size_t i=0;i<name.length();++i) if ((uint8_t)name[i] < 32 || strchr("<>:\"|?*\\/", name[i])) return false; return name[name.length()-1] != ' ' && name[name.length()-1] != '.'; }
-static bool webFmPath(String in, String &out) { in.replace('\\','/'); out=""; int at=0; while(at <= (int)in.length()) { int end=in.indexOf('/',at); if(end<0) end=in.length(); String part=in.substring(at,end); at=end+1; if(!part.length()) continue; if(!webFmName(part)) return false; out += "/" + part; } String upper=out; upper.toUpperCase(); return upper=="/BBS" || upper.startsWith("/BBS/"); }
-static bool webFmUnder(const String &path, const char *root) { String upper=path; upper.toUpperCase(); size_t n=strlen(root); return upper.startsWith(root) && (upper.length()==n || upper[n]=='/'); }
-static bool webFmReadOnly(const String &path) { return webFmUnder(path,"/BBS/DATA") || webFmUnder(path,"/BBS/LOGS"); }
-static bool webFmMkdirs(const String &path) { int at=1; while(true) { int end=path.indexOf('/',at); String part=end<0?path:path.substring(0,end); if(!SD_MMC.exists(part) && !SD_MMC.mkdir(part)) return false; if(end<0) return true; at=end+1; } }
-static String webFmParent(const String &path) { int at=path.lastIndexOf('/'); return at>0?path.substring(0,at):String("/BBS"); }
-static String webFmBase(const String &path) { int at=path.lastIndexOf('/'); return at>=0?path.substring(at+1):path; }
-static bool webFmRemove(const String &path, uint8_t depth=0) { File f=SD_MMC.open(path); if(!f) return false; if(!f.isDirectory()) { f.close(); return SD_MMC.remove(path); } if(depth>8) { f.close(); return false; } std::vector<String> kids; File e; while((e=f.openNextFile())) { kids.push_back(e.path()); e.close(); } f.close(); for(auto &kid:kids) if(!webFmRemove(kid,depth+1)) return false; return SD_MMC.rmdir(path); }
-static bool webFmBegin(const WebRouteRequest &request, String &path, bool write, WebRouteResponse &error) { if(!adminTokenValid(webArg(request,"t"))) { error=webText(403,"text/plain","Link expired. Open the file manager from the SysOp menu again."); return false; } if(!sdReady) { error=webText(503,"text/plain","SD card offline"); return false; } if(!webFmPath(webArg(request,"p"),path)) { error=webText(400,"text/plain","Bad path"); return false; } if(write && webFmReadOnly(path)) { error=webText(403,"text/plain","DATA and LOGS are read-only here"); return false; } return true; }
+static bool webFmName(const String &name) {
+  if (!name.length() || name.length() > 120 || name == "." || name == "..") return false;
+  for (size_t i = 0; i < name.length(); ++i)
+    if ((uint8_t)name[i] < 32 || strchr("<>:\"|?*\\/", name[i])) return false;
+  char last = name[name.length() - 1];
+  return last != ' ' && last != '.';
+}
+static bool webFmPath(String in, String &out) {
+  in.replace('\\', '/'); out = "";
+  int at = 0;
+  while (at <= (int)in.length()) {
+    int end = in.indexOf('/', at); if (end < 0) end = in.length();
+    String part = in.substring(at, end); at = end + 1;
+    if (!part.length()) continue;
+    if (!webFmName(part)) return false;
+    out += "/" + part;
+  }
+  String upper = out; upper.toUpperCase();
+  return upper == "/BBS" || upper.startsWith("/BBS/");
+}
+static bool webFmUnder(const String &path, const char *root) {
+  String upper = path; upper.toUpperCase();
+  size_t n = strlen(root);
+  return upper.startsWith(root) && (upper.length() == n || upper[n] == '/');
+}
+static bool webFmReadOnly(const String &path) { return webFmUnder(path, "/BBS/DATA") || webFmUnder(path, "/BBS/LOGS"); }
+static bool webFmMkdirs(const String &path) {
+  int at = 1;
+  while (true) {
+    int end = path.indexOf('/', at); String part = end < 0 ? path : path.substring(0, end);
+    if (!SD_MMC.exists(part) && !SD_MMC.mkdir(part)) return false;
+    if (end < 0) return true;
+    at = end + 1;
+  }
+}
+static String webFmParent(const String &path) { int at = path.lastIndexOf('/'); return at > 0 ? path.substring(0, at) : String("/BBS"); }
+static String webFmBase(const String &path) { int at = path.lastIndexOf('/'); return at >= 0 ? path.substring(at + 1) : path; }
+static bool webFmRemove(const String &path, uint8_t depth = 0) {
+  File file = SD_MMC.open(path); if (!file) return false;
+  if (!file.isDirectory()) { file.close(); return SD_MMC.remove(path); }
+  if (depth > 8) { file.close(); return false; }
+  std::vector<String> children; File entry;
+  while ((entry = file.openNextFile())) { children.push_back(entry.path()); entry.close(); }
+  file.close();
+  for (auto &child : children) if (!webFmRemove(child, depth + 1)) return false;
+  return SD_MMC.rmdir(path);
+}
+static bool webFmBegin(const WebRouteRequest &request, String &path, bool write, WebRouteResponse &error) {
+  if (!adminTokenValid(webArg(request, "t"))) { error = webText(403, "text/plain", "Link expired. Open the file manager from the SysOp menu again."); return false; }
+  if (!sdReady) { error = webText(503, "text/plain", "SD card offline"); return false; }
+  if (!webFmPath(webArg(request, "p"), path)) { error = webText(400, "text/plain", "Bad path"); return false; }
+  if (write && webFmReadOnly(path)) { error = webText(403, "text/plain", "DATA and LOGS are read-only here"); return false; }
+  return true;
+}
 static WebRouteResponse webSysopRoute(const WebRouteRequest &request) {
-  BbsLock lock; String path; WebRouteResponse error;
-  if (request.path == "/sysop/api/list" && request.method == "GET") { if(!webFmBegin(request,path,false,error)) return error; File dir=SD_MMC.open(path); if(!dir || !dir.isDirectory()) return webText(404,"text/plain","No such folder"); String out=String("{\"path\":\"")+jsonText(path)+"\",\"ro\":"+(webFmReadOnly(path)?"true":"false")+",\"items\":["; bool first=true; File e; while((e=dir.openNextFile())) { if(!first) out+=","; first=false; out += String("{\"n\":\"")+jsonText(webFmBase(e.path()))+"\",\"d\":"+(e.isDirectory()?"1":"0")+",\"s\":"+(unsigned long)e.size()+"}"; e.close(); } dir.close(); out += "]}"; WebRouteResponse r=webText(200,"application/json",out); r.cacheControl="no-store"; return r; }
-  if (request.path == "/sysop/api/get" && request.method == "GET") { if(!webFmBegin(request,path,false,error)) return error; File f=SD_MMC.open(path); if(!f || f.isDirectory()) return webText(404,"text/plain","No such file"); f.close(); return webCardFile(path,"application/octet-stream",webArg(request,"dl")=="1","no-store"); }
-  if (request.path == "/sysop/api/mkdir" && request.method == "POST") { if(!webFmBegin(request,path,true,error)) return error; if(SD_MMC.exists(path)) return webText(409,"text/plain","Already exists"); if(!webFmMkdirs(path)) return webText(500,"text/plain","Could not create folder"); event("SYSOP_FM_MKDIR",path); return webText(200,"text/plain","ok"); }
-  if (request.path == "/sysop/api/rename" && request.method == "POST") { if(!webFmBegin(request,path,true,error)) return error; String to=webArg(request,"to"), target=webFmParent(path)+"/"+to; if(path.equalsIgnoreCase("/BBS") || !webFmName(to)) return webText(400,"text/plain","Bad name"); if(webFmReadOnly(target)) return webText(403,"text/plain","DATA and LOGS are read-only here"); if(!SD_MMC.exists(path)) return webText(404,"text/plain","No such file"); if(SD_MMC.exists(target) && !target.equalsIgnoreCase(path)) return webText(409,"text/plain","That name is taken"); if(!SD_MMC.rename(path,target)) return webText(500,"text/plain","Rename failed"); event("SYSOP_FM_RENAME",path+" -> "+to); return webText(200,"text/plain","ok"); }
-  if (request.path == "/sysop/api/delete" && request.method == "POST") { if(!webFmBegin(request,path,true,error)) return error; if(path.equalsIgnoreCase("/BBS")) return webText(400,"text/plain","Refusing to delete /BBS"); if(!SD_MMC.exists(path)) return webText(404,"text/plain","No such file"); if(!webFmRemove(path)) return webText(500,"text/plain","Delete failed or only partly done"); event("SYSOP_FM_DELETE",path); return webText(200,"text/plain","ok"); }
-  return webText(404,"text/plain","Not found");
+  BbsLock lock;
+  String path;
+  WebRouteResponse error;
+  if (request.path == "/sysop/api/list" && request.method == "GET") {
+    if (!webFmBegin(request, path, false, error)) return error;
+    File directory = SD_MMC.open(path);
+    if (!directory || !directory.isDirectory()) return webText(404, "text/plain", "No such folder");
+    String out = String("{\"path\":\"") + jsonText(path) + "\",\"ro\":" + (webFmReadOnly(path) ? "true" : "false") + ",\"items\":[";
+    bool first = true; File entry;
+    while ((entry = directory.openNextFile())) {
+      if (!first) out += ","; first = false;
+      out += String("{\"n\":\"") + jsonText(webFmBase(entry.path())) + "\",\"d\":" + (entry.isDirectory() ? "1" : "0") + ",\"s\":" + (unsigned long)entry.size() + "}";
+      entry.close();
+    }
+    directory.close(); out += "]}";
+    WebRouteResponse response = webText(200, "application/json", out); response.cacheControl = "no-store"; return response;
+  }
+  if (request.path == "/sysop/api/get" && request.method == "GET") {
+    if (!webFmBegin(request, path, false, error)) return error;
+    File file = SD_MMC.open(path);
+    if (!file || file.isDirectory()) return webText(404, "text/plain", "No such file");
+    file.close(); return webCardFile(path, "application/octet-stream", webArg(request, "dl") == "1", "no-store");
+  }
+  if (request.path == "/sysop/api/mkdir" && request.method == "POST") {
+    if (!webFmBegin(request, path, true, error)) return error;
+    if (SD_MMC.exists(path)) return webText(409, "text/plain", "Already exists");
+    if (!webFmMkdirs(path)) return webText(500, "text/plain", "Could not create folder");
+    event("SYSOP_FM_MKDIR", path); return webText(200, "text/plain", "ok");
+  }
+  if (request.path == "/sysop/api/rename" && request.method == "POST") {
+    if (!webFmBegin(request, path, true, error)) return error;
+    String to = webArg(request, "to"), target = webFmParent(path) + "/" + to;
+    if (path.equalsIgnoreCase("/BBS") || !webFmName(to)) return webText(400, "text/plain", "Bad name");
+    if (webFmReadOnly(target)) return webText(403, "text/plain", "DATA and LOGS are read-only here");
+    if (!SD_MMC.exists(path)) return webText(404, "text/plain", "No such file");
+    if (SD_MMC.exists(target) && !target.equalsIgnoreCase(path)) return webText(409, "text/plain", "That name is taken");
+    if (!SD_MMC.rename(path, target)) return webText(500, "text/plain", "Rename failed");
+    event("SYSOP_FM_RENAME", path + " -> " + to); return webText(200, "text/plain", "ok");
+  }
+  if (request.path == "/sysop/api/delete" && request.method == "POST") {
+    if (!webFmBegin(request, path, true, error)) return error;
+    if (path.equalsIgnoreCase("/BBS")) return webText(400, "text/plain", "Refusing to delete /BBS");
+    if (!SD_MMC.exists(path)) return webText(404, "text/plain", "No such file");
+    if (!webFmRemove(path)) return webText(500, "text/plain", "Delete failed or only partly done");
+    event("SYSOP_FM_DELETE", path); return webText(200, "text/plain", "ok");
+  }
+  return webText(404, "text/plain", "Not found");
 }
 
 static WebRouteResponse webRoute(const WebRouteRequest &request) {
@@ -167,27 +252,94 @@ static WebRouteResponse webRoute(const WebRouteRequest &request) {
   return webText(404, "text/plain", "Not found");
 }
 
-// Multipart adapters pass one completed file here. The state checks and card
-// writes are shared, irrespective of whether the transport streamed chunks.
-static WebRouteResponse webUpload(const WebRouteRequest &request, const String &filename,
-                                  const uint8_t *data, size_t length) {
+// Multipart adapters call begin/chunk/finish as bytes arrive. The file never
+// lives in RAM: this is required for a 2 MB ESP32 browser upload.
+struct WebUpload {
+  File part;
+  String name, error;
+  uint32_t bytes = 0;
+  bool started = false;
+  bool complete = false;
+};
+static void webUploadFail(WebUpload &upload, const char *why) {
+  if (upload.part) { String path = upload.part.path(); upload.part.close(); SD_MMC.remove(path); }
+  if (!upload.error.length()) upload.error = why;
+}
+static void webUploadChunk(const WebRouteRequest &request, WebUpload &upload,
+                           const String &filename, size_t index, const uint8_t *data,
+                           size_t length, bool final) {
   BbsLock lock;
-  Session *s = webRequestSession(request);
+  if (upload.error.length() || upload.complete) return;
+  Session *session = webRequestSession(request);
   String ticket = webArg(request, "u");
-  if (!s || !s->authenticated || s->state != FILE_UPLOAD_WAIT || !ticket.length() || ticket != s->uploadTicket)
-    return webText(400, "text/plain", "Upload not expected");
-  String name = uploadName(filename);
-  if (!name.length() || hiddenEntry(name)) return webText(400, "text/plain", "Bad file name");
-  if (!length) return webText(400, "text/plain", "Empty file");
-  if (length > board.uploadMax) return webText(400, "text/plain", "File too large");
-  SD_MMC.mkdir("/BBS/UPLOADS"); SD_MMC.mkdir(UPLOAD_DIR);
-  String part = String(UPLOAD_DIR) + "/" + s->node + ".part";
-  SD_MMC.remove(part);
-  File file = SD_MMC.open(part, FILE_WRITE);
-  if (!file) return webText(500, "text/plain", "Could not open file");
-  bool wrote = file.write(data, length) == length; file.close();
-  if (!wrote) { SD_MMC.remove(part); return webText(500, "text/plain", "Write failed, card full?"); }
-  write(*s, "\x1b]9;UP;close\x07");
-  uploadArrived(*s, part, name, length);
-  return webText(200, "text/plain", "ok");
+  if (!session || !session->authenticated || session->state != FILE_UPLOAD_WAIT ||
+      !ticket.length() || ticket != session->uploadTicket) return webUploadFail(upload, "Upload not expected");
+  if (!upload.started) {
+    upload.started = true;
+    upload.name = uploadName(filename);
+    if (!upload.name.length() || hiddenEntry(upload.name)) return webUploadFail(upload, "Bad file name");
+    if (request.contentLength > board.uploadMax + 4096) return webUploadFail(upload, "File too large");
+    SD_MMC.mkdir("/BBS/UPLOADS"); SD_MMC.mkdir(UPLOAD_DIR);
+    String path = String(UPLOAD_DIR) + "/" + session->node + ".part";
+    SD_MMC.remove(path); upload.part = SD_MMC.open(path, FILE_WRITE);
+    if (!upload.part) return webUploadFail(upload, "Could not open file");
+  }
+  if (!upload.part || index != upload.bytes || index + length > board.uploadMax) return webUploadFail(upload, "File too large");
+  if (length && upload.part.write(data, length) != length) return webUploadFail(upload, "Write failed, card full?");
+  upload.bytes += length;
+  if (!final) return;
+  String path = upload.part.path(); upload.part.close();
+  if (!upload.bytes) return webUploadFail(upload, "Empty file");
+  write(*session, "\x1b]9;UP;close\x07");
+  uploadArrived(*session, path, upload.name, upload.bytes);
+  upload.complete = true;
+}
+static WebRouteResponse webUploadFinish(WebUpload &upload) {
+  if (upload.part) { String path = upload.part.path(); upload.part.close(); SD_MMC.remove(path); }
+  return upload.error.length() ? webText(400, "text/plain", upload.error) :
+      upload.complete ? webText(200, "text/plain", "ok") : webText(400, "text/plain", "Upload incomplete");
+}
+
+struct WebSysopUpload {
+  File part;
+  String error;
+  uint32_t bytes = 0;
+  bool started = false;
+  bool complete = false;
+};
+static void webSysopUploadFail(WebSysopUpload &upload, const char *why) {
+  if (upload.part) { String path = upload.part.path(); upload.part.close(); SD_MMC.remove(path); }
+  if (!upload.error.length()) upload.error = why;
+}
+static void webSysopUploadChunk(const WebRouteRequest &request, WebSysopUpload &upload,
+                                String filename, size_t index, const uint8_t *data,
+                                size_t length, bool final) {
+  BbsLock lock;
+  if (upload.error.length() || upload.complete) return;
+  int slash = max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
+  if (slash >= 0) filename = filename.substring(slash + 1);
+  if (!upload.started) {
+    upload.started = true;
+    String directory; WebRouteResponse error;
+    if (!webFmBegin(request, directory, true, error)) return webSysopUploadFail(upload, error.text.c_str());
+    if (!webFmName(filename)) return webSysopUploadFail(upload, "Bad target");
+    if (!webFmMkdirs(directory)) return webSysopUploadFail(upload, "Could not create folder");
+    String path = directory + "/" + filename + ".part";
+    SD_MMC.remove(path); upload.part = SD_MMC.open(path, FILE_WRITE);
+    if (!upload.part) return webSysopUploadFail(upload, "Could not open file");
+  }
+  if (!upload.part) return;
+  if (length && upload.part.write(data, length) != length) return webSysopUploadFail(upload, "Write failed, card full?");
+  upload.bytes += length;
+  if (!final) return;
+  String part = upload.part.path(); upload.part.close();
+  String target = part.substring(0, part.length() - 5);
+  if (SD_MMC.exists(target)) SD_MMC.remove(target);
+  if (!SD_MMC.rename(part, target)) { SD_MMC.remove(part); return webSysopUploadFail(upload, "Could not finish file"); }
+  event("SYSOP_FM_UPLOAD", target); upload.complete = true;
+}
+static WebRouteResponse webSysopUploadFinish(WebSysopUpload &upload) {
+  if (upload.part) { String path = upload.part.path(); upload.part.close(); SD_MMC.remove(path); }
+  return upload.error.length() ? webText(400, "text/plain", upload.error) :
+      upload.complete ? webText(200, "text/plain", "ok") : webText(400, "text/plain", "Upload incomplete");
 }

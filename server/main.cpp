@@ -22,11 +22,12 @@ void requestStop(int) { stopRequested = 1; }
 struct Options {
   std::string root = "/srv/tinybbs";
   std::string http = "127.0.0.1:8080";
+  std::string web = "/srv/tinybbs/src/shared/web";
   std::string telnet;
 };
 
 void usage(const char *program) {
-  std::printf("Usage: %s [--root <folder-containing-BBS>] [--http <address:port>] [--telnet <address:port>]\n", program);
+  std::printf("Usage: %s [--root <folder-containing-BBS>] [--web <shared-web-folder>] [--http <address:port>] [--telnet <address:port>]\n", program);
 }
 
 bool endpointIsValid(const std::string &endpoint) {
@@ -46,9 +47,10 @@ bool parseOptions(int argc, char **argv, Options &options, bool &showHelp) {
   for (int at = 1; at < argc; ++at) {
     const std::string argument = argv[at];
     if (argument == "--help" || argument == "-h") { usage(argv[0]); showHelp = true; return false; }
-    if ((argument == "--root" || argument == "--http" || argument == "--telnet") && at + 1 < argc) {
+    if ((argument == "--root" || argument == "--web" || argument == "--http" || argument == "--telnet") && at + 1 < argc) {
       std::string value = argv[++at];
       if (argument == "--root") options.root = std::move(value);
+      else if (argument == "--web") options.web = std::move(value);
       else if (argument == "--http") options.http = std::move(value);
       else options.telnet = std::move(value);
       continue;
@@ -75,6 +77,11 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "TinyBBS needs a folder containing BBS/: %s\n", options.root.c_str());
     return 1;
   }
+  std::error_code webError;
+  if (!std::filesystem::is_directory(options.web, webError)) {
+    std::fprintf(stderr, "TinyBBS needs a shared/web folder: %s\n", options.web.c_str());
+    return 1;
+  }
   sdReady = SD_MMC.begin();
   const String settings = bbsBegin();
   if (!sdReady) {
@@ -87,7 +94,7 @@ int main(int argc, char **argv) {
   if (!clockSyncSystem)
     trace("CLOCK_HINT", "set clock_sync=system in BBS/CONFIG/SYSTEM.INI for host time");
 
-  ServerTransports transports({options.http, options.telnet});
+  ServerTransports transports({options.http, options.web, options.telnet});
   if (!transports.start()) {
     std::fprintf(stderr, "TinyBBS could not start configured transports\n");
     return 1;

@@ -4,7 +4,7 @@
 class ServerHttp {
  public:
   struct Impl;
-  bool start(const std::string &endpoint);
+  bool start(const std::string &endpoint, const std::string &webRoot);
   void stop();
   void tickWebSocket();
  private:

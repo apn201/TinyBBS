@@ -8,7 +8,7 @@
 #include "net/http.h"
 
 struct ServerTransportOptions {
-  std::string http;
+  std::string http, web;
   std::string telnet;
 };
 
@@ -17,7 +17,7 @@ class ServerTransports {
   explicit ServerTransports(ServerTransportOptions options) : options_(std::move(options)) {}
 
   bool start() {
-    if (!http_.start(options_.http)) return false;
+    if (!http_.start(options_.http, options_.web)) return false;
     trace("HTTP_READY", options_.http.c_str());
     if (options_.telnet.empty()) trace("TELNET_OFF", "not configured");
     else {

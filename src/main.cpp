@@ -15,9 +15,9 @@ static const int SD_CLK = 17, SD_CMD = 18, SD_D0 = 16, UI_BOOT_PIN = 0;
 DNSServer dns;
 #include "hw/scene_logo.h"
 #include "net/web_terminal.h"
-#include "net/web.h"
 #include "net/sysop_page.h"
-#include "net/sysop_web.h"
+#include "net/routes.h"
+#include "net/esp_web.h"
 #include "net/telnet.h"
 #include "hw/lcd.h"
 
@@ -41,7 +41,6 @@ void setup() {
   if (password.length() && password.length() < 8) trace("AP_OPEN", "WiFi passwords need 8+ characters; starting an open network");
   dns.start(53, "*", WiFi.softAPIP());
   startWeb();
-  startSysopWeb();
   telnet.begin(telnetPort); event("BOOT", "TinyBBS started"); trace("NETWORK_READY", WiFi.softAPIP().toString());
 }
 void loop() {

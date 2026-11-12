@@ -35,7 +35,6 @@ target_include_directories(tinybbs-server PRIVATE
   ${MBEDTLS_INCLUDE_DIR}
   ${CIVETWEB_INCLUDE_DIR}
 )
-target_compile_definitions(tinybbs-server PRIVATE TINYBBS_WEB_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/../shared/web")
 target_link_libraries(tinybbs-server PRIVATE tinybbs-miniz ${MBEDCRYPTO_LIBRARY} ${CIVETWEB_LIBRARY})
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(tinybbs-server PRIVATE pthread)

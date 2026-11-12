@@ -1,4 +1,4 @@
-# TinyBBS server — phases 1–2
+# TinyBBS server — phases 1–4
 
 Phase 1 supplies Linux implementations of the Arduino-shaped platform API so
 the shared `src/bbs_core.h` can run unchanged. Phase 2 adds `tinybbs-server`:
@@ -40,7 +40,8 @@ storage setup and clock persistence:
   --http 127.0.0.1:8080 --telnet 0.0.0.0:2323
 ```
 
-`--root` defaults to `/srv/tinybbs`; `--http` defaults to `127.0.0.1:8080`;
+`--root` defaults to `/srv/tinybbs`; `--web` defaults to
+`/srv/tinybbs/src/shared/web`; `--http` defaults to `127.0.0.1:8080`;
 leaving out `--telnet` disables it; when supplied, it opens that exact IPv4
 address and port. The process serves the same terminal and
 SysOp pages from `shared/web/`, including polling, WebSocket, files, media and

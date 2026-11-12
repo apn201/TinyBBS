@@ -28,7 +28,7 @@ anything included before it.
 | `src/core` | Globals, helpers, SD storage (`putRecord` for safe record rewrites), INI lookup, clock, users, message store, card message history, sessions, output pacing, the reader |
 | `src/bbs` | Settings, menus, file areas (`files.h`), ZIP reading (`zip.h`), viewers (`viewers.h`), uploads, messages, SysOp tools, and one `cmd_*.h` per command area |
 | `src/doors` | One header per door plus `doors.h`, the door table |
-| `src/net` | HTTP routes, SysOp file manager, Telnet (ESP32 transports); generated page headers |
+| `src/net` | Shared HTTP route logic (`routes.h`), ESP32 HTTP/WebSocket binding (`esp_web.h`), SysOp file manager, Telnet; generated page headers |
 | `src/platform` | `platform.h`, the contract between the core and the machine; `esp32.h` |
 | `src/hw` | LCD and splash logo |
 
@@ -104,3 +104,6 @@ must pass. Server transports and deployment are later phases in
 The server's POSIX socket look-alikes live only in
 `server/platform/tinybbs_platform.h`; `src/net/telnet.h` remains shared with
 the ESP32. Test Telnet against a disposable server card copy before merging.
+`src/net/routes.h` is also shared: keep route decisions and streamed upload
+state there, with `esp_web.h` and `server/net/http.cpp` only adapting their
+web-server APIs.

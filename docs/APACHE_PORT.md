@@ -190,7 +190,9 @@ Check: CI is green, and the same transcripts pass on the stick.
 ### Phase 6: deployment (`server/deploy/`)
 
 - `tinybbs.service` (systemd): runs `tinybbs-server --root /srv/tinybbs
-  --http 127.0.0.1:8080`, as its own user, restart on failure.
+  --web /srv/tinybbs/src/shared/web --http 127.0.0.1:8080`, as its own user,
+  restart on failure. `--web` may point at another checked-out copy of the
+  shared pages when the source tree lives elsewhere.
 - `apache-tinybbs.conf`: a virtual host with TLS, `ProxyPass /ws
   ws://127.0.0.1:8080/ws`, `ProxyPass / http://127.0.0.1:8080/`, the matching
   `ProxyPassReverse`, and no caching of `/api/*`. Needs `mod_proxy`,
