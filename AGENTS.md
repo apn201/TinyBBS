@@ -100,3 +100,7 @@ create runtime files; the server process does too. For a change in `src/core`, `
 `src/platform`, both the PlatformIO build and the applicable server build
 must pass. Server transports and deployment are later phases in
 `docs/APACHE_PORT.md`; do not add Linux headers to the shared core.
+
+The server's POSIX socket look-alikes live only in
+`server/platform/tinybbs_platform.h`; `src/net/telnet.h` remains shared with
+the ESP32. Test Telnet against a disposable server card copy before merging.

@@ -7,6 +7,7 @@
 // this same translation unit so routes operate on this process's sessions,
 // settings and mounted card rather than private copies of those globals.
 #include "net/http.cpp"
+#include "net/telnet.h"
 #include "net/transport_loop.h"
 
 #include <csignal>
@@ -88,7 +89,7 @@ int main(int argc, char **argv) {
 
   ServerTransports transports({options.http, options.telnet});
   if (!transports.start()) {
-    std::fprintf(stderr, "TinyBBS could not bind HTTP at %s\n", options.http.c_str());
+    std::fprintf(stderr, "TinyBBS could not start configured transports\n");
     return 1;
   }
   event("BOOT", "TinyBBS server started");

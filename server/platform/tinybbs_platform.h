@@ -31,7 +31,14 @@
 
 #include <mbedtls/sha256.h>
 #if defined(__linux__)
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/ioctl.h>
 #include <sys/random.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #endif
 
 using std::max;
@@ -232,16 +239,116 @@ struct PlatformMutex {
   void unlock() { mutex.unlock(); }
 };
 
-// Phase 4 replaces this inert socket with the POSIX non-blocking client.
 class NetClient {
  public:
-  explicit operator bool() const { return false; }
-  bool connected() const { return false; }
-  int available() const { return 0; }
-  int read() { return -1; }
-  size_t write(const uint8_t *, size_t size) { return size; }
-  size_t print(const String &text) { return text.length(); }
-  void stop() {}
+  NetClient() = default;
+#if defined(__linux__)
+  explicit NetClient(int descriptor) : state_(std::make_shared<State>()) { state_->descriptor = descriptor; }
+#endif
+  explicit operator bool() const {
+#if defined(__linux__)
+    return state_ && state_->descriptor >= 0;
+#else
+    return false;
+#endif
+  }
+  bool connected() const {
+#if defined(__linux__)
+    if (!state_ || state_->descriptor < 0) return false;
+    char byte;
+    int result = recv(state_->descriptor, &byte, 1, MSG_PEEK | MSG_DONTWAIT);
+    if (result == 0 || (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) { const_cast<NetClient *>(this)->stop(); return false; }
+    return true;
+#else
+    return false;
+#endif
+  }
+  int available() const {
+#if defined(__linux__)
+    if (!state_ || state_->descriptor < 0) return 0;
+    int bytes = 0; return ioctl(state_->descriptor, FIONREAD, &bytes) == 0 ? bytes : 0;
+#else
+    return 0;
+#endif
+  }
+  int read() {
+#if defined(__linux__)
+    if (!state_ || state_->descriptor < 0) return -1;
+    uint8_t byte; int result = recv(state_->descriptor, &byte, 1, MSG_DONTWAIT);
+    if (result == 1) return byte;
+    if (result == 0 || (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) stop();
+#endif
+    return -1;
+  }
+  size_t write(const uint8_t *data, size_t size) {
+#if defined(__linux__)
+    if (!state_ || state_->descriptor < 0 || !data) return 0;
+    size_t sent = 0;
+    while (sent < size) {
+      ssize_t result = send(state_->descriptor, data + sent, size - sent, MSG_DONTWAIT | MSG_NOSIGNAL);
+      if (result > 0) { sent += (size_t)result; continue; }
+      if (result < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
+      stop(); break;
+    }
+    return sent;
+#else
+    return size;
+#endif
+  }
+  size_t print(const String &text) { return write(reinterpret_cast<const uint8_t *>(text.c_str()), text.length()); }
+  void stop() {
+#if defined(__linux__)
+    if (state_ && state_->descriptor >= 0) { shutdown(state_->descriptor, SHUT_RDWR); close(state_->descriptor); state_->descriptor = -1; }
+#endif
+  }
+ private:
+#if defined(__linux__)
+  struct State { int descriptor = -1; };
+  std::shared_ptr<State> state_;
+#endif
+};
+using WiFiClient = NetClient;
+
+class WiFiServer {
+ public:
+  explicit WiFiServer(uint16_t port) : port_(port) {}
+  void setBindAddress(const std::string &address) { address_ = address; }
+  bool begin(uint16_t port = 0) {
+#if defined(__linux__)
+    if (port) port_ = port;
+    end();
+    sockaddr_in address{}; address.sin_family = AF_INET; address.sin_port = htons(port_);
+    if (inet_pton(AF_INET, address_.c_str(), &address.sin_addr) != 1) return false;
+    descriptor_ = socket(AF_INET, SOCK_STREAM, 0); if (descriptor_ < 0) return false;
+    int yes = 1; setsockopt(descriptor_, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+    if (bind(descriptor_, reinterpret_cast<sockaddr *>(&address), sizeof(address)) || listen(descriptor_, 16)) { end(); return false; }
+    int flags = fcntl(descriptor_, F_GETFL, 0); if (flags >= 0) fcntl(descriptor_, F_SETFL, flags | O_NONBLOCK);
+    return true;
+#else
+    return false;
+#endif
+  }
+  WiFiClient accept() {
+#if defined(__linux__)
+    if (descriptor_ < 0) return WiFiClient();
+    int client = ::accept(descriptor_, nullptr, nullptr); if (client < 0) return WiFiClient();
+    int flags = fcntl(client, F_GETFL, 0); if (flags >= 0) fcntl(client, F_SETFL, flags | O_NONBLOCK);
+    return WiFiClient(client);
+#else
+    return WiFiClient();
+#endif
+  }
+  void end() {
+#if defined(__linux__)
+    if (descriptor_ >= 0) { close(descriptor_); descriptor_ = -1; }
+#endif
+  }
+ private:
+  uint16_t port_;
+  std::string address_ = "0.0.0.0";
+#if defined(__linux__)
+  int descriptor_ = -1;
+#endif
 };
 
 constexpr uint8_t FILE_READ = 0;

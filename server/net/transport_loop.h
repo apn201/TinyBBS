@@ -20,16 +20,23 @@ class ServerTransports {
     if (!http_.start(options_.http)) return false;
     trace("HTTP_READY", options_.http.c_str());
     if (options_.telnet.empty()) trace("TELNET_OFF", "not configured");
-    else trace("TELNET_PENDING", String(options_.telnet.c_str()) + " (binding in phase 4)");
+    else {
+      const size_t colon = options_.telnet.rfind(':');
+      const std::string host = options_.telnet.substr(0, colon);
+      const uint16_t port = static_cast<uint16_t>(std::stoul(options_.telnet.substr(colon + 1)));
+      telnet.setBindAddress(host);
+      if (!telnet.begin(port)) { http_.stop(); return false; }
+      trace("TELNET_READY", options_.telnet.c_str());
+    }
     return true;
   }
 
   // Called while BbsLock is held. Future transports put only queued socket
   // events here, just as the ESP32 WebSocket handler does; they never mutate
   // sessions or card state in a socket callback.
-  void tickLocked() {}
+  void tickLocked() { if (!options_.telnet.empty()) tickTelnet(); }
   void tickWebSocket() { http_.tickWebSocket(); }
-  void stop() { http_.stop(); }
+  void stop() { if (!options_.telnet.empty()) telnet.end(); http_.stop(); }
 
  private:
   ServerTransportOptions options_;

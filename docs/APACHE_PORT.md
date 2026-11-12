@@ -168,6 +168,7 @@ have changed there.
 `src/net/telnet.h` uses `WiFiServer` and `NetClient`. Provide both in
 `server/platform` on POSIX sockets (non-blocking `accept`, `available`,
 `read`, `write`, `connected`, `stop`), and compile the same `telnet.h`.
+`--telnet` is the explicit listener address; omitting it leaves Telnet off.
 
 Check: `telnet localhost 2323` gets the login screen, and a Telnet caller
 and a browser caller see each other in WHO.
