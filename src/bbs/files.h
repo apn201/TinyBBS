@@ -111,6 +111,8 @@ static String loadFileAreas() {
     a.files = countFiles(String(FILES_ROOT) + "/" + folder);
     fileAreas.push_back(a);
   }
+  // Areas behind a flag (the back room) always come last in the file menu.
+  std::stable_sort(fileAreas.begin(), fileAreas.end(), [](const FileArea &x, const FileArea &y) { return !x.flag.length() && y.flag.length(); });
   return String(fileAreas.size()) + " file areas";
 }
 static bool canUseArea(const Session &s, uint8_t area) {
@@ -550,17 +552,31 @@ static void imageKey(Session &s, const String &bytes) {
 // ---------- the music player (browser only) ---------------------------------------------
 // Tracker modules play in the browser with libopenmpt from /BBS/ASSETS/PLAYER.
 // Like the image viewer: the board names the tune, keys come back to it.
+static bool sidName(const String &name) { return up(name).endsWith(".SID"); }
 static bool musicName(const String &name) {
   String u = up(name);
-  return u.endsWith(".MOD") || u.endsWith(".S3M") || u.endsWith(".XM") || u.endsWith(".IT");
+  return u.endsWith(".MOD") || u.endsWith(".S3M") || u.endsWith(".XM") || u.endsWith(".IT") || sidName(name);
 }
-static bool playerReady() { return sdReady && SD_MMC.exists("/BBS/ASSETS/PLAYER/player.js") && SD_MMC.exists("/BBS/ASSETS/PLAYER/libopenmpt.wasm"); }
+// The player for this kind of tune is on the card: libopenmpt, or jsSID for SIDs.
+static bool playerReady(const String &name) {
+  if (!sdReady || !SD_MMC.exists("/BBS/ASSETS/PLAYER/player.js")) return false;
+  return SD_MMC.exists(sidName(name) ? "/BBS/ASSETS/PLAYER/jssid.sidplayer.js" : "/BBS/ASSETS/PLAYER/libopenmpt.wasm");
+}
 static bool openMusic(Session &s, uint16_t number, const String &name, size_t bytes) {
-  if (!s.web || !playerReady()) return false;
+  if (!s.web || !playerReady(name)) return false;
   s.viewer.number = number; s.viewer.name = name; s.viewer.ansi = false;
   s.state = FILE_MUSIC;
   activity(s, "LISTENING " + clean(name, 30));
-  write(s, "\x1b]9;MOD;/music?n=" + String(s.node) + "&q=" + s.token + "&i=" + number + ";" + clean(name, 40) + ";" + sizeShort(bytes) + "\x07");
+  // The player shows the file's description too: from FILES.BBS or DESCRIPT.ION.
+  std::vector<std::pair<String, String>> want{{name, ""}};
+  folderDescriptions(areaDir(s), want);
+  String desc;
+  for (size_t i = 0; i < want[0].second.length() && desc.length() < 120; ++i) {
+    char c = want[0].second[i];
+    desc += c == ';' ? ',' : ((uint8_t)c < 32 || c == 7) ? ' ' : c;
+  }
+  desc.trim();
+  write(s, "\x1b]9;MOD;/music?n=" + String(s.node) + "&q=" + s.token + "&i=" + number + ";" + clean(name, 40) + ";" + sizeShort(bytes) + ";" + desc + "\x07");
   return true;
 }
 static void musicKey(Session &s, const String &bytes) {
@@ -584,7 +600,7 @@ static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   if (zipName(name)) return openZipList(s, number, path, name, bytes, quiet);
   if (musicName(name)) {
     if (openMusic(s, number, name, bytes)) return true;
-    if (!quiet) prompt(s, s.web ? "The music player is not on the card. File command? " : "Music plays in the browser terminal. File command? ");
+    if (!quiet) prompt(s, s.web ? "The player for this tune is not on the card. File command? " : "Music plays in the browser terminal. File command? ");
     return false;
   }
   if (imageName(name)) {

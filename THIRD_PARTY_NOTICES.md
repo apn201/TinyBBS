@@ -74,3 +74,24 @@ from The Mod Archive, https://modarchive.org/ . Its upload terms (v2.2,
 section 1.2) let anyone redistribute a module that "has stayed in its
 original, unmodified, unbundled form". The modules are copied byte for byte,
 one file each, and each one's Mod Archive number is in the area's FILES.BBS.
+
+## jsSID
+
+SID tunes play with jsSID by Joe Hohertz (https://github.com/jhohertz/jsSID,
+branch `develop`), with its reSID engine. The files `stream.js`,
+`jssid.core.js`, `jssid.resid.js`, `jssid.mos6510.js` and `jssid.sidplayer.js`
+ship unmodified in `/BBS/ASSETS/PLAYER`, as their own separate files. jsSID is
+licensed under the GPL version 2; `stream.js` is MIT. The full licence text
+is `/BBS/ASSETS/PLAYER/LICENSES/jsSID.LICENSE.md`, and the files on the card
+are the source. They are not part of the TinyBBS firmware, which stays MIT:
+`player.js` only loads them in the browser next to it. jsSID's own audio
+layer (pico.js) is not shipped; `player.js` feeds the browser itself.
+
+## SID tunes
+
+The C64 SID Music area (`tools/fetch-sids.py`) holds tunes from the High
+Voltage SID Collection, https://hvsc.c64.org/ . HVSC collects tunes released
+into the public domain, under "the same principles of free and unrestricted
+distribution as public domain software" (HVSC FAQ). Each file is copied byte
+for byte; its HVSC path is in the area's FILES.BBS.
+

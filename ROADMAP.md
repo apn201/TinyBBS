@@ -405,9 +405,10 @@ on top.
 MOD, S3M, XM and IT built: libopenmpt 0.8.10 (WebAssembly, BSD) and
 `player.js` in `/BBS/ASSETS/PLAYER`, played with a ScriptProcessorNode because
 plain-HTTP pages may not use AudioWorklet. Fifty Mod Archive modules in
-`015_MUSIC` from `tools/fetch-modules.py`. SID is still open: the HVSC
-tunes may be redistributed freely, but a browser SID player still has to be
-picked.
+`015_MUSIC` from `tools/fetch-modules.py`. SID built with jsSID (GPL v2,
+reSID engine) as separate files next to it; 30 PSID tunes from the HVSC in
+`016_SID_MUSIC` from `tools/fetch-sids.py`. The player shows the file's
+description. Areas behind a flag sort last in the file menu.
 
 In reality you downloaded a MOD file from the board and played it on your PC.
 Here the browser plays it directly, which is a shortcut, but the point is to

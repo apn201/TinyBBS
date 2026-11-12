@@ -60,6 +60,9 @@ board at the same time and see each other in WHO and chat.
 - Tracker music (MOD, S3M, XM, IT) plays with `V` in the browser: a
   tracker-style screen with the live pattern and channel meters, played by
   libopenmpt from the card. Fifty modules from The Mod Archive to start with.
+- C64 SID tunes play the same way with jsSID, on a C64-style screen with the
+  three voices live. Thirty HVSC classics to start with. The player shows each
+  tune's description.
 - Pictures (GIF, JPG, PNG, BMP) open with `V` in a full-screen image viewer
   in the browser; `N`/`P` step through the folder.
 - Uploads from the browser to areas that allow them, into a queue the SysOp

@@ -162,9 +162,9 @@ function armUpload(href,max){
 let playerLoad=null;
 const playerOpen=()=>!!(window.TinyPlayer&&window.TinyPlayer.isOpen());
 function closePlayer(){if(window.TinyPlayer)window.TinyPlayer.close();}
-function playTune(href,name,size){
+function playTune(href,name,size,desc){
   if(!playerLoad)playerLoad=new Promise((ok,fail)=>{const s=document.createElement('script');s.src='/player/player.js';s.onload=ok;s.onerror=()=>{playerLoad=null;fail();};document.head.appendChild(s);});
-  playerLoad.then(()=>{window.TinyPlayer.open(href,name,size,streamKey);focusTerminal();}).catch(()=>{});
+  playerLoad.then(()=>{window.TinyPlayer.open(href,name,size,streamKey,desc);focusTerminal();}).catch(()=>{});
 }
 document.addEventListener('click',()=>{if(playerOpen())focusTerminal();});
 function downloadLink(message){
@@ -175,7 +175,7 @@ function downloadLink(message){
     try{
       const url=new URL(parts[0],location.href);
       if(url.origin!==location.origin||url.pathname!=='/music')return;
-      playTune(url.href,parts[1]||'',parts[2]||'');
+      playTune(url.href,parts[1]||'',parts[2]||'',parts.slice(3).join(';'));
     }catch{}
     return;
   }
@@ -473,6 +473,7 @@ const PAGER_KEYS={ArrowUp:'\x1b[A',ArrowDown:'\x1b[B',PageUp:'\x1b[5~',PageDown:
 capture.addEventListener('keydown',e=>{
   if((!viewer.hidden||playerOpen())&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){e.preventDefault();streamKey(e.key==='ArrowRight'?'n':'p');return;}
   if(playerOpen()&&e.key===' '){e.preventDefault();window.TinyPlayer.togglePause();return;}
+  if(playerOpen()&&(e.key==='ArrowUp'||e.key==='ArrowDown')&&window.TinyPlayer.subsong(e.key==='ArrowUp'?1:-1)){e.preventDefault();return;}
   if(streamOn===2&&!e.isComposing){
     const k=PAGER_KEYS[e.key]||(e.key.length===1&&!e.ctrlKey&&!e.metaKey?e.key:null);
     if(k){e.preventDefault();streamKey(k);}

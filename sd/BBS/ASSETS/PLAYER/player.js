@@ -1,21 +1,38 @@
-// TinyBBS music player: tracker modules (MOD, S3M, XM, IT) with libopenmpt.
+// TinyBBS music player: tracker modules (MOD, S3M, XM, IT) with libopenmpt,
+// Commodore 64 SID tunes with jsSID (reSID engine).
 // Served by the board from /BBS/ASSETS/PLAYER and loaded by the terminal page
 // the first time a caller plays a tune. Nothing comes from the Internet.
 //
 // Plain HTTP pages may not use AudioWorklet, so this renders with a
 // ScriptProcessorNode, which every browser still supports.
 //
-// window.TinyPlayer.open(url, name, size, sendKey)  play a tune
+// window.TinyPlayer.open(url, name, size, sendKey, description)  play a tune
 // window.TinyPlayer.close()                          stop and hide
 // window.TinyPlayer.isOpen()                         shown?
 // window.TinyPlayer.togglePause()
+// window.TinyPlayer.subsong(step)                    SID: next or previous song
 (function () {
   'use strict';
   const BASE = '/player/';
-  let lib = null, loading = null;
+  let lib = null, loading = null, sidLoading = null;
   let ctx = null, node = null, mod = 0, bufL = 0, bufR = 0, paused = false, ended = false;
-  let sendKey = () => {}, raf = 0, title = '', file = '', size = '', meta = {};
+  let sendKey = () => {}, raf = 0, title = '', file = '', size = '', desc = '', meta = {};
+  let sid = null;  // jsSID.SIDPlayer while a SID plays
   let root = null, screen = null, bar = null, tap = null;
+
+  // jsSID's scripts, in order. Its player expects pico.js for audio; this
+  // player does the audio itself, so pico is only a stand-in.
+  function loadSid() {
+    if (sidLoading) return sidLoading;
+    const files = ['stream.js', 'jssid.core.js', 'jssid.resid.js', 'jssid.mos6510.js', 'jssid.sidplayer.js'];
+    sidLoading = files.reduce((p, f) => p.then(() => new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = BASE + f; s.onload = ok;
+      s.onerror = () => { sidLoading = null; fail(new Error('The SID player is not on the card.')); };
+      document.head.appendChild(s);
+    })), Promise.resolve());
+    return sidLoading;
+  }
 
   function loadLibrary() {
     if (loading) return loading;
@@ -61,16 +78,25 @@
     });
   }
   function hint(text) {
-    bar.textContent = ' ' + (text || (file + '  ' + size + '    N next  P prev  SPACE ' + (paused ? 'play ' : 'pause') + '  ESC back'));
+    bar.textContent = ' ' + (text || (file + '  ' + size + '    N next  P prev  ' + (sid && sid.getTracks() > 0 ? '↑↓ song  ' : '') +
+      'SPACE ' + (paused ? 'play ' : 'pause') + '  ESC back'));
   }
 
   function stopTune() {
     if (node) { node.disconnect(); node.onaudioprocess = null; node = null; }
     if (lib && mod) { lib._openmpt_module_destroy(mod); mod = 0; }
+    sid = null;
     cancelAnimationFrame(raf);
   }
   function render(e) {
     const L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1);
+    if (sid) {
+      if (paused || !sid.ready) { L.fill(0); R.fill(0); return; }
+      const n = sid.generateIntoBuffer(L.length, L, 0);
+      if (n < L.length) L.fill(0, n);
+      R.set(L);
+      return;
+    }
     if (!mod || paused || ended) { L.fill(0); R.fill(0); return; }
     const frames = L.length;
     const got = lib._openmpt_module_read_float_stereo(mod, ctx.sampleRate, frames, bufL, bufR);
@@ -82,8 +108,43 @@
 
   const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const clock = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+  // The SID screen: the tune's header and the three voices as the chip has them.
+  const NOTES = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-'];
+  function sidNote(freqReg) {
+    if (!freqReg) return '---';
+    const hz = freqReg * 985248 / 16777216;  // PAL clock
+    const n = Math.round(12 * Math.log2(hz / 16.3516));
+    return n < 0 || n > 95 ? '???' : NOTES[n % 12] + Math.floor(n / 12);
+  }
+  function drawSid() {
+    const f = sid.getSidFile(), mem = { length: 0 };
+    for (let i = 0; i < 25; i++) mem[0xd400 + i] = sidRegs[i];
+    const clean = s => (s || '').replace(/\0.*$/s, '').trim();
+    const lines = [];
+    lines.push('<span class="hd">    **** COMMODORE 64 SID PLAYER ****</span>');
+    lines.push('');
+    lines.push(' NAME     ' + esc(clean(f.name)));
+    lines.push(' AUTHOR   ' + esc(clean(f.author)));
+    lines.push(' RELEASED ' + esc(clean(f.published)));
+    if (desc) lines.push(' <span class="dim">' + esc(desc.slice(0, 70)) + '</span>');
+    lines.push(' SONG     ' + (f.currentsong + 1) + ' / ' + (f.subsongs + 1) + (paused ? '   <span class="pk">PAUSED</span>' : ''));
+    lines.push('');
+    lines.push('<span class="dim"> VOICE  NOTE  WAVE   PULSE  GATE</span>');
+    const waves = w => ['', 'TRI', 'SAW', 'T+S', 'PUL', 'T+P', 'S+P', 'TSP', 'NOI'][w & 8 ? 8 : (w >> 4) & 7] || '---';
+    for (let v = 0; v < 3; v++) {
+      const b = 0xd400 + v * 7, ctl = mem[b + 4] | 0, gate = ctl & 1;
+      const freq = (mem[b] | 0) | ((mem[b + 1] | 0) << 8), pulse = ((mem[b + 2] | 0) | ((mem[b + 3] & 15) << 8));
+      const lvl = gate ? 12 : 0;
+      lines.push('   ' + (v + 1) + '    ' + sidNote(gate ? freq : 0).padEnd(5) + ' ' + waves(ctl).padEnd(6) + ' ' +
+        String(pulse).padStart(4, '0') + '   ' + (gate ? '<span class="vu">' + '█'.repeat(lvl) + '</span>' : '<span class="dim">' + '░'.repeat(12) + '</span>'));
+    }
+    lines.push('');
+    lines.push('<span class="dim"> MODEL 6581  CLOCK PAL  ' + (f.speed ? 'CIA' : 'VBI') + '  READY.</span>');
+    screen.innerHTML = lines.join('\n');
+  }
   function draw() {
     raf = requestAnimationFrame(draw);
+    if (sid) { drawSid(); return; }
     if (!mod) return;
     const cols = 80, rowsVisible = 15;
     const channels = lib._openmpt_module_get_num_channels(mod);
@@ -94,6 +155,7 @@
     const lines = [];
     lines.push('<span class="hd">TINYTRAX</span>  ' + esc(title.slice(0, 50)));
     lines.push('<span class="dim">' + esc((meta.type + '  ' + channels + ' channels' + (meta.artist ? '  by ' + meta.artist : '')).slice(0, 78)) + '</span>');
+    if (desc) lines.push('<span class="dim">' + esc(desc.slice(0, 78)) + '</span>');
     lines.push('Pos ' + String(order).padStart(3, '0') + '/' + String(meta.orders).padStart(3, '0') + '  Pat ' + String(pattern).padStart(3, '0') +
       '  Row ' + String(row).padStart(2, '0') + '  BPM ' + Math.round(lib._openmpt_module_get_current_estimated_bpm(mod)) +
       '  ' + clock(lib._openmpt_module_get_position_seconds(mod)) + ' / ' + clock(meta.duration) + (paused ? '  <span class="pk">PAUSED</span>' : '') + (ended ? '  <span class="pk">END</span>' : ''));
@@ -118,17 +180,46 @@
     screen.innerHTML = lines.join('\n');
   }
 
-  async function open(url, name, bytes, keySender) {
+  const sidRegs = new Uint8Array(32);  // the SID registers as last written
+  async function openSid(url, name) {
+    const [res] = await Promise.all([fetch(url), loadSid()]);
+    if (!res.ok) throw new Error('The board did not send the tune.');
+    const data = new Uint8Array(await res.arrayBuffer());
+    if (root.hidden || file !== name) return;
+    if (String.fromCharCode(data[0], data[1], data[2], data[3]) !== 'PSID') throw new Error('Only PSID tunes play here.');
+    let bin = '';
+    for (let i = 0; i < data.length; i += 8192) bin += String.fromCharCode.apply(null, data.subarray(i, i + 8192));
+    window.pico = { samplerate: ctx.sampleRate, play() {}, pause() {} };
+    const player = new window.jsSID.SIDPlayer({ quality: window.jsSID.quality.good });
+    const hook = cpu => {  // keep a copy of every SID register write for the screen
+      const write = cpu.setmem;
+      cpu.setmem = function (addr, value) { if ((addr & 0xfc00) === 0xd400) sidRegs[addr & 0x1f] = value; return write.call(this, addr, value); };
+    };
+    sidRegs.fill(0);
+    player.loadFileFromData(bin);
+    hook(player.cpu);
+    player.changeTrack(player.getSidFile().startsong);
+    player.ready = true;
+    sid = player;
+    node = ctx.createScriptProcessor(4096, 0, 2);
+    node.onaudioprocess = render;
+    node.connect(ctx.destination);
+    tap.style.display = ctx.state === 'running' ? 'none' : 'flex';
+    hint();
+    draw();
+  }
+  async function open(url, name, bytes, keySender, description) {
     sendKey = keySender || sendKey;
     build();
     root.hidden = false;
-    file = name; size = bytes; paused = false; ended = false;
+    file = name; size = bytes; desc = description || ''; paused = false; ended = false;
     stopTune();
     screen.textContent = '\n  Loading ' + name + ' ...';
     hint(' TINYTRAX  ' + name + '  loading...');
     try {
       if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
       ctx.resume();
+      if (/\.sid$/i.test(name)) { await openSid(url, name); return; }
       const [res] = await Promise.all([fetch(url), loadLibrary()]);
       if (!res.ok) throw new Error('The board did not send the tune.');
       const data = new Uint8Array(await res.arrayBuffer());
@@ -159,9 +250,18 @@
     if (root) root.hidden = true;
   }
   function togglePause() {
-    if (!mod) return;
+    if (!mod && !sid) return;
     paused = !paused;
     hint();
   }
-  window.TinyPlayer = { open, close, togglePause, isOpen: () => !!root && !root.hidden };
+  function subsong(step) {
+    if (!sid) return false;
+    const f = sid.getSidFile(), next = f.currentsong + step;
+    if (next < 0 || next > f.subsongs) return true;
+    sidRegs.fill(0);
+    sid.changeTrack(next);
+    sid.ready = true;  // changeTrack() stops it
+    return true;
+  }
+  window.TinyPlayer = { open, close, togglePause, subsong, isOpen: () => !!root && !root.hidden };
 })();
