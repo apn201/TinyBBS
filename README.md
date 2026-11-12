@@ -110,6 +110,11 @@ order, as one translation unit:
 | `src/net` | Browser terminal and SysOp file manager pages (compiled into flash), HTTP and WebSocket routes, Telnet |
 | `src/hw` | Status LCD and the splash logo as DOS palette indexes |
 
+The browser pages are plain files in `shared/web/`; a pre-build step embeds
+them in the firmware. The core talks to the hardware only through
+`src/platform/`, so the same code can run as a server behind Apache later
+(`docs/APACHE_PORT.md`).
+
 The music player is not in the firmware. It is `player.js` plus libopenmpt
 and jsSID in `/BBS/ASSETS/PLAYER` on the card, and the board only serves the
 files.
@@ -298,7 +303,8 @@ caller or page.
 
 Settings live in `sd/BBS/CONFIG`, each file explained in its comments:
 
-- `SYSTEM.INI`: board name, node limit, new-user level, modem speed for ANSI
+- `SYSTEM.INI`: the board's identity (name, short name, LCD logo, door names;
+  nothing of it is fixed in the firmware), node limit, new-user level, modem speed for ANSI
   pictures, the board clock, art paths, download credit and ratio for new
   users, credit per message, the upload size limit.
 - `CONFERENCES.INI`: message bases with their security level and flag.

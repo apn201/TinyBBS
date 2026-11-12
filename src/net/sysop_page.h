@@ -1,11 +1,11 @@
 #pragma once
-// The SysOp file manager page. Deliberately modern and plain: this is the
-// admin backstage, not part of the period BBS.
+// The SysOp file manager page. Deliberately modern and plain: this is the admin backstage, not part of the period BBS.
+// GENERATED from shared/web/sysop.html by tools/embed_web.py. Edit the shared file, not this one.
 
 static const char kSysopPage[] PROGMEM = R"PAGE(<!doctype html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kouvosto // File manager</title>
+<title>TinyBBS // File manager</title>
 <style>
 :root{--bg:#111;--fg:#ddd;--dim:#888;--line:#333;--acc:#5ff;--bad:#f77}
 *{box-sizing:border-box}
@@ -38,7 +38,7 @@ textarea{flex:1;width:100%;background:#000;color:#ddd;border:0;padding:10px;font
 input[type=file]{display:none}
 </style></head><body>
 <header>
-<h1>KOUVOSTO // SYSOP FILE MANAGER</h1>
+<h1 id="brand">TINYBBS // SYSOP FILE MANAGER</h1>
 <div id="path"></div>
 <div class="bar">
 <button id="up">Up</button>
@@ -57,6 +57,10 @@ input[type=file]{display:none}
 'use strict';
 const $=id=>document.getElementById(id);
 const T=new URLSearchParams(location.search).get('t')||'';
+fetch('/api/board').then(r=>r.json()).then(b=>{
+  document.title=(b.name||'TinyBBS')+' // File manager';
+  document.getElementById('brand').textContent=(b.short||'TINYBBS')+' // SYSOP FILE MANAGER';
+}).catch(()=>{});
 const TEXT=/\.(ini|txt|ans|asc|bbs|ion|diz|nfo|md|cfg|json|csv|bas|sdi)$/i;
 let cwd='/BBS',ro=false,busy=false,editing=null;
 const qs=(p,extra={})=>'?'+new URLSearchParams({t:T,p,...extra});

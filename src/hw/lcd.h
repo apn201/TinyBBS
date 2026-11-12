@@ -7,7 +7,23 @@ static const int LCD_SCLK = 10, LCD_MOSI = 11, LCD_CS = 12, LCD_DC = 13, LCD_RST
 Arduino_DataBus *lcdBus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCLK, LCD_MOSI, GFX_NOT_DEFINED);
 Arduino_GFX *gfx = new Arduino_ST7735(lcdBus, LCD_RST, 0, true, 80, 160, 26, 1, 26, 1);
 static void lcdText(int x, int y, const String &s, uint16_t c) { gfx->setTextSize(1); gfx->setTextColor(c); gfx->setCursor(x, y); gfx->print(s); }
+// The logo from the card (SYSTEM.INI lcd_logo=): raw RGB565, little-endian,
+// 160 wide, up to 53 rows (the status lines go below); tools/make-lcd-logo.py makes one. False when there
+// is none, and the built-in logo is drawn instead.
+static bool drawCardLogo() {
+  if (!sdReady || !board.lcdLogo.length()) return false;
+  File f = SD_MMC.open(board.lcdLogo, FILE_READ);
+  if (!f) return false;
+  size_t rows = f.size() / 320;
+  if (!rows || rows > 53 || f.size() % 320) { f.close(); return false; }
+  uint16_t line[160];
+  gfx->fillScreen(0);
+  for (size_t y = 0; y < rows && f.read((uint8_t *)line, 320) == 320; ++y) gfx->draw16bitRGBBitmap(0, y, line, 160, 1);
+  f.close();
+  return true;
+}
 static void drawLcdLogo() {
+  if (drawCardLogo()) return;
   gfx->fillScreen(0);
   for (size_t y = 0; y < sizeof(kSceneLogo) / sizeof(kSceneLogo[0]); ++y) {
     for (size_t x = 0; x < sizeof(kSceneLogo[0]) - 1; ++x) {

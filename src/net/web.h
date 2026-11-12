@@ -36,6 +36,11 @@ static void root(AsyncWebServerRequest *r) {
   res->addHeader("Cache-Control", "no-store");
   r->send(res);
 }
+// The board's name and the like, for the pages' titles and status line.
+static void apiBoard(AsyncWebServerRequest *r) {
+  BbsLock lock;
+  r->send(200, "application/json", boardJson());
+}
 static void apiConnect(AsyncWebServerRequest *r) {
   BbsLock lock;
   Session *s = allocate(true);
@@ -276,6 +281,7 @@ static void startWeb() {
   ws.onEvent(onWsEvent);
   http.addHandler(&ws);
   http.on("/", HTTP_GET, root);
+  http.on("/api/board", HTTP_GET, apiBoard);
   http.on("/api/connect", HTTP_POST, apiConnect);
   http.on("/api/hangup", HTTP_POST, apiHangup);
   http.on("/api/speed", HTTP_POST, apiSpeed);

@@ -25,6 +25,7 @@ void setup() {
   pinMode(UI_BOOT_PIN, INPUT_PULLUP); Serial.begin(115200); delay(100); trace("BOOT", String("reset_reason=") + (int)esp_reset_reason()); gfx->begin(); gfx->setRotation(1); drawLcdLogo(); lcdText(4, 64, "TINYBBS BOOTING", 0xFE66);
   SD_MMC.setPins(SD_CLK, SD_CMD, SD_D0); sdReady = SD_MMC.begin("/sdcard", true);
   trace("SETTINGS", bbsBegin());
+  drawLcdLogo();  // again: the card may have its own logo
   // Network settings are read once here; they need a restart to change.
   Ini net;
   iniLoad("/BBS/CONFIG/NETWORK.INI", net);

@@ -112,6 +112,17 @@ static String sha256hex(const String &s) {
   mbedtls_sha256_finish(&c, digest); mbedtls_sha256_free(&c);
   char out[65]; for (uint8_t i = 0; i < 32; ++i) sprintf(out + i * 2, "%02x", digest[i]); out[64] = 0; return String(out);
 }
+// Text inside a JSON string: quotes, backslashes and control characters escaped.
+static String jsonText(const String &in) {
+  String out;
+  for (size_t i = 0; i < in.length(); ++i) {
+    char c = in[i];
+    if (c == '"' || c == '\\') { out += '\\'; out += c; }
+    else if ((uint8_t)c < 32) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); out += b; }
+    else out += c;
+  }
+  return out;
+}
 static String salt() { char b[17]; snprintf(b, sizeof(b), "%08lx%08lx", (unsigned long)bbsRandom(), (unsigned long)bbsRandom()); return String(b); }
 
 // Command-line parsing for typed BBS commands.

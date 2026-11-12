@@ -28,8 +28,23 @@ anything included before it.
 | `src/core` | Globals, helpers, SD storage (`putRecord` for safe record rewrites), INI lookup, clock, users, message store, card message history, sessions, output pacing, the reader |
 | `src/bbs` | Settings, menus, file areas (`files.h`), ZIP reading (`zip.h`), viewers (`viewers.h`), uploads, messages, SysOp tools, and one `cmd_*.h` per command area |
 | `src/doors` | One header per door plus `doors.h`, the door table |
-| `src/net` | Browser terminal page, HTTP routes, SysOp file manager, Telnet |
+| `src/net` | HTTP routes, SysOp file manager, Telnet (ESP32 transports); generated page headers |
+| `src/platform` | `platform.h`, the contract between the core and the machine; `esp32.h` |
 | `src/hw` | LCD and splash logo |
+
+The core reaches the machine only through `src/platform/platform.h`
+(`esp32.h` here, `server/platform/` for the server build planned in
+`docs/APACHE_PORT.md`). Keep ESP32 and Linux headers out of `src/core`,
+`src/bbs` and `src/doors`, so a change works on both. Start-up and the main
+tick are `bbsBegin()` and `bbsTick()` in `src/bbs/runtime.h`.
+
+The browser pages are `shared/web/terminal.html` and `shared/web/sysop.html`.
+`tools/embed_web.py` turns them into `src/net/web_terminal.h` and
+`src/net/sysop_page.h` before each PlatformIO build: edit the HTML, never the
+generated headers.
+
+The board's identity (name, short name, logos, door names, art) is on the
+card in `SYSTEM.INI` and the art files; the pages read it from `/api/board`.
 
 Adding a door: write `src/doors/<name>.h` with `enter`, `owns` and `handle`
 functions, include it in `main.cpp` before `doors/doors.h`, and add one line

@@ -56,7 +56,7 @@ static void userList(Session &s) {
 }
 static void sysopMenu(Session &s) {
   s.state = SYSOP_MENU; activity(s, "SYSOP CONSOLE");
-  art(s, "/BBS/ANSI/MENUS/SYSOP.ANS", "KOUVOSTO // SYSOP");
+  art(s, "/BBS/ANSI/MENUS/SYSOP.ANS", shortName() + " // SYSOP");
   say(s, "[U] User editor                    [D] Door settings / forest fights");
   say(s, "[W] Node monitor   [S] Board statistics   [R] Reload settings   [Q] Main Board");
   size_t waiting = uploadsWaiting();

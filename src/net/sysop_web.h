@@ -60,16 +60,7 @@ static bool fmRemove(const String &path, uint8_t depth = 0) {
   for (auto &k : kids) if (!fmRemove(k, depth + 1)) return false;
   return SD_MMC.rmdir(path);
 }
-static String fmJson(const String &in) {
-  String out;
-  for (size_t i = 0; i < in.length(); ++i) {
-    char c = in[i];
-    if (c == '"' || c == '\\') { out += '\\'; out += c; }
-    else if ((uint8_t)c < 32) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); out += b; }
-    else out += c;
-  }
-  return out;
-}
+static String fmJson(const String &in) { return jsonText(in); }
 static String fmBase(const String &path) { int cut = path.lastIndexOf('/'); return cut >= 0 ? path.substring(cut + 1) : path; }
 static String fmParent(const String &path) { int cut = path.lastIndexOf('/'); return cut > 0 ? path.substring(0, cut) : String("/BBS"); }
 

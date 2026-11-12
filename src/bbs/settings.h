@@ -15,7 +15,10 @@ struct MenuLayout {
   uint8_t height = 0;  // lines in the art: the prompt goes below them
 };
 struct BoardSettings {
-  String name = "KOUVOSTO BBS", location, sysop = "SYSOP";
+  // Identity: all of it from SYSTEM.INI. These are only the fallbacks.
+  String name = "TinyBBS", shortName, location, sysop = "SYSOP";
+  String lcdLogo = "/BBS/ASSETS/LOGO.RGB565";  // ESP32 status screen
+  std::vector<std::pair<char, String>> doorNames;  // [DOORS] in SYSTEM.INI: menu key = name
   uint8_t maxNodes = MAX_NODES, newUserLevel = 20;
   uint32_t baud = 28800;
   // New callers: download credit and ratio. Credits are bytes.
@@ -30,6 +33,21 @@ struct BoardSettings {
   std::vector<MenuLayout> menus;
 };
 static BoardSettings board;
+static String shortName() {
+  if (board.shortName.length()) return board.shortName;
+  String n = up(board.name);
+  if (n.endsWith(" BBS")) n.remove(n.length() - 4);
+  return n;
+}
+static String boardJson() {
+  return String("{\"name\":\"") + jsonText(board.name) + "\",\"short\":\"" + jsonText(shortName()) +
+         "\",\"location\":\"" + jsonText(board.location) + "\",\"sysop\":\"" + jsonText(board.sysop) + "\"}";
+}
+// A door's name in menus: [DOORS] in SYSTEM.INI, else the door's own.
+static String doorName(char key, const char *fallback) {
+  for (const auto &d : board.doorNames) if (d.first == toupper(key) && d.second.length()) return d.second;
+  return fallback;
+}
 // A new account's starting credit and ratio, from SYSTEM.INI.
 static void newUserDefaults(User &u) {
   u.credits = board.newUserCredits;
@@ -73,6 +91,9 @@ static String loadSettings() {
   bool sync = false;
   if (iniLoad("/BBS/CONFIG/SYSTEM.INI", ini)) {
     b.name = iniGet(ini, "SYSTEM", "name", b.name);
+    b.shortName = up(iniGet(ini, "SYSTEM", "short_name"));
+    b.lcdLogo = boardPath(iniGet(ini, "SYSTEM", "lcd_logo"), b.lcdLogo);
+    for (const auto &e : ini) if (e.section == "DOORS" && e.key.length() == 1) b.doorNames.push_back({(char)toupper(e.key[0]), e.value});
     b.location = iniGet(ini, "SYSTEM", "location", b.location);
     b.sysop = iniGet(ini, "SYSTEM", "sysop", b.sysop);
     b.maxNodes = (uint8_t)constrain(iniGet(ini, "SYSTEM", "max_nodes", String(MAX_NODES)).toInt(), 1L, (long)MAX_NODES);

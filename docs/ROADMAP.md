@@ -426,8 +426,8 @@ the Telnet listing shows them without a `[V]` option.
 
 ## Backburner
 
-In priority order. The Apache port is the biggest one and is planned on its
-own in `APACHE_PORT_PLAN.md`.
+In priority order. The Apache port is the biggest one; its implementation
+plan is `APACHE_PORT.md` in this folder.
 
 1. **The Apache port.** The board on an Apache-hosted server, for when it
    should be on the Internet: the same browser terminal, the same `/BBS`
@@ -442,7 +442,8 @@ own in `APACHE_PORT_PLAN.md`.
    files and move them to another area or folder in one go, with their
    descriptions carried along in `FILES.BBS`, so the SysOp can sort approved
    uploads out of Caller Uploads into the right areas easily. Download counts
-   follow the files.
+   follow the files. The file manager should also show pictures, text and
+   ANSI in the browser when clicked, instead of always downloading.
 4. **Music that keeps playing.** The player can be shrunk to a strip at the
    top of the screen and left playing while the caller browses the board.
 5. **Richer door content**: more VolaMUD world, task chains, NPC state. The

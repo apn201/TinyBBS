@@ -1,9 +1,11 @@
 #pragma once
+// The browser terminal.
+// GENERATED from shared/web/terminal.html by tools/embed_web.py. Edit the shared file, not this one.
 
 static const char kWebTerminal[] PROGMEM = R"TERM(<!doctype html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
-<title>Kouvosto // Terminal</title>
+<title>TinyBBS // Terminal</title>
 <style>
 html,body{margin:0;background:#000;color:#aaa;font:14px monospace}
    header,footer{padding:5px;color:#5ff;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -21,8 +23,8 @@ caret-color:transparent;outline:none;white-space:pre;pointer-events:none}
 #pic.shown{clip-path:inset(0);transition:clip-path 1.4s steps(48)}
 #vbar{background:#00a;color:#fff;padding:4px 8px;white-space:pre;overflow:hidden;text-overflow:ellipsis}
 </style></head><body>
- <header><button id="dial">DIAL</button> <button id="modem" type="button">MODEM AUDIO</button> <button id="speed" type="button" title="Modem speed for ANSI pictures">SPEED</button> <span id="carrier" role="status">KOUVOSTO // NO CARRIER</span></header>
-<div id="screen"><canvas id="display" width="640" height="400" aria-label="80-column Kouvosto terminal"></canvas>
+ <header><button id="dial">DIAL</button> <button id="modem" type="button">MODEM AUDIO</button> <button id="speed" type="button" title="Modem speed for ANSI pictures">SPEED</button> <span id="carrier" role="status">TINYBBS // NO CARRIER</span></header>
+<div id="screen"><canvas id="display" width="640" height="400" aria-label="80-column BBS terminal"></canvas>
 <div id="capture" contenteditable="plaintext-only" role="textbox" aria-label="Terminal input"
 autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text"
 data-lpignore="true" data-1p-ignore data-bwignore></div></div>
@@ -34,6 +36,13 @@ data-lpignore="true" data-1p-ignore data-bwignore></div></div>
 const $=id=>document.getElementById(id);
  const display=$('display'),ctx=display.getContext('2d',{alpha:false}),capture=$('capture');
  const dial=$('dial'),modem=$('modem'),carrier=$('carrier'),enter=$('enter'),back=$('back'),links=$('links');
+// The board's name comes from the card (SYSTEM.INI) through /api/board.
+let BRAND='TINYBBS';
+fetch('/api/board').then(r=>r.json()).then(b=>{
+  BRAND=b.short||BRAND;document.title=(b.name||'TinyBBS')+' // Terminal';
+  display.setAttribute('aria-label','80-column '+(b.name||'BBS')+' terminal');
+  if(carrier.textContent.startsWith('TINYBBS //'))carrier.textContent=BRAND+carrier.textContent.slice(7);
+}).catch(()=>{});
 const palette=['#000','#a00','#0a0','#a50','#00a','#a0a','#0aa','#aaa',
                '#555','#f55','#5f5','#ff5','#55f','#f5f','#5ff','#fff'];
 const cols=80,rows=25,w=8,h=16;
@@ -53,9 +62,9 @@ let pending=null,timer=0;
    modemPlaying=true;modem.disabled=true;
    modemPlayer=modemPlayer||new Audio('/modem.mp3');
    modemPlayer.currentTime=0;
-   modemPlayer.onended=()=>{modemPlaying=false;modem.disabled=false;carrier.textContent=connected?'KOUVOSTO // CARRIER CONNECTED':'KOUVOSTO // MODEM READY';};
-   modemPlayer.onerror=()=>{modemPlaying=false;modem.disabled=false;carrier.textContent='KOUVOSTO // MODEM AUDIO UNAVAILABLE';};
-   modemPlayer.play().catch(()=>{modemPlaying=false;modem.disabled=false;carrier.textContent='KOUVOSTO // AUDIO BLOCKED';});
+   modemPlayer.onended=()=>{modemPlaying=false;modem.disabled=false;carrier.textContent=connected?BRAND+' // CARRIER CONNECTED':BRAND+' // MODEM READY';};
+   modemPlayer.onerror=()=>{modemPlaying=false;modem.disabled=false;carrier.textContent=BRAND+' // MODEM AUDIO UNAVAILABLE';};
+   modemPlayer.play().catch(()=>{modemPlaying=false;modem.disabled=false;carrier.textContent=BRAND+' // AUDIO BLOCKED';});
  }
 function move(nx,ny){
   x=Math.max(0,Math.min(cols-1,nx));
@@ -295,14 +304,14 @@ function repaint(){
 }
 // Carrier: a WebSocket when it opens, HTTP polling until then and as fallback.
 let sock=null,sockReady=false,sockTries=0,held=[];
-function connectText(){return sockReady?'KOUVOSTO // CONNECT 28800/ARQ':'KOUVOSTO // CONNECT 2400';}
+function connectText(){return sockReady?BRAND+' // CONNECT 28800/ARQ':BRAND+' // CONNECT 2400';}
 function frameIn(d){
   lastOk=Date.now();
   const k=d[0],v=d.slice(1);
   if(k==='o')render(v);
   else if(k==='p'){secret=v==='1';repaint();}
   else if(k==='s'){streamOn=parseInt(v,10)||0;if(streamOn!==2){closeViewer();closePlayer();}if(streamOn&&viewOff){viewOff=0;repaint();}}
-  else if(k==='x')lost('KOUVOSTO // NO CARRIER');
+  else if(k==='x')lost(BRAND+' // NO CARRIER');
 }
 function flushPending(){
   if(!sockReady||pending===null)return;
@@ -351,11 +360,11 @@ function saveScreen(){
   saveTimer=setTimeout(()=>{
     saveTimer=0;if(!connected)return;
     const rows=screen.map(line=>[line.map(c=>c.ch).join(''),line.map(c=>(c.ink*16+c.paper).toString(16).padStart(2,'0')).join('')]);
-    store('kouvosto.screen',{rows,x,y,fg,bg,bright,reverse});
+    store('tinybbs.screen',{rows,x,y,fg,bg,bright,reverse});
   },700);
 }
 function restoreScreen(){
-  const s=recall('kouvosto.screen');
+  const s=recall('tinybbs.screen');
   if(!s||!Array.isArray(s.rows)||s.rows.length!==rows)return;
   screen=s.rows.map(([chars,attrs])=>Array.from({length:cols},(_,i)=>{let a=parseInt(attrs.substr(i*2,2),16);if(Number.isNaN(a))a=0x70;return {ch:chars[i]||' ',ink:a>>4,paper:a&15};}));
   ({x,y,fg,bg,bright,reverse}=s);
@@ -363,12 +372,12 @@ function restoreScreen(){
 function attach(){
   connected=true;failures=0;sockTries=0;held=[];lastOk=Date.now();
   enter.disabled=back.disabled=false;dial.disabled=true;
-  store('kouvosto.node',{node,token});
+  store('tinybbs.node',{node,token});
   focusTerminal();wake(0);openSocket();sendSpeed();repaint();
 }
 function lost(message){
   dropSocket();held=[];
-  store('kouvosto.node',null);store('kouvosto.screen',null);
+  store('tinybbs.node',null);store('tinybbs.screen',null);
   connected=false;pending=null;clearTimeout(timer);
   carrier.textContent=message;dial.disabled=false;enter.disabled=back.disabled=true;
   capture.textContent='';capture.blur();repaint();
@@ -398,7 +407,7 @@ async function exchange(){
     const response=line===null
       ? await request('/api/out?'+params)
       : await request('/api/in',{method:'POST',body:new URLSearchParams({n:node,q:token,k:line+'\r'})});
-    if(response.status===404){lost('KOUVOSTO // NO CARRIER');return;}
+    if(response.status===404){lost(BRAND+' // NO CARRIER');return;}
     if(response.status!==200&&response.status!==204)throw Error('HTTP '+response.status);
     failures=0;lastOk=Date.now();
     carrier.textContent=connectText();
@@ -408,8 +417,8 @@ async function exchange(){
     // Keep trying quietly while the phone rejoins the WiFi. Give up only
     // once the board would have dropped the node anyway.
     failures++;
-    if(Date.now()-lastOk>CARRIER_MS+5000){lost('KOUVOSTO // NO CARRIER');return;}
-    carrier.textContent=line===null?'KOUVOSTO // RECONNECTING':'KOUVOSTO // COMMAND STATUS UNKNOWN';
+    if(Date.now()-lastOk>CARRIER_MS+5000){lost(BRAND+' // NO CARRIER');return;}
+    carrier.textContent=line===null?BRAND+' // RECONNECTING':BRAND+' // COMMAND STATUS UNKNOWN';
     delay=Math.min(950*failures,5000);
   }finally{
     busy=false;
@@ -446,11 +455,11 @@ dial.onclick=async()=>{
   dial.disabled=true;
   try{
     const response=await request('/api/connect',{method:'POST',body:new URLSearchParams({t:localTime()})});
-    if(response.status!==200){lost(response.status===503?'KOUVOSTO // ALL NODES BUSY':'KOUVOSTO // NO CARRIER');return;}
+    if(response.status!==200){lost(response.status===503?BRAND+' // ALL NODES BUSY':BRAND+' // NO CARRIER');return;}
     ({node,token}=JSON.parse(response.text));
     clear();move(0,0);partial='';fg=7;bg=0;bright=reverse=secret=false;
     carrier.textContent=connectText();attach();
-  }catch{lost('KOUVOSTO // LINK ERROR');}
+  }catch{lost(BRAND+' // LINK ERROR');}
 };
 // Waking the phone or returning to the tab reconnects at once.
 document.addEventListener('visibilitychange',()=>{
@@ -517,7 +526,7 @@ back.onclick=()=>{capture.textContent=(capture.textContent||'').slice(0,-1);focu
 // this browser and sent to the board whenever we attach.
 const speedBtn=$('speed'),SPEEDS=[2400,9600,14400,28800,57600,0];
 let speed=28800;
-try{const v=parseInt(localStorage.getItem('kouvosto.speed'),10);if(SPEEDS.includes(v))speed=v;}catch{}
+try{const v=parseInt(localStorage.getItem('tinybbs.speed'),10);if(SPEEDS.includes(v))speed=v;}catch{}
 function showSpeed(){speedBtn.textContent='SPEED '+(speed||'MAX');}
 function sendSpeed(){
   if(!connected)return;
@@ -526,7 +535,7 @@ function sendSpeed(){
 }
 speedBtn.onclick=()=>{
   speed=SPEEDS[(SPEEDS.indexOf(speed)+1)%SPEEDS.length];
-  try{localStorage.setItem('kouvosto.speed',String(speed));}catch{}
+  try{localStorage.setItem('tinybbs.speed',String(speed));}catch{}
   showSpeed();sendSpeed();
 };
 showSpeed();
@@ -534,11 +543,11 @@ showSpeed();
 // G (logoff) hangs up at once; an abandoned tab frees its node after the
 // three-minute carrier timeout, like a dropped line.
 (()=>{
-  const saved=recall('kouvosto.node');
+  const saved=recall('tinybbs.node');
   if(!saved||!saved.node||!saved.token)return;
   node=saved.node;token=saved.token;
   restoreScreen();
-  carrier.textContent='KOUVOSTO // RECONNECTING';
+  carrier.textContent=BRAND+' // RECONNECTING';
   attach();
 })();
 repaint();

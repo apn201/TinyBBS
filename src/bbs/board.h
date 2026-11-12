@@ -42,7 +42,7 @@ static void ansiGallery(Session &s) {
   activity(s, "ANSI GALLERY");
   std::vector<MenuItem> items;
   if (s.ansi) {  // pictures: not for an ASCII caller
-    items.push_back({"A", "Kouvosto login splash"});
+    items.push_back({"A", "Login splash"});
     items.push_back({"F", "File cabinet screen"});
   }
   if (galleryArea(s) >= 0) items.push_back({"G", "Browse ANSI / ASCII files"});
@@ -71,7 +71,7 @@ static void fileMenu(Session &s) {
 static void doorMenu(Session &s) {
   s.state = DOOR_MENU; activity(s, "DOORS & GAMES");
   std::vector<MenuItem> items;
-  for (const Door &d : DOORS) items.push_back({String(d.keys[0]), d.name});
+  for (const Door &d : DOORS) items.push_back({String(d.keys[0]), doorName(d.keys[0], d.name)});
   items.push_back({"Q", "Main Board"});
   showMenu(s, "DOORS", items, "DOORS & GAMES");
   prompt(s, "Door command? ");
