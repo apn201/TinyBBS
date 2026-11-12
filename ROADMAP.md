@@ -374,6 +374,14 @@ SysOp, on browser and Telnet.
 
 ### Slice 10: a board that feels alive
 
+Built. `tools/fidonet-seed.py` takes the newest 150 messages of each chosen
+ExecPC echo (MUSIC into General Discussion; new conferences 4-9: Door Games,
+Video Games, Star Trek, Modems, Unix & Linux, Comics), renames everyone and
+writes `/BBS/MSGBASE/<id>/<ECHO>.TXT`. The board indexes the headers into
+PSRAM at boot and on RELOAD and reads bodies on demand. History is numbered
+first, callers' posts after it; it is read-only, never counts as new, and can
+be replied to. Each history message shows its FidoNet echo.
+
 Right now the message bases are empty and the board does not seem alive. Fill
 them with real period traffic: FidoNet echo messages from the
 [Break Into Chat collection](https://breakintochat.com/collections/messages/fidonet/),

@@ -29,11 +29,11 @@ static bool messageCommand(Session &s, String &line, const String &cmd) {
     uint32_t n;
     if (cmd == "Q") messageArea(s);
     else if (!line.length()) {
-      uint32_t id = stepMessage(s, lastReadIn(s, s.conference), true);
+      uint32_t id = firstNew(s);
       if (!id) id = stepMessage(s, 0, true);
       if (id) showMessage(s, id); else messageArea(s);
     }
-    else if (readNumber(line, n)) showMessage(s, n);
+    else if (readNumber(line, n)) showMessage(s, msgFromNo(n));
     else prompt(s, "Read # (ENTER = first new, Q = back): ");
     return true;
   }
@@ -54,7 +54,7 @@ static bool messageCommand(Session &s, String &line, const String &cmd) {
     else if (cmd == "E") startEdit(s);
     else if (cmd == "H") showHistory(s);
     else if (cmd == "Q") messageArea(s);
-    else if (readNumber(line, n)) showMessage(s, n);
+    else if (readNumber(line, n)) showMessage(s, msgFromNo(n));
     else { say(s, "Use the keys below, or a message number."); readerPrompt(s); }
     return true;
   }

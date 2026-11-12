@@ -137,8 +137,8 @@ static void savePointer(Session &s) {
   f.close();
 }
 static void markRead(Session &s, uint8_t conference, uint32_t id) {
-  for (auto &p : s.readPtrs) if (p.first == conference) { if (id > p.second) { p.second = id; savePointer(s); } return; }
-  if (id > s.lastRead) { s.readPtrs.push_back({conference, id}); savePointer(s); }
+  for (auto &p : s.readPtrs) if (p.first == conference) { if (msgOrder(id) > msgOrder(p.second)) { p.second = id; savePointer(s); } return; }
+  if (msgOrder(id) > msgOrder(s.lastRead)) { s.readPtrs.push_back({conference, id}); savePointer(s); }
 }
 static void loadPointer(Session &s) {
   if (!sdReady || !s.user.id) return;

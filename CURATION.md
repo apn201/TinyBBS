@@ -43,6 +43,27 @@ archive container. File descriptions are period metadata, not decoration:
 recognise FILE_ID.DIZ, DESC.SDI, DESCRIPT.ION, ZIP and ARJ, preserve CP437
 where possible, and keep generated modern data outside caller-facing screens.
 
+## FidoNet message history
+
+`tools/fidonet-seed.py` builds `/BBS/MSGBASE` from the ExecPC BBS FidoNet
+capture (1993-1999) at
+[Break Into Chat](https://breakintochat.com/collections/messages/fidonet/),
+archived by Josh Renaud. The source ZIP stays in `tools/.cache` on the PC and
+never goes on the card.
+
+- Echoes about health, recovery, politics and similar personal subjects are
+  left out.
+- Every name in From and To, and every name of anyone who posted in the chosen
+  echoes, is replaced with an invented one wherever it appears. The same
+  person always gets the same invented name, so threads still read naturally.
+  Quote initials follow the invented names.
+- Node addresses, BBS names in origin lines, phone numbers, e-mail and web
+  addresses are replaced too. Tear lines (the mail software) and taglines are
+  kept as period colour.
+- Public figures discussed in the messages, such as comic artists or actors,
+  keep their names.
+- The text is otherwise as written, including typos.
+
 ## Browser modem audio
 
 `/BBS/ASSETS/DIALUP.MP3` is the user-selected nostalgia asset for the browser

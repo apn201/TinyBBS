@@ -48,6 +48,9 @@ board at the same time and see each other in WHO and chat.
 - Message areas read the 1990s way: one message at a time with next and
   previous, replies linked into threads, a thread view, a line editor, and
   "new" counted per area. Private mail is opt-in.
+- 1990s FidoNet traffic as read-only history in seven conferences, with every
+  name, address and BBS replaced by invented ones. Callers' posts come after
+  it, and it never counts as new.
 - Multi-node chat, WHO, page the SysOp, bulletins (ANSI files or a line of
   text), ANSI gallery.
 - File areas made from the folders on the card, with sub-folders,
@@ -314,6 +317,7 @@ as a first response.
 | `/BBS/ANSI`, `/BBS/ASCII`, `/BBS/BULLETINS`, `/BBS/ASSETS` | Screens, art and modem audio |
 | `/BBS/CONFIG` | Board, conference, bulletin and network config |
 | `/BBS/FILES` | File areas, one folder each, with an optional `AREA.INI` |
+| `/BBS/MSGBASE` | Read-only message history, a folder per conference id, written by `tools/fidonet-seed.py` |
 | `/BBS/DATA` | Users, messages, door saves, indexes |
 | `/BBS/LOGS` | Caller and event logs |
 | `/BBS/TEMP`, `/BBS/UPLOADS` | Runtime temp and upload staging |
@@ -323,6 +327,10 @@ Callers never see SD paths.
 
 The file archive itself is not in this repository. `sd/BBS/FILES` is ignored
 by git. Archive rules are in [`CURATION.md`](CURATION.md).
+
+`sd/BBS/MSGBASE` is not in the repository either. Make it with
+`python tools/fidonet-seed.py`, which downloads the 150 MB source archive once
+into `tools/.cache`.
 
 ## SysOp
 
@@ -373,6 +381,11 @@ Dial-up sound: a generic modem handshake recorded by William Termini on his
 iMac G3, from Oona Raisanen's
 ["The sound of the dialup, pictured"](https://www.windytan.com/2012/11/the-sound-of-dialup-pictured.html).
 Mentioned because we are nice.
+
+Message history: FidoNet traffic captured on the ExecPC BBS (1993-1999) and
+archived by Josh Renaud at
+[Break Into Chat](https://breakintochat.com/collections/messages/fidonet/).
+Names and addresses are replaced before anything reaches the card.
 GoMud was evaluated as a mechanics/world reference. See
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 

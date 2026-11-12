@@ -140,7 +140,8 @@ static String loadSettings() {
   clockSyncBrowser = sync;
   String clock = startClock(epoch);
   String areas = loadFileAreas();
-  return areas + ", clock " + clock + (sync ? " (browser sync)" : "") + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
+  String history = loadHistory();
+  return areas + ", " + history + ", clock " + clock + (sync ? " (browser sync)" : "") + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
          board.maxNodes + " nodes, " + (board.baud ? String(board.baud) + " baud" : String("no speed limit"));
 }
 

@@ -29,6 +29,7 @@
 #include "core/clock.h"
 #include "core/users.h"
 #include "core/messagebase.h"
+#include "core/history.h"
 #include "core/session.h"
 #include "core/stream.h"
 #include "core/reader.h"

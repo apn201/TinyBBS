@@ -17,6 +17,7 @@ struct Message {
   bool deleted = false;  // killed by its author or the SysOp
   String editedAt, editedBy;  // last edit or kill
   uint8_t versions = 1;  // lines in the file for this id
+  bool history = false;  // from /BBS/MSGBASE on the card: read-only (core/history.h)
 };
 static bool parseMessage(const String &raw, Message &m) {
   // println() ends each line with CRLF: the CR would stick to the last field.

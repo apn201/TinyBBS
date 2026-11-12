@@ -26,8 +26,17 @@ static bool canRead(const Session &s, const Message &m) {
 // A line whose id is not above every id before it is a revision (an edit or a
 // kill) of an earlier message; its latest revision is shown in its place.
 // Killed messages are skipped unless withDeleted.
+// History from /BBS/MSGBASE comes first (headers only: getMessage() adds the
+// body), then the messages callers posted.
 template <typename F> static void eachMessage(F fn, bool withDeleted = false) {
   if (!sdReady) return;
+  for (uint32_t i = 0; i < historyCount; ++i) {
+    const HistoryMsg &h = historyMsgs[i];
+    Message m;
+    m.id = HISTORY_BASE + i; m.conference = h.conference; m.replyTo = h.replyTo; m.history = true;
+    historyHeader(h, m.from, m.to, m.subject, m.when);
+    if (!fn(m)) return;
+  }
   File f = SD_MMC.open(MSG_FILE, FILE_READ);
   if (!f) return;
   struct Rev { uint32_t id, at; uint8_t count; };
@@ -69,6 +78,7 @@ template <typename F> static void eachMessage(F fn, bool withDeleted = false) {
 static bool getMessage(uint32_t id, Message &out, bool withDeleted = false) {
   bool ok = false;
   eachMessage([&](const Message &m) { if (m.id == id) { out = m; ok = true; return false; } return true; }, withDeleted);
+  if (ok && out.history) out.body = historyBody(id);
   return ok;
 }
 // Every stored version of a message, oldest first: its change history.
@@ -85,12 +95,13 @@ static std::vector<Message> messageVersions(uint32_t id) {
   return list;
 }
 // The author and the SysOp may kill or edit a message.
-static bool canModify(const Session &s, const Message &m) { return isSysop(s) || up(m.from) == up(s.user.handle); }
+// History from the card is read-only for everyone.
+static bool canModify(const Session &s, const Message &m) { return !m.history && (isSysop(s) || up(m.from) == up(s.user.handle)); }
 static void areaCounts(const Session &s, uint8_t conference, uint32_t &total, uint32_t &fresh) {
   total = fresh = 0;
   uint32_t mark = lastReadIn(s, conference);
   eachMessage([&](const Message &m) {
-    if (m.conference == conference && canRead(s, m)) { total++; if (m.id > mark) fresh++; }
+    if (m.conference == conference && canRead(s, m)) { total++; if (!m.history && msgOrder(m.id) > msgOrder(mark)) fresh++; }
     return true;
   });
 }
@@ -100,8 +111,8 @@ static uint32_t stepMessage(const Session &s, uint32_t id, bool forward) {
   uint32_t found = 0;
   eachMessage([&](const Message &m) {
     if (m.conference != s.conference || !canRead(s, m)) return true;
-    if (forward) { if (m.id > id) { found = m.id; return false; } return true; }
-    if (m.id >= id) return false;
+    if (forward) { if (msgOrder(m.id) > msgOrder(id)) { found = m.id; return false; } return true; }
+    if (msgOrder(m.id) >= msgOrder(id)) return false;
     found = m.id;
     return true;
   });
@@ -156,7 +167,7 @@ static void listMessages(Session &s) {
   uint32_t mark = lastReadIn(s, s.conference);
   eachMessage([&](const Message &m) {
     if (m.conference != s.conference || !canRead(s, m)) return true;
-    rows.push_back({m.id, m.when, m.from, m.to.length() ? m.to : String("All"), m.subject, m.id > mark});
+    rows.push_back({m.id, m.when, m.from, m.to.length() ? m.to : String("All"), m.subject, !m.history && msgOrder(m.id) > msgOrder(mark)});
     if (rows.size() > 20) rows.erase(rows.begin());
     return true;
   });
@@ -166,7 +177,7 @@ static void listMessages(Session &s) {
   for (const auto &r : rows) {
     char row[120];
     snprintf(row, sizeof(row), "%s%-5lu %-16.16s %-14.14s %-12.12s %.26s", r.fresh ? "\x1b[1;32m*\x1b[0m " : "  ",
-             (unsigned long)r.id, r.when.c_str(), r.from.c_str(), r.to.c_str(), r.subject.c_str());
+             (unsigned long)msgNo(r.id), r.when.c_str(), r.from.c_str(), r.to.c_str(), r.subject.c_str());
     say(s, row);
   }
   if (rows.empty()) say(s, "No messages in this area yet.");
@@ -231,12 +242,13 @@ static void showMessage(Session &s, uint32_t id) {
     return;
   }
   String replies;
-  eachMessage([&](const Message &r) { if (r.replyTo == m.id && canRead(s, r)) replies += " #" + String(r.id); return true; });
+  eachMessage([&](const Message &r) { if (r.replyTo == m.id && canRead(s, r)) replies += " #" + String(msgNo(r.id)); return true; });
   std::vector<String> rows;
   uint32_t at = parseClock(m.when);
   rows.push_back("");
-  rows.push_back("\x1b[1;36m" + confName(m.conference) + "\x1b[0m   \x1b[1;33mMsg #" + String(m.id) + "\x1b[0m   \x1b[1;37m" +
+  rows.push_back("\x1b[1;36m" + confName(m.conference) + "\x1b[0m   \x1b[1;33mMsg #" + String(msgNo(m.id)) + "\x1b[0m   \x1b[1;37m" +
                  (at ? clockText(at, true) : m.when) + "\x1b[0m");
+  if (m.history) rows.push_back("\x1b[0;35mFidoNet echo " + historyEcho(m.id) + "\x1b[0m");
   rows.push_back("From : " + m.from);
   rows.push_back("To   : " + (m.to.length() ? m.to : String("ALL")) + (m.priv ? "  \x1b[1;31m(private)\x1b[0m" : ""));
   rows.push_back("Subj : " + m.subject);
@@ -245,7 +257,7 @@ static void showMessage(Session &s, uint32_t id) {
   if (m.replyTo) {
     Message parent;
     bool gone = getMessage(m.replyTo, parent, true) && parent.deleted;
-    rows.push_back("\x1b[0;36mReply to #" + String(m.replyTo) + (gone ? " (deleted)" : "") + "\x1b[0m");
+    rows.push_back("\x1b[0;36mReply to #" + String(msgNo(m.replyTo)) + (gone ? " (deleted)" : "") + "\x1b[0m");
   }
   rows.push_back("\x1b[0;34m------------------------------------------------------------------------------\x1b[0m");
   bodyRows(rows, m.body);
@@ -254,7 +266,7 @@ static void showMessage(Session &s, uint32_t id) {
   s.msgId = m.id;
   markRead(s, m.conference, m.id);
   activity(s, "READING MESSAGES");
-  showRows(s, rows, "Msg #" + String(m.id));
+  showRows(s, rows, "Msg #" + String(msgNo(m.id)));
 }
 // The whole conversation the current message belongs to, oldest first, like
 // an e-mail chain.
@@ -264,6 +276,7 @@ static void showThread(Session &s) {
     if (m.conference == s.conference && canRead(s, m)) links.push_back({m.id, m.replyTo});
     return true;
   }, true);
+  std::sort(links.begin(), links.end());  // history ids come first but are numbered higher
   auto parentOf = [&](uint32_t id) -> uint32_t {
     auto it = std::lower_bound(links.begin(), links.end(), std::make_pair(id, (uint32_t)0));
     return it != links.end() && it->first == id ? it->second : 0;
@@ -279,15 +292,15 @@ static void showThread(Session &s) {
   rows.push_back("\x1b[1;36mTHREAD\x1b[0m");
   eachMessage([&](const Message &m) {
     if (m.conference != s.conference || !canRead(s, m) || rootOf(m.id) != root) return true;
-    if (m.deleted) { rows.push_back("\x1b[0;37m-- #" + String(m.id) + "  (deleted)\x1b[0m"); rows.push_back(""); return ++shown < 40; }
-    rows.push_back("\x1b[1;33m-- #" + String(m.id) + "  " + m.from + " -> " + (m.to.length() ? m.to : String("ALL")) + "  " + m.when +
-                   (m.replyTo ? "  (re #" + String(m.replyTo) + ")" : String()) + (m.editedAt.length() ? "  [edited]" : "") + "\x1b[0m");
+    if (m.deleted) { rows.push_back("\x1b[0;37m-- #" + String(msgNo(m.id)) + "  (deleted)\x1b[0m"); rows.push_back(""); return ++shown < 40; }
+    rows.push_back("\x1b[1;33m-- #" + String(msgNo(m.id)) + "  " + m.from + " -> " + (m.to.length() ? m.to : String("ALL")) + "  " + m.when +
+                   (m.replyTo ? "  (re #" + String(msgNo(m.replyTo)) + ")" : String()) + (m.editedAt.length() ? "  [edited]" : "") + "\x1b[0m");
     if (!m.replyTo) rows.push_back("\x1b[1;37m" + m.subject + "\x1b[0m");
-    bodyRows(rows, m.body);
+    bodyRows(rows, m.history ? historyBody(m.id) : m.body);
     rows.push_back("");
     return ++shown < 40;
   }, true);
-  showRows(s, rows, "Thread of #" + String(root));
+  showRows(s, rows, "Thread of #" + String(msgNo(root)));
 }
 // Message keys in the reader: N and P step through the area (SPACE at the end
 // goes on to the next message, like ENTER in the plain reader), R replies,
@@ -297,7 +310,7 @@ static void showHistory(Session &s) {
   auto versions = messageVersions(s.msgId);
   std::vector<String> rows;
   rows.push_back("");
-  rows.push_back("\x1b[1;36mHISTORY OF #" + String(s.msgId) + "\x1b[0m  " + String(versions.size()) + " versions");
+  rows.push_back("\x1b[1;36mHISTORY OF #" + String(msgNo(s.msgId)) + "\x1b[0m  " + String(versions.size()) + " versions");
   for (size_t i = 0; i < versions.size(); ++i) {
     const Message &v = versions[i];
     String who = i == 0 ? "written by " + v.from + "  " + v.when : (v.deleted ? "killed by " : "edited by ") + v.editedBy + "  " + v.editedAt;
@@ -305,7 +318,7 @@ static void showHistory(Session &s) {
     if (!v.deleted) bodyRows(rows, v.body);
     rows.push_back("");
   }
-  showRows(s, rows, "History of #" + String(s.msgId));
+  showRows(s, rows, "History of #" + String(msgNo(s.msgId)));
 }
 static void startReply(Session &s);
 static void startKill(Session &s);
@@ -342,8 +355,19 @@ static bool msgReaderKey(Session &s, const String &k) {
 }
 
 // N: start reading at the first new message of the current area.
+// The first unread post in the current area. History never counts as new.
+static uint32_t firstNew(const Session &s) {
+  uint64_t mark = msgOrder(lastReadIn(s, s.conference));
+  uint32_t found = 0;
+  eachMessage([&](const Message &m) {
+    if (m.conference != s.conference || m.history || !canRead(s, m) || msgOrder(m.id) <= mark) return true;
+    found = m.id;
+    return false;
+  });
+  return found;
+}
 static void readNew(Session &s) {
-  uint32_t id = stepMessage(s, lastReadIn(s, s.conference), true);
+  uint32_t id = firstNew(s);
   if (!id) { say(s, "\r\nNo new messages in " + confName(s.conference) + "."); messageArea(s); return; }
   showMessage(s, id);
 }
@@ -397,7 +421,7 @@ static void startEdit(Session &s) {
   s.draftLines = 1;  // draftLineList() reads the draft only when it has lines
   s.draftLines = m.body.length() ? draftLineList(s).size() : 0;
   s.msgEdit = m.id;
-  say(s, "\r\n\x1b[1;33mEditing #" + String(m.id) + ": " + m.subject + "\x1b[0m");
+  say(s, "\r\n\x1b[1;33mEditing #" + String(msgNo(m.id)) + ": " + m.subject + "\x1b[0m");
   listDraft(s);
   editorHelp(s);
   editorPrompt(s);
@@ -407,7 +431,7 @@ static void startKill(Session &s) {
   Message m;
   if (!getMessage(s.msgId, m) || !canModify(s, m)) { say(s, "You can only kill your own messages."); readerPrompt(s); return; }
   s.state = MSG_KILL;
-  prompt(s, "\x1b[1;31mKill message #" + String(m.id) + " (" + m.subject + ")? [y/N]: \x1b[0m");
+  prompt(s, "\x1b[1;31mKill message #" + String(msgNo(m.id)) + " (" + m.subject + ")? [y/N]: \x1b[0m");
 }
 static void killMessage(Session &s, bool yes) {
   Message m;
@@ -415,7 +439,7 @@ static void killMessage(Session &s, bool yes) {
   m.deleted = true; m.editedAt = nowText(); m.editedBy = s.user.handle;
   if (!appendRevision(m)) { say(s, "Not killed: the message base could not be written."); s.state = MSG_VIEW; readerPrompt(s); return; }
   event("MESSAGE_KILL", s.user.handle + " #" + m.id);
-  say(s, "\x1b[1;32mMessage #" + String(m.id) + " killed.\x1b[0m");
+  say(s, "\x1b[1;32mMessage #" + String(msgNo(m.id)) + " killed.\x1b[0m");
   uint32_t next = stepMessage(s, m.id, true);
   if (next) showMessage(s, next); else messageArea(s);
 }
@@ -429,7 +453,7 @@ static void startReply(Session &s) {
   if (!getMessage(s.msgId, m)) { say(s, "That message is gone."); readerPrompt(s); return; }
   s.replyTo = m.id; s.pendingTo = m.from; s.pendingPrivate = m.priv;
   s.pendingSubject = m.subject.startsWith("Re: ") ? m.subject : textLine("Re: " + m.subject, 55);
-  say(s, "\r\nReplying to #" + String(m.id) + " by " + m.from + ": " + s.pendingSubject);
+  say(s, "\r\nReplying to #" + String(msgNo(m.id)) + " by " + m.from + ": " + s.pendingSubject);
   startEditor(s);
 }
 static void saveDraft(Session &s) {
@@ -439,7 +463,7 @@ static void saveDraft(Session &s) {
     s.msgEdit = 0;
     if (getMessage(id, m) && canModify(s, m)) {
       m.body = s.draft; m.editedAt = nowText(); m.editedBy = s.user.handle;
-      if (appendRevision(m)) { event("MESSAGE_EDIT", s.user.handle + " #" + id); say(s, "\x1b[1;32mMessage #" + String(id) + " updated.\x1b[0m"); }
+      if (appendRevision(m)) { event("MESSAGE_EDIT", s.user.handle + " #" + id); say(s, "\x1b[1;32mMessage #" + String(msgNo(id)) + " updated.\x1b[0m"); }
       else say(s, "Not saved: the message base could not be written.");
     } else say(s, "That message can no longer be edited.");
     s.draft = "";
@@ -457,7 +481,7 @@ static void saveDraft(Session &s) {
     if (board.creditsPerMessage && s.user.credits < UINT32_MAX - board.creditsPerMessage) s.user.credits += board.creditsPerMessage;
     touchUser(s.user);
     event("MESSAGE", s.user.handle + " #" + m.id);
-    say(s, "\x1b[1;32mMessage #" + String(m.id) + " posted.\x1b[0m" +
+    say(s, "\x1b[1;32mMessage #" + String(msgNo(m.id)) + " posted.\x1b[0m" +
            (board.creditsPerMessage ? "  +" + sizeText(board.creditsPerMessage) + " download credit." : String()));
   } else say(s, "Message not posted: the message base could not be written.");
   s.draft = "";

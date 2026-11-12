@@ -11,3 +11,5 @@ sd/BBS/FILES/
 
 # TinyIRC, the first iteration, lives in its own repository.
 reference/
+tools/.cache/
+sd/BBS/MSGBASE/
