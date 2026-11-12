@@ -181,7 +181,10 @@ static void playerFile(AsyncWebServerRequest *r) {
   String u = up(name);
   const char *type = u.endsWith(".WASM") ? "application/wasm" : u.endsWith(".JS") ? "text/javascript" : "text/plain";
   AsyncWebServerResponse *res = r->beginResponse(SD_MMC, path, type, false);
-  res->addHeader("Cache-Control", "max-age=86400");  // the library is 1.3 MB: fetch it once
+  // libopenmpt is 1.3 MB and never changes: fetch it once. Everything else is
+  // small and may change with the card, so the browser asks again each time.
+  bool library = u == "LIBOPENMPT.WASM" || u == "LIBOPENMPT.JS";
+  res->addHeader("Cache-Control", library ? "max-age=86400" : "no-cache, no-store");
   r->send(res);
 }
 static void modemAudio(AsyncWebServerRequest *r) {
