@@ -47,6 +47,9 @@ const palette=['#000','#a00','#0a0','#a50','#00a','#a0a','#0aa','#aaa',
                '#555','#f55','#5f5','#ff5','#55f','#f5f','#5ff','#fff'];
 const cols=80,rows=25,w=8,h=16;
 let fg=7,bg=0,bright=false,reverse=false,x=0,y=0,wrap=false,partial='',saved=[0,0];
+// Scroll region (ESC[top;bottom r): lines scroll only between these rows,
+// so a status bar below them stays put. The whole screen by default.
+let top=0,bottom=rows-1;
 const blank=()=>({ch:' ',ink:7,paper:0});
 const row=()=>Array.from({length:cols},blank);
 let screen=Array.from({length:rows},row);
@@ -72,8 +75,11 @@ function move(nx,ny){
   wrap=false;
 }
 function down(){
-  if(y<rows-1)y++;
-  else{history.push(screen.shift());if(history.length>1000)history.shift();screen.push(row());}
+  if(y===bottom){
+    if(top===0&&bottom===rows-1){history.push(screen.shift());if(history.length>1000)history.shift();screen.push(row());}
+    else{screen.splice(top,1);screen.splice(bottom,0,row());}  // scroll inside the region only
+  }
+  else if(y<rows-1)y++;
 }
 function colors(){
   const ink=fg|(bright?8:0);
@@ -122,6 +128,11 @@ function control(params,cmd){
   else if(cmd==='s')saved=[x,y];
   else if(cmd==='u')move(...saved);
   else if(cmd==='J'&&args[0]===2){clear();move(0,0);}
+  else if(cmd==='r'){
+    const t=(args[0]||1)-1,b=(args[1]||rows)-1;
+    if(t<b&&b<rows){top=t;bottom=b;}else{top=0;bottom=rows-1;}
+    move(0,0);
+  }
   else if(cmd==='K'){
     const mode=args[0];
     eraseLine(mode===0?x:0,mode===1?x+1:cols);
@@ -457,7 +468,7 @@ dial.onclick=async()=>{
     const response=await request('/api/connect',{method:'POST',body:new URLSearchParams({t:localTime()})});
     if(response.status!==200){lost(response.status===503?BRAND+' // ALL NODES BUSY':BRAND+' // NO CARRIER');return;}
     ({node,token}=JSON.parse(response.text));
-    clear();move(0,0);partial='';fg=7;bg=0;bright=reverse=secret=false;
+    clear();move(0,0);top=0;bottom=rows-1;partial='';fg=7;bg=0;bright=reverse=secret=false;
     carrier.textContent=connectText();attach();
   }catch{lost(BRAND+' // LINK ERROR');}
 };

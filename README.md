@@ -390,6 +390,12 @@ A level-255 account with the `SYSOP` flag gets `Z`, the SysOp console.
 - **File manager** (`Z` then `F`, browser only): a separate page for the SD
   card. Upload, download, rename, delete and edit text files without
   pulling the card. `DATA` and `LOGS` are read-only there.
+- **Logs** (`Z` then `L`): the event log in the reader, newest last. Logins,
+  failed logins, logoffs with minutes online, downloads, uploads, posts and
+  every change of what a caller is doing. `L <text>` shows only matching
+  lines, for example one caller's handle.
+- **Chat history** (`/H` in chat): chat is saved to `LOGS/CHAT.LOG`, and the
+  SysOp sees the latest lines on entering chat.
 - **`RELOAD`** rereads the settings and file areas.
 
 ## Limits

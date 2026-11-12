@@ -11,7 +11,7 @@ static WebRouteRequest espRequest(AsyncWebServerRequest *request) {
   route.path = request->url();
   route.contentLength = request->contentLength();
   for (size_t i = 0; i < request->params(); ++i) {
-    AsyncWebParameter *parameter = request->getParam(i);
+    const AsyncWebParameter *parameter = request->getParam(i);
     route.args.push_back({parameter->name(), parameter->value()});
   }
   return route;

@@ -75,7 +75,15 @@ static bool putRecord(const String &path, uint32_t id, const String &line, bool 
   return true;
 }
 
+// The event log: logins, logoffs, what callers do, SysOp actions. The SysOp
+// reads it with L in the console. At 512 KB it becomes EVENTS.OLD.
+static constexpr const char *EVENT_LOG = "/BBS/LOGS/EVENTS.LOG";
 static void event(const String &tag, const String &detail) {
-  if (!sdReady) return; File f = SD_MMC.open("/BBS/LOGS/EVENTS.LOG", FILE_APPEND);
-  if (f) { f.println(nowText() + "|" + tag + "|" + enc(detail)); f.close(); }
+  if (!sdReady) return;
+  File f = SD_MMC.open(EVENT_LOG, FILE_APPEND);
+  if (!f) return;
+  bool full = f.size() > 512UL * 1024;
+  f.println(nowText() + "|" + tag + "|" + enc(detail));
+  f.close();
+  if (full) { SD_MMC.remove("/BBS/LOGS/EVENTS.OLD"); SD_MMC.rename(EVENT_LOG, "/BBS/LOGS/EVENTS.OLD"); }
 }

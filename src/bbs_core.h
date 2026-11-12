@@ -31,6 +31,7 @@
 #include "doors/doors.h"
 #include "bbs/sysop.h"
 #include "bbs/board.h"
+#include "bbs/chat.h"
 #include "bbs/messages.h"
 #include "bbs/admin.h"
 #include "bbs/uploads.h"

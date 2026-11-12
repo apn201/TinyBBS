@@ -72,7 +72,8 @@ are allowed: they never appear on screen.
 
 | Screen | Keys | Notes |
 | --- | --- | --- |
-| Console | U D W I S R Q; F in the browser | |
+| Console | U D W I L S R Q; F in the browser | L shows the event log, L <text> filters it. |
+| Node chat | type to talk; /Q /W; /H for the SysOp | A bar on the last row shows who is here and the commands. |
 | User editor list | #, handle, A, Q; ENTER and P with more than one page | |
 | User record | 1-11 (11 = gold, shared by all doors), N, P, Q; D for other accounts | D used to show on your own record and then refuse. **Fixed.** |
 | Node monitor | node #, M <node or ALL> text, ENTER | |

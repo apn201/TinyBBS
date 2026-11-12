@@ -251,15 +251,27 @@ static void showPage(Session &s, const String &note = "") {
 }
 // Open the reader on what the caller filled into s.reader. ANSI pictures
 // play at once when the caller has a modem speed; everything else pages.
-static void openReader(Session &s, bool play) {
+// atEnd opens on the last page: logs and chat, where the newest is last.
+static void openReader(Session &s, bool play, bool atEnd = false) {
   Reader &r = s.reader;
-  r.top = 0; r.keyEsc = ""; r.playing = false;
+  r.top = atEnd ? readerMaxTop(r) : 0; r.keyEsc = ""; r.playing = false;
   if (!r.hint.length()) r.hint = "SPACE page  B back  \x18\x19 line  S play  Q quit";
   s.state = READER;
   if (play && s.cps && readerCount(r)) {
     write(s, "\x1b[0m\x1b[2J\x1b[H");
     r.playRow = 0; r.playing = true;
   } else showPage(s);
+}
+// Ready-made screen rows in the reader: ZIP contents, long messages, chat
+// history, the event log. onKey gets keys first; onQuit runs on Q.
+static void openRows(Session &s, std::vector<String> &rows, const String &title, const String &hint,
+                     void (*onQuit)(Session &), bool (*onKey)(Session &, const String &) = nullptr, bool atEnd = false) {
+  Reader &r = s.reader;
+  r = Reader();
+  r.kind = READER_ROWS; r.rows.swap(rows);
+  r.title = title; r.hint = hint;
+  r.onKey = onKey; r.onQuit = onQuit;
+  openReader(s, false, atEnd);
 }
 static void readerStopped(Session &s) {
   Reader &r = s.reader;

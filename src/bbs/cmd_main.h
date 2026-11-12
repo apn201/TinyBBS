@@ -7,11 +7,7 @@
 static void enterChat(Session &s, const String &banner) {
   if (s.duelNode) duelCancel(s, s.user.handle + " was called to chat");
   if (playingMud(s)) mudBroadcastRoom(s, s.user.handle + " is called away by the SysOp.");
-  s.hideInput = false;
-  s.state = CHAT; activity(s, "CHAT");
-  say(s, banner);
-  broadcastChat(s, "joined the chat.");
-  prompt(s, "> ");
+  startChat(s, banner);
 }
 static void answerPage(Session &op, bool accept) {
   uint8_t node = op.pageNode; uint32_t uid = op.pageUser;
@@ -55,7 +51,7 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
     else if (cmd == "U") { s.userPage = 0; userList(s); }
     else if (cmd == "M") { messageArea(s); }
     else if (cmd == "N") { readNew(s); }
-    else if (cmd == "C") { s.state = CHAT; activity(s, "CHAT"); say(s, "\r\n\x1b[1;33mEntered Multi-Node Chat. /Q returns to the board.\x1b[0m"); broadcastChat(s, "joined the chat."); prompt(s, "> "); }
+    else if (cmd == "C") { startChat(s, "\x1b[1;33mMulti-Node Chat. Type and press ENTER to talk.\x1b[0m"); }
     else if (cmd == "J") { areaList(s); }
     else if (cmd == "P") {
       bool sent = false;
@@ -105,6 +101,6 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
     else showBulletin(s, *b);
     prompt(s, "Bulletin # (ENTER = back): "); return true;
   }
-  if (s.state == CHAT) { if (cmd == "/Q") { broadcastChat(s, "left the chat."); mainMenu(s); } else if (line.length()) { broadcastChat(s, line); prompt(s, "> "); } return true; }
+  if (s.state == CHAT) { chatCommand(s, line, cmd); return true; }
   return false;
 }

@@ -114,7 +114,13 @@ static void write(Session &s, const String &text) {
 }
 static void say(Session &s, const String &text = "") { write(s, text + "\r\n"); }
 static void prompt(Session &s, const String &text) { write(s, text); }
-static void activity(Session &s, const String &what) { s.activity = what; }
+// What the caller is doing, for WHO and the node monitor. A change is also
+// written to the event log, so the SysOp can follow a caller's visit.
+static void activity(Session &s, const String &what) {
+  if (s.activity == what) return;
+  s.activity = what;
+  if (s.authenticated && s.user.handle.length()) event("DOING", s.user.handle + " node " + s.node + ": " + what);
+}
 // Last-read message per area, in /BBS/DATA/STATE/PTR_<user>.DAT as
 // "<fallback>|<conference>|c:id,c:id,...". The first two fields are the old
 // format: a single high-water mark that still applies to areas not listed.

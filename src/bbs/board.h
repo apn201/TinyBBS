@@ -121,12 +121,14 @@ static void newSession(Session &s) {
   s.connectedAt = s.lastAt = s.lastPoll = millis();
   loginPrompt(s);
 }
+static void leaveChat(Session &s, const char *why);  // bbs/chat.h
 static void closeSession(Session &s) {
   if (!s.used) return;
+  if (s.state == CHAT) leaveChat(s, "lost carrier.");
   if (playingMud(s)) mudBroadcastRoom(s, s.user.handle + " loses carrier.");
   if (s.duelNode) duelLostCarrier(s);
   trace("SESSION_CLOSE", String("node ") + s.node + " " + (s.user.handle.length() ? s.user.handle : "anonymous"));
-  event("LOGOFF", s.user.handle.length() ? s.user.handle : "anonymous");
+  event("LOGOFF", (s.user.handle.length() ? s.user.handle : String("anonymous")) + " node " + s.node + ", " + String((millis() - s.connectedAt) / 60000) + " min");
   if (s.socket) s.socket.stop();
   if (s.wsClient) wsHangups.push_back(s.wsClient);
   s = Session();
@@ -135,4 +137,3 @@ static Session *allocate(bool web, NetClient incoming = NetClient()) {
   for (uint8_t i = 0; i < board.maxNodes; ++i) if (!sessions[i].used) { Session &s = sessions[i]; s = Session(); s.used = true; s.web = web; s.socket = incoming; if (!web) s.cps = 0; /* Telnet: full speed */ s.node = i + 1; s.token = salt(); newSession(s); event("CONNECT", String("node ") + s.node + (web ? " web" : " telnet")); trace("SESSION_OPEN", String("node ") + s.node + (web ? " web" : " telnet")); return &s; } trace("SESSION_REJECT", "all nodes busy"); return nullptr;
 }
 static Session *webSession(uint8_t node, const String &token) { if (!node || node > MAX_NODES) return nullptr; Session &s = sessions[node - 1]; return s.used && s.web && s.token == token ? &s : nullptr; }
-static void broadcastChat(Session &from, const String &line) { for (auto &s : sessions) if (s.used && s.state == CHAT) say(s, "\x1b[0;36m[" + from.user.handle + "]\x1b[0m " + line); }

@@ -84,14 +84,8 @@ static bool openZipList(Session &s, uint16_t number, const String &path, const S
   rows.push_back("");
   if (!zipContents(path, rows)) { if (!quiet) prompt(s, "Not a ZIP this board can read. File command? "); return false; }
   s.viewer.number = number;
-  Reader &r = s.reader;
-  r = Reader();
-  r.kind = READER_ROWS; r.rows.swap(rows);
-  r.title = clean(name, 24);
-  r.hint = "SPACE page  B back  \x18\x19 line  N/P file  Q quit";
-  r.onKey = fileReaderKey; r.onQuit = fileReaderQuit;
   activity(s, "LISTING " + clean(name, 30));
-  openReader(s, false);
+  openRows(s, rows, clean(name, 24), "SPACE page  B back  \x18\x19 line  N/P file  Q quit", fileReaderQuit, fileReaderKey);
   return true;
 }
 

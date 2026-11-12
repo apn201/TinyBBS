@@ -231,12 +231,7 @@ static void showRows(Session &s, std::vector<String> &rows, const String &title)
     readerPrompt(s);
     return;
   }
-  Reader &r = s.reader;
-  r = Reader();
-  r.kind = READER_ROWS; r.rows.swap(rows); r.title = title;
-  r.hint = messageKeys(s, true);
-  r.onKey = msgReaderKey; r.onQuit = msgReaderQuit;
-  openReader(s, false);
+  openRows(s, rows, title, messageKeys(s, true), msgReaderQuit, msgReaderKey);
 }
 static void showMessage(Session &s, uint32_t id) {
   Message m;

@@ -61,8 +61,40 @@ static void sysopMenu(Session &s) {
   say(s, "[W] Node monitor   [S] Board statistics   [R] Reload settings   [Q] Main Board");
   size_t waiting = uploadsWaiting();
   say(s, "[I] Incoming uploads" + (waiting ? " \x1b[1;35m(" + String(waiting) + " waiting)\x1b[0m" : String(" (none waiting)")));
+  say(s, "[L] Logs: logins and what callers do   L <text> shows only matching lines");
   if (s.web) say(s, "[F] File manager (opens a separate admin page)");
   prompt(s, "SysOp command? ");
+}
+// The event log in the reader, newest at the bottom. With a filter, only the
+// lines that contain it (any case): a handle, a node, LOGIN, AUTH_FAIL...
+static String logColour(const String &tag) {
+  if (tag == "LOGIN" || tag == "NEW_USER") return "\x1b[1;32m";
+  if (tag == "LOGOFF" || tag == "CONNECT") return "\x1b[0;32m";
+  if (tag.startsWith("AUTH") || tag.indexOf("FAIL") >= 0 || tag.startsWith("SYSOP")) return "\x1b[1;31m";
+  if (tag == "DOING") return "\x1b[0;37m";
+  return "\x1b[1;33m";
+}
+static void sysopMenuBack(Session &s) { sysopMenu(s); }
+static void sysopLogs(Session &s, String filter) {
+  filter.trim(); filter.toUpperCase();
+  std::vector<String> rows;
+  File f = sdReady ? SD_MMC.open(EVENT_LOG, FILE_READ) : File();
+  while (f && f.available()) {
+    String line = f.readStringUntil('\n');
+    line.trim();
+    if (!line.length()) continue;
+    String when = field(line, 0), tag = field(line, 1), detail = dec(field(line, 2));
+    if (filter.length() && up(when + " " + tag + " " + detail).indexOf(filter) < 0) continue;
+    char head[48];
+    snprintf(head, sizeof(head), "%-16.16s %-11.11s ", when.c_str(), tag.c_str());
+    rows.push_back("\x1b[0;36m" + String(head).substring(0, 17) + logColour(tag) + String(head).substring(17) + "\x1b[0m" + detail.substring(0, 50));
+    if (rows.size() > 1000) rows.erase(rows.begin());
+  }
+  if (f) f.close();
+  if (rows.empty()) { say(s, filter.length() ? "No log lines match." : "The log is empty."); prompt(s, "SysOp command? "); return; }
+  activity(s, "SYSOP LOGS");
+  openRows(s, rows, filter.length() ? "Log: " + filter.substring(0, 16) : String("Event log"),
+           "SPACE page  B back  \x18\x19 line  G/< top  Q console", sysopMenuBack, nullptr, true);
 }
 static void sysopDoors(Session &s) {
   s.state = SYSOP_DOORS;
