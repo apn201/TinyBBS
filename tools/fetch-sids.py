@@ -13,8 +13,8 @@ Writes the tunes, a FILES.BBS (title, composer, release, HVSC path) and AREA.INI
 """
 import argparse
 import os
-import time
-import urllib.request
+
+from bbscard import FILES, fetch, write_area_ini, write_files_bbs
 
 BASE = 'https://hvsc.c64.org/download/C64Music/'
 CANDIDATES = """
@@ -54,7 +54,6 @@ MUSICIANS/H/Hubbard_Rob/Zoids.sid
 MUSICIANS/G/Galway_Martin/Green_Beret.sid
 MUSICIANS/D/Daglish_Ben/Krakout.sid
 """
-HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def text(b):
@@ -63,7 +62,7 @@ def text(b):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--out', default=os.path.join(HERE, '..', 'sd', 'BBS', 'FILES', '016_SID_MUSIC'))
+    ap.add_argument('--out', default=os.path.join(FILES, '016_SID_MUSIC'))
     ap.add_argument('--count', type=int, default=30)
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
@@ -77,13 +76,10 @@ def main():
             data = open(path, 'rb').read()
         else:
             try:
-                req = urllib.request.Request(BASE + rel, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=60) as r:
-                    data = r.read()
+                data = fetch(BASE + rel)
             except Exception as e:
                 print(f'{rel}: skipped ({e})')
                 continue
-            time.sleep(1)  # be polite
             if data[:4] != b'PSID':
                 print(f'{rel}: skipped ({data[:4]!r}, not PSID)')
                 continue
@@ -95,17 +91,8 @@ def main():
         desc.append(f'{name}  {title} by {author} ({released}{extra}) HVSC {rel}')
         kept += 1
         print(f'{name:32s} {len(data):6d}  {title} / {author}')
-    with open(os.path.join(args.out, 'FILES.BBS'), 'w', encoding='cp437', errors='replace', newline='\r\n') as w:
-        w.write('\n'.join(desc) + '\n')
-    ini = os.path.join(args.out, 'AREA.INI')
-    if not os.path.exists(ini):
-        with open(ini, 'w', newline='\r\n') as w:
-            w.write('; File area settings. Edit, then RELOAD as SysOp.\n[AREA]\n'
-                    '; Shown in the file menu. Empty = made from the folder name.\nname=C64 SID Music\n'
-                    '; Lowest security level that sees this area.\nmin_security=0\n'
-                    '; A user flag the caller must also have, e.g. BACKROOM. Empty = none.\nrequired_flag=\n'
-                    '; 0 = files can be viewed but not downloaded.\ndownloads=1\n'
-                    '; 1 = browser callers may upload here, for the SysOp to approve.\nuploads=0\n')
+    write_files_bbs(args.out, desc)
+    write_area_ini(args.out, 'C64 SID Music')
     print(kept, 'tunes in', os.path.relpath(args.out))
 
 

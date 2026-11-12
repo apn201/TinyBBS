@@ -38,4 +38,3 @@ $required = @(
 )
 foreach ($relative in $required) { New-Item -ItemType Directory -Force -Path (Join-Path $target $relative) | Out-Null }
 Write-Host "TinyBBS presentation/config files copied to $target"
-Write-Host 'Merge the supplied TinyBBS_SD_CARD_EMPTY_TREE.zip first if you want every reserved archive directory.'

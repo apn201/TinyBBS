@@ -15,8 +15,8 @@ Writes the modules, a FILES.BBS with titles and Mod Archive ids, and AREA.INI.
 """
 import argparse
 import os
-import time
-import urllib.request
+
+from bbscard import FILES, fetch, write_area_ini, write_files_bbs
 
 PICKS = """
 130596|skipmem.mod|mod.skipmem
@@ -71,12 +71,11 @@ PICKS = """
 155174|8000_miles_away.it|8000 years ago
 """
 URL = 'https://api.modarchive.org/downloads.php?moduleid={}'
-HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--out', default=os.path.join(HERE, '..', 'sd', 'BBS', 'FILES', '015_MUSIC'))
+    ap.add_argument('--out', default=os.path.join(FILES, '015_MUSIC'))
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     picks = [l.split('|') for l in PICKS.strip().splitlines()]
@@ -84,25 +83,13 @@ def main():
     for mid, name, title in picks:
         path = os.path.join(args.out, name)
         if not os.path.exists(path):
-            req = urllib.request.Request(URL.format(mid), headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=60) as r:
-                data = r.read()
+            data = fetch(URL.format(mid))
             with open(path, 'wb') as w:
                 w.write(data)
             print(f'{name:40s} {len(data):8d}')
-            time.sleep(1)  # be polite
         desc.append(f'{name}  {title} (The Mod Archive #{mid})')
-    with open(os.path.join(args.out, 'FILES.BBS'), 'w', encoding='cp437', errors='replace', newline='\r\n') as w:
-        w.write('\n'.join(desc) + '\n')
-    ini = os.path.join(args.out, 'AREA.INI')
-    if not os.path.exists(ini):
-        with open(ini, 'w', newline='\r\n') as w:
-            w.write('; File area settings. Edit, then RELOAD as SysOp.\n[AREA]\n'
-                    '; Shown in the file menu. Empty = made from the folder name.\nname=Tracker Music\n'
-                    '; Lowest security level that sees this area.\nmin_security=0\n'
-                    '; A user flag the caller must also have, e.g. BACKROOM. Empty = none.\nrequired_flag=\n'
-                    '; 0 = files can be viewed but not downloaded.\ndownloads=1\n'
-                    '; 1 = browser callers may upload here, for the SysOp to approve.\nuploads=0\n')
+    write_files_bbs(args.out, desc)
+    write_area_ini(args.out, 'Tracker Music')
     print(len(picks), 'modules in', os.path.relpath(args.out))
 
 

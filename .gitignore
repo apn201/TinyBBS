@@ -13,3 +13,4 @@ sd/BBS/FILES/
 reference/
 tools/.cache/
 sd/BBS/MSGBASE/
+__pycache__/

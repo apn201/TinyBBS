@@ -3,7 +3,7 @@
 The current repository is a working vertical slice. It boots an AP, serves a
 browser terminal, accepts Telnet, stores accounts and messages on SD, and lets
 callers see each other in the same BBS. It is not the complete 1.0 described
-in `TinyBBS_READY_TO_CODE_SPEC.md`.
+in `SPEC_1.0.md`.
 
 ## Done in the current slice
 

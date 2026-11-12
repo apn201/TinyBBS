@@ -32,8 +32,9 @@ import hashlib
 import os
 import re
 import sys
-import urllib.request
 import zipfile
+
+from bbscard import fetch_to
 
 ZIP_URL = 'https://breakintochat.com/collections/messages/fidonet/fidonet-messages-execpc.zip'
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -290,16 +291,8 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(args.zip):
-        os.makedirs(CACHE, exist_ok=True)
         print('Downloading', ZIP_URL, '(150 MB, once) ...')
-        req = urllib.request.Request(ZIP_URL, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as r, open(args.zip + '.part', 'wb') as w:
-            while True:
-                b = r.read(1 << 20)
-                if not b:
-                    break
-                w.write(b)
-        os.replace(args.zip + '.part', args.zip)
+        fetch_to(ZIP_URL, args.zip)
 
     wanted = {t: cid for cid, (_, ts) in CONFERENCES.items() for t in ts}
     per = {cid: [] for cid in CONFERENCES}
