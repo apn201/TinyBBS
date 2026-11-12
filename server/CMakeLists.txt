@@ -24,7 +24,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(tinybbs-phase1-smoke PRIVATE pthread)
 endif()
 
-add_executable(tinybbs-server main.cpp net/http.cpp)
+# Like the ESP32 firmware, the server is one translation unit: bbs_core.h
+# defines its deliberately file-local state and main.cpp includes http.cpp.
+add_executable(tinybbs-server main.cpp)
 target_compile_features(tinybbs-server PRIVATE cxx_std_17)
 target_include_directories(tinybbs-server PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}

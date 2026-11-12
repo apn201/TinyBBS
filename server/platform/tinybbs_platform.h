@@ -410,6 +410,8 @@ class ServerSDMMC {
   bool exists(const String &logical) const { const auto host = tinybbs_server::mapPath(logical); std::error_code error; return !host.empty() && std::filesystem::exists(host, error); }
   bool mkdir(const String &logical) const { const auto host = tinybbs_server::mapPath(logical); std::error_code error; return !host.empty() && std::filesystem::create_directories(host, error); }
   bool remove(const String &logical) const { const auto host = tinybbs_server::mapPath(logical); std::error_code error; return !host.empty() && std::filesystem::remove(host, error); }
+  // FAT's rmdir is the same operation as remove for an empty directory.
+  bool rmdir(const String &logical) const { return remove(logical); }
   bool rename(const String &from, const String &to) const {
     const auto source = tinybbs_server::mapPath(from), target = tinybbs_server::mapPath(to);
     if (source.empty() || target.empty()) return false;

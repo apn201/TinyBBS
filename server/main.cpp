@@ -3,6 +3,10 @@
 // into later phases so the core remains transport-independent.
 #include "platform/platform.h"
 #include "bbs_core.h"
+// The core intentionally has file-local state. Compile its HTTP bridge into
+// this same translation unit so routes operate on this process's sessions,
+// settings and mounted card rather than private copies of those globals.
+#include "net/http.cpp"
 #include "net/transport_loop.h"
 
 #include <csignal>

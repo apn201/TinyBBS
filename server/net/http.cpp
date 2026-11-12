@@ -1,5 +1,3 @@
-#include "platform/platform.h"
-#include "bbs_core.h"
 #include "net/http.h"
 #include "net/routes.h"
 
@@ -136,7 +134,10 @@ static void wsClose(const mg_connection *connection, void *opaque) {
 }
 bool ServerHttp::start(const std::string &endpoint) {
   stop();
-  if (!mg_init_library(MG_FEATURES_DEFAULT) || !(mg_check_feature(MG_FEATURES_WEBSOCKET) & MG_FEATURES_WEBSOCKET)) return false;
+  // MG_FEATURES_DEFAULT is zero, so a zero return here is expected rather
+  // than an error. The actual required feature is checked below.
+  mg_init_library(MG_FEATURES_DEFAULT);
+  if (!(mg_check_feature(MG_FEATURES_WEBSOCKET) & MG_FEATURES_WEBSOCKET)) return false;
   impl_ = new Impl();
   const char *options[] = {"listening_ports", endpoint.c_str(), "num_threads", "4", "enable_keep_alive", "yes", nullptr};
   impl_->context = mg_start(nullptr, impl_, options);
