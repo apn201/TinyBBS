@@ -79,15 +79,6 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
     say(s, "Type a number to open it, or use the keys listed above.");
     prompt(s, "File command? "); return true;
   }
-  if (s.state == FILE_VIEW) {
-    if (cmd == "R") { openFileViewer(s, s.viewer.number); return true; }
-    if (cmd == "N" || cmd == "P") {
-      if (!stepViewer(s, cmd == "N"))
-        write(s, cmd == "N" ? "\r\nLast viewable file in this folder. [P] Prev  [R] Replay  [Q] File list: "
-                            : "\r\nFirst viewable file in this folder. [N] Next  [R] Replay  [Q] File list: ");
-      return true;
-    }
-    listArea(s); return true;
-  }
+
   return false;
 }

@@ -36,6 +36,8 @@
 #include "bbs/settings.h"
 #include "bbs/menus.h"
 #include "bbs/files.h"
+#include "bbs/zip.h"
+#include "bbs/viewers.h"
 #include "doors/volamud.h"
 #include "doors/legend.h"
 #include "doors/dice.h"
