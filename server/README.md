@@ -2,12 +2,12 @@
 
 Phase 1 supplies Linux implementations of the Arduino-shaped platform API so
 the shared `src/bbs_core.h` can run unchanged. Phase 2 adds `tinybbs-server`:
-the long-running shared-core loop. HTTP/WebSocket binding comes in phase 3 and
-Telnet in phase 4, so this executable currently logs their configured
-endpoints without opening ports.
+the long-running shared-core loop. Phase 3 binds HTTP and WebSocket through
+CivetWeb; Telnet remains phase 4.
 
 On Rocky Linux, install the development prerequisites from the deployment
-plan, then build the compatibility check:
+plan (including `civetweb-devel` for phase 3), then build the compatibility
+check:
 
 ```sh
 cmake -S server -B server/build
@@ -40,10 +40,13 @@ storage setup and clock persistence:
 ```
 
 `--root` defaults to `/srv/tinybbs`; `--http` defaults to `127.0.0.1:8080`;
-leaving out `--telnet` disables it. Stop with Ctrl-C or `systemctl stop` once
-the service unit exists. The process logs the settings summary then ticks the
-BBS every two milliseconds under `BbsLock`.
+leaving out `--telnet` disables it. The process serves the same terminal and
+SysOp pages from `shared/web/`, including polling, WebSocket, files, media and
+uploads. Stop with Ctrl-C or `systemctl stop` once the service unit exists.
+The process logs the settings summary then ticks the BBS every two milliseconds
+under `BbsLock`.
 
 For the server's configured local time, set `clock_sync=system` in that server copy's
-`BBS/CONFIG/SYSTEM.INI`. The repository's stick configuration remains
-`clock_sync=browser`, preserving its 1990s browser-synchronised clock.
+`BBS/CONFIG/SYSTEM.INI`. It follows the host clock but shifts it by 28-year
+steps into the `epoch=` era, preserving the 1990s date and matching weekday.
+The repository's stick configuration remains `clock_sync=browser`.

@@ -1,5 +1,12 @@
 # Third-party notices
 
+## CivetWeb (server HTTP and WebSocket binding)
+
+The Linux server links CivetWeb from Rocky Linux EPEL's `civetweb-devel`
+package (currently 1.16). CivetWeb is an embeddable HTTP and WebSocket server
+used only by `server/net/http.cpp`; Apache still terminates public TLS.
+CivetWeb is MIT licensed; its package retains the upstream licence notice.
+
 ## miniz (server ZIP inflater)
 
 The Linux phase-1 compatibility target vendors miniz's `tinfl` inflater in

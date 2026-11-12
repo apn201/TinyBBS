@@ -92,6 +92,9 @@ cmake --build server/build
 ./server/build/tinybbs-server --root <folder-containing-BBS>
 ```
 
+The phase-3 server target also requires the Rocky/EPEL `civetweb-devel`
+package (the Phase 1 smoke target is built from the same CMake project).
+
 Use a disposable copied card tree: the smoke check calls `bbsBegin()` and may
 create runtime files; the server process does too. For a change in `src/core`, `src/bbs`, `src/doors` or
 `src/platform`, both the PlatformIO build and the applicable server build

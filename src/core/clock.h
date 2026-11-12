@@ -2,7 +2,8 @@
 // The invented board clock: started from epoch= in SYSTEM.INI, saved to
 // CLOCK.DAT so it carries on after a power cut, and optionally pulled forward
 // to a browser caller's evening (clock_sync=browser) or set from a platform
-// system clock (clock_sync=system).
+// system clock (clock_sync=system). Both sources are shifted into epoch='s
+// 28-year calendar era, keeping the BBS in the 1990s with matching weekdays.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
 static constexpr const char *CLOCK_FILE = "/BBS/DATA/STATE/CLOCK.DAT";
@@ -12,6 +13,19 @@ static bool clockSyncSystem = false;
 static uint32_t clockSavedAt = 0;  // millis() of the last save
 static uint32_t clockSystemAt = 0; // millis() of the last system-clock check
 
+// Map a real calendar timestamp into the 28-year era chosen by epoch=. The
+// Gregorian weekday pattern repeats on that interval for the dates TinyBBS
+// supports, so 2026 becomes 1998 without changing its weekday.
+static uint32_t clockEpochEra(uint32_t t) {
+  int y, eraYear; unsigned m, d;
+  civilFromDays(t / 86400, y, m, d);
+  civilFromDays(parseClock(clockEpoch) / 86400, eraYear, m, d);
+  civilFromDays(t / 86400, y, m, d);
+  int shift = (int)lroundf((y - eraYear) / 28.0f) * 28;
+  if (y - shift < 1970) return 0;
+  return (uint32_t)daysFromCivil(y - shift, m, d) * 86400UL + t % 86400;
+}
+
 static void saveClock() {
   clockSavedAt = millis();
   if (!sdReady) return;
@@ -20,13 +34,15 @@ static void saveClock() {
   f.print(String(boardNow()) + "|" + clockEpoch + "\n");
   f.close();
 }
-// The ESP32 implementation reports no system clock; Linux supplies UTC. This
-// stays in the shared clock so clock_sync remains a card setting, not a
-// server-only behaviour.
+// The ESP32 implementation reports no system clock; Linux supplies its
+// configured local wall clock. This stays in the shared clock so clock_sync
+// remains a card setting, not a server-only behaviour.
 static bool syncSystemClock() {
   if (!clockSyncSystem) return false;
   uint32_t seconds = 0;
   if (!platformSystemClock(seconds)) return false;
+  seconds = clockEpochEra(seconds);
+  if (!seconds) return false;
   setBoardNow(seconds);
   return true;
 }
@@ -72,13 +88,8 @@ static void syncClock(const String &phone) {
   if (!clockSyncBrowser) return;
   uint32_t t = parseClock(phone);
   if (!t) return;
-  int y, eraYear; unsigned m, d;
-  civilFromDays(t / 86400, y, m, d);
-  civilFromDays(parseClock(clockEpoch) / 86400, eraYear, m, d);
-  civilFromDays(t / 86400, y, m, d);
-  int shift = (int)lroundf((y - eraYear) / 28.0f) * 28;
-  if (y - shift < 1970) return;
-  uint32_t shifted = (uint32_t)daysFromCivil(y - shift, m, d) * 86400UL + t % 86400;
+  uint32_t shifted = clockEpochEra(t);
+  if (!shifted) return;
   if (shifted <= boardNow()) return;
   event("CLOCK", "forward to " + clockText(shifted));
   setBoardNow(shifted);

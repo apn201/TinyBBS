@@ -127,9 +127,10 @@ an existing user from a copied card works, which proves the hashes match.
   `BbsLock`, as `src/main.cpp` does.
 - The WebSocket queue (keys in, frames out) works as in `src/net/web.h`:
   socket events only queue, the loop applies them under the lock.
-- Clock: the board clock in `src/core/clock.h` works unchanged.
-  `clock_sync=browser` keeps working. If the owner wants real time, add a
-  `clock_sync=system` option to the core (one `if`), not a server-only path.
+- Clock: `clock_sync=browser` keeps working. `clock_sync=system` follows the
+  host's configured local clock in the same 28-year `epoch=` era (so it keeps
+  the BBS in the 1990s with matching weekdays); it is a core setting, not a
+  server-only path.
 - Node count: `MAX_NODES` is a compile-time array size. Make the array size a
   constant per platform (8 on the ESP32, 32 on the server) and keep
   `max_nodes` in `SYSTEM.INI` as the limit callers see.
@@ -262,7 +263,7 @@ written yet (the repository has no server/ folder): do steps 1-6 now and
 stop; step 7 is for later.
 
 1. Packages: dnf install epel-release, then git gcc-c++ make cmake
-   mbedtls-devel python3 httpd mod_ssl certbot python3-certbot-apache.
+   mbedtls-devel civetweb-devel python3 httpd mod_ssl certbot python3-certbot-apache.
    (mod_proxy, mod_proxy_http and mod_proxy_wstunnel come with httpd.)
 2. Create a system user "tinybbs" with no login shell. Create /srv/tinybbs
    owned by it. Clone the repository to /srv/tinybbs/src.

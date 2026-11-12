@@ -83,7 +83,10 @@ int main(int argc, char **argv) {
     trace("CLOCK_HINT", "set clock_sync=system in BBS/CONFIG/SYSTEM.INI for host time");
 
   ServerTransports transports({options.http, options.telnet});
-  transports.start();
+  if (!transports.start()) {
+    std::fprintf(stderr, "TinyBBS could not bind HTTP at %s\n", options.http.c_str());
+    return 1;
+  }
   event("BOOT", "TinyBBS server started");
 
   std::signal(SIGINT, requestStop);
@@ -93,8 +96,11 @@ int main(int argc, char **argv) {
       BbsLock lock;
       bbsTick([&transports]() { transports.tickLocked(); });
     }
+    transports.tickWebSocket();
     delay(2);
   }
+  saveClock();
+  transports.stop();
   trace("SERVER_STOP", "signal received");
   return 0;
 }
