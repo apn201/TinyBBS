@@ -4,6 +4,7 @@ A 1990s-style BBS running on a $10 ESP32-S3 USB dongle,
 the [Pocket-Dongle-S3](https://www.aliexpress.com/item/1005008896509314.html). No Internet, no modem, no
 phone line. The board makes its own WiFi network and you call it from a phone
 browser or a Telnet client.
+online demo: https://kouvosto.helppox.com/
 
 The working board name is Kouvosto.
 
