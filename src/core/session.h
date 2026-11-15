@@ -99,6 +99,10 @@ struct Session {
   int8_t wsStream = -1;  // streaming flag last sent over the socket
   bool authenticated = false;
   uint8_t telnetState = 0;
+  // A letter typed at a key screen waits a moment: more keys right behind it make a typed word
+  // (docs/INTERACTION.md, C1 and C10; bbs/commands.h).
+  char hotKey = 0; uint32_t hotAt = 0;
+  uint32_t eatEnterUntil = 0;  // a hotkey ran: the Enter a line-mode client sends after it (until then, in millis()) is not a line
 };
 static Session sessions[MAX_NODES];
 static Session *sessionByNode(uint8_t node) {

@@ -12,9 +12,21 @@ static bool streaming(const Session &s) {
   for (const auto &j : s.jobs) if (j.paced) return true;
   return false;
 }
+// docs/INTERACTION.md, C1: at these screens a letter acts at once, no ENTER.
+// Digits and words still make a line (a number, a typed word) that ENTER ends.
+static bool hotkeyState(const Session &s) {
+  switch (s.state) {
+    case LOGIN_CHOICE: case BULLETIN: case MAIN: case USER_LIST: case MSG_MENU: case MSG_READ: case MSG_VIEW: case MSG_KILL:
+    case POST_PRIVATE: case JOIN_CONF: case BULLETIN_LIST: case DOOR_MENU: case ANSI_GALLERY: case FILE_MENU: case FILE_LIST: case SYSOP_MENU:
+      return true;
+    default: return false;
+  }
+}
 // Key mode for the browser: 0 = line input, 1 = a file is streaming (keys skip
-// or pause it), 2 = the reader (every key goes to the board at once).
-static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == READER || s.state == FILE_IMAGE || s.state == FILE_MUSIC ? 2 : 0; }
+// or pause it), 2 = the reader (every key goes to the board at once), 3 = a key
+// screen: every key goes to the board too, which echoes typed digits (the
+// browser does not turn pages on a tap there).
+static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == READER || s.state == FILE_IMAGE || s.state == FILE_MUSIC ? 2 : hotkeyState(s) ? 3 : 0; }
 static bool outputDone(const Session &s) { return s.jobs.empty() && !s.pending.length() && !s.output.length(); }
 
 // Append up to `want` bytes of the job's file to `out`. Returns true when the
