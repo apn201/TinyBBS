@@ -42,7 +42,8 @@ class Caller:
                 data += chunk
                 last = time.time()
             except BlockingIOError:
-                if time.time() - last >= quiet:
+                # Wait up to 2 s for the first byte, then until the line is quiet.
+                if (data and time.time() - last >= quiet) or (not data and time.time() - start >= 2.0):
                     break
                 time.sleep(0.02)
         out, i = bytearray(), 0

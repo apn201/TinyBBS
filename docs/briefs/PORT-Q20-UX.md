@@ -135,7 +135,8 @@ silence and hung up a line now and then (`src/bbs/runtime.h`).
   `helppox.com` in a scratch folder, since this PC has no Linux; Docker was
   not used.
 - Telnet walk on a disposable server card copy (loopback ports): 0 failures,
-  six runs in a row after the idle fix. It signs up a SysOp and a caller, reads,
+  ten runs in a row after the idle fix (one earlier miss was the walk reading
+  too briefly on a busy host; it now waits up to 2 s for the first byte). It signs up a SysOp and a caller, reads,
   posts and replies, opens a file area, goes into and out of every door
   (Legend town, tavern, shop, bank, forest; dice; VolaMUD), chat in and out on
   both nodes, a SysOp page and its refusal, ? and X from inside a message, a
@@ -146,7 +147,13 @@ silence and hung up a line now and then (`src/bbs/runtime.h`).
   flashed) and a browser session; the browser part (key mode 3) is covered only
   by the same board code the walk drives.
 
-**Commits.** `6027bd5` to the commit that adds this report, all prefixed
-`UX port:`.
+**Last item.** P48, re-read at the end. Last Caller has newer Q22 commits that
+are not on the port list yet (`d69d8bc` SPACE at "Press any key", `e597dc4`
+why a line closed in the event log, `5334cec` the server retries EINTR on a
+socket); they were not ported. `5334cec` touches the server platform shared
+with this repository and is worth a port item.
+
+**Commits.** `6027bd5` to the last `UX port:` commit (14 commits), all
+prefixed `UX port:`.
 
 PORT DONE
