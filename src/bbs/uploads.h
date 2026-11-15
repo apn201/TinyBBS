@@ -97,7 +97,7 @@ static void uploadDescription(Session &s, String line) {
   activity(s, "UPLOADING");
   write(s, "\x1b]9;UP;/upload?n=" + String(s.node) + "&q=" + s.token + "&u=" + s.uploadTicket + ";" + board.uploadMax + "\x07");
   say(s, "\x1b[1;36mTap CHOOSE FILE below the terminal and pick the file.\x1b[0m");
-  prompt(s, "Waiting for your file. ENTER cancels: ");
+  prompt(s, "Waiting for your file. Q cancels: ");
 }
 static void cancelUpload(Session &s) {
   s.uploadTicket = "";

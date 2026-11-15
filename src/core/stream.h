@@ -18,6 +18,7 @@ static bool hotkeyState(const Session &s) {
   switch (s.state) {
     case LOGIN_CHOICE: case BULLETIN: case MAIN: case USER_LIST: case MSG_MENU: case MSG_READ: case MSG_VIEW: case MSG_KILL:
     case POST_PRIVATE: case JOIN_CONF: case BULLETIN_LIST: case DOOR_MENU: case ANSI_GALLERY: case FILE_MENU: case FILE_LIST: case SYSOP_MENU:
+    case FILE_ASK: case FILE_UPLOAD_WAIT: case CHAT:
       return true;
     default: return false;
   }

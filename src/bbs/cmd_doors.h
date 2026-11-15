@@ -4,13 +4,15 @@
 
 static bool doorCommand(Session &s, String &line, const String &cmd) {
   if (s.state == DOOR_MENU) {
-    if (cmd == "Q" || !cmd.length()) { mainMenu(s); return true; }
+    if (cmd == "Q" || cmd == "X") { mainMenu(s); return true; }
+    if (cmd == "?") { keysHelp(s); return true; }
+    if (!cmd.length()) { doorMenu(s); return true; }
     if (cmd.length() == 1)
       for (const Door &d : DOORS)
         if (strchr(d.keys, cmd[0])) { d.enter(s); return true; }
     String keys;
     for (const Door &d : DOORS) { keys += d.keys[0]; keys += ", "; }
-    say(s, "Choose " + keys + "or Q."); prompt(s, "Door command? "); return true;
+    say(s, "Keys: " + keys + "Q. ? lists them."); prompt(s, "Door command? "); return true;
   }
   if (const Door *d = doorFor(s)) { d->handle(s, line, cmd); return true; }
   return false;

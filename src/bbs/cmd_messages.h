@@ -4,62 +4,45 @@
 
 static bool messageCommand(Session &s, String &line, const String &cmd) {
   if (s.state == JOIN_CONF) {
-    if (line.length()) {
-      uint32_t c;
-      if (!readNumber(line, c) || c > 255 || !canJoinConference(s.user, c)) { say(s, "That area is not available to you."); areaList(s); return true; }
-      s.conference = c;
-    }
+    if (cmd == "Q") { messageArea(s); return true; }
+    if (cmd == "X") { mainMenu(s); return true; }
+    if (cmd == "?") { keysHelp(s); return true; }
+    if (!line.length()) { areaList(s); return true; }
+    uint32_t c;
+    if (!readNumber(line, c) || c > 255 || !canJoinConference(s.user, c)) { say(s, "That area is not available to you."); areaList(s); return true; }
+    s.conference = c;
     messageArea(s); return true;
   }
   if (s.state == MSG_MENU) {
-    if (cmd == "R" || cmd == "L") listMessages(s);
+    if (cmd == "L") listMessages(s);
     else if (cmd == "N") readNew(s);
-    else if (cmd == "P") startPost(s);
-    else if (cmd == "A" || cmd == "J") areaList(s);
-    else if (cmd == "Q" || !cmd.length()) mainMenu(s);
-    else {
-      say(s, severalAreas(s.user) ? "Use R, N, P, A or Q." : "Use R, N, P or Q.");
-      prompt(s, "Message command? ");
-    }
+    else if (cmd == "W") startPost(s);
+    else if (cmd == "A" && severalAreas(s.user)) areaList(s);
+    else if (cmd == "Q" || cmd == "X") mainMenu(s);
+    else if (cmd == "?") keysHelp(s);
+    else if (!cmd.length()) messageArea(s);
+    else { say(s, "Not a key here. ? shows the keys."); prompt(s, "Message command? "); }
     return true;
   }
   if (s.state == MSG_READ) {
     uint32_t n;
     if (cmd == "Q") messageArea(s);
+    else if (cmd == "X") mainMenu(s);
+    else if (cmd == "?") keysHelp(s);
     else if (!line.length()) {
       uint32_t id = firstNew(s);
       if (!id) id = stepMessage(s, 0, true);
       if (id) showMessage(s, id); else messageArea(s);
     }
     else if (readNumber(line, n)) showMessage(s, msgFromNo(n));
-    else prompt(s, "Read # (ENTER = first new, Q = back): ");
+    else prompt(s, listPrompt());
     return true;
   }
-  if (s.state == MSG_VIEW) {
-    uint32_t n;
-    if (!cmd.length() || cmd == "N") {
-      uint32_t next = stepMessage(s, s.msgId, true);
-      if (next) showMessage(s, next);
-      else { say(s, "\r\nEnd of messages in " + confName(s.conference) + "."); messageArea(s); }
-    } else if (cmd == "P") {
-      uint32_t prev = stepMessage(s, s.msgId, false);
-      if (prev) showMessage(s, prev);
-      else { say(s, "This is the first message."); readerPrompt(s); }
-    }
-    else if (cmd == "R") startReply(s);
-    else if (cmd == "T") showThread(s);
-    else if (cmd == "K") startKill(s);
-    else if (cmd == "E") startEdit(s);
-    else if (cmd == "H") showHistory(s);
-    else if (cmd == "Q") messageArea(s);
-    else if (readNumber(line, n)) showMessage(s, msgFromNo(n));
-    else { say(s, "Use the keys below, or a message number."); readerPrompt(s); }
-    return true;
-  }
+  if (s.state == MSG_VIEW) { showMessage(s, s.msgId); return true; }   // any key: the message again
   if (s.state == MSG_KILL) { killMessage(s, cmd == "Y" || cmd == "YES"); return true; }
   if (s.state == POST_TO) {
     s.pendingTo = clean(line, 16, true);
-    if (s.pendingTo.length()) { s.state = POST_PRIVATE; prompt(s, "Private, only you and " + s.pendingTo + " can read it? [y/N]: "); }
+    if (s.pendingTo.length()) { s.state = POST_PRIVATE; prompt(s, "Private, only you and " + s.pendingTo + " can read it? [Y/N]: "); }
     else { s.state = POST_SUBJECT; prompt(s, "Subject: "); }
     return true;
   }

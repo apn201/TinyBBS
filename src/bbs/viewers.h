@@ -85,7 +85,7 @@ static bool openZipList(Session &s, uint16_t number, const String &path, const S
   if (!zipContents(path, rows)) { if (!quiet) prompt(s, "Not a ZIP this board can read. File command? "); return false; }
   s.viewer.number = number;
   activity(s, "LISTING " + clean(name, 30));
-  openRows(s, rows, clean(name, 24), "SPACE page  B back  \x18\x19 line  N/P file  Q quit", fileReaderQuit, fileReaderKey);
+  openRows(s, rows, clean(name, 24), "SPACE next  B back  N/P file  Q back  X main  ? keys", fileReaderQuit, fileReaderKey);
   return true;
 }
 
@@ -108,7 +108,7 @@ static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   String upper = up(name);
   const bool ansi = upper.endsWith(".ANS") || upper.endsWith(".ANSI");
   if (!viewableName(name) || !bytes || bytes > UINT32_MAX - 8300) {
-    if (!quiet) prompt(s, s.web && fileAreas[s.fileArea].downloads ? "That file can only be downloaded: D " + String(number) + ". File command? "
+    if (!quiet) prompt(s, s.web && fileAreas[s.fileArea].downloads ? "That file can only be downloaded: D, then " + String(number) + ". File command? "
                      : s.web ? String("That file cannot be viewed, and this area has no downloads. File command? ")
                              : String("That file can only be downloaded, from the browser terminal. File command? "));
     return false;
@@ -143,7 +143,7 @@ static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   r = Reader();
   r.path = path; r.start = start; r.end = end; r.utf8 = utf8;
   r.title = clean(name, 24);
-  r.hint = "SPACE page  B back  \x18\x19 line  S play  N/P file  Q quit";
+  r.hint = "SPACE next  B back  S slow  N/P file  Q back  X main  ? keys";
   r.onKey = fileReaderKey; r.onQuit = fileReaderQuit;
   if (ansi && s.ansi) { r.kind = READER_ANSI; renderAnsi(r); }
   else { r.kind = READER_TEXT; r.crop = artLike; indexText(r); }

@@ -2,10 +2,12 @@
 // WHO, user list and SysOp menus.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-static void who(Session &s) {
-  say(s, "\x1b[1;36mNode  User             Activity\x1b[0m");
-  for (auto &n : sessions) if (n.used && n.state != DEAD) { String h = n.user.handle.length() ? n.user.handle : "(logging in)"; char row[90]; snprintf(row, sizeof(row), "%-5u %-16s %s", n.node, h.c_str(), n.activity.c_str()); say(s, row); }
+// The WHO table as screen rows: the pager for a caller, say() for the SysOp's node monitor.
+static void whoRows(Session &s, std::vector<String> &out) {
+  out.push_back("\x1b[1;36mNode  User             Activity\x1b[0m");
+  for (auto &n : sessions) if (n.used && n.state != DEAD) { String h = n.user.handle.length() ? n.user.handle : "(logging in)"; char row[90]; snprintf(row, sizeof(row), "%-5u %-16s %s", n.node, h.c_str(), n.activity.c_str()); out.push_back(row); }
 }
+static void who(Session &s) { std::vector<String> rows; whoRows(s, rows); for (const auto &r : rows) say(s, r); }
 static bool isSysop(const Session &s) { return s.authenticated && !s.user.locked && s.user.level == 255 && hasFlag(s.user, "SYSOP"); }
 static void refreshLiveUser(const User &changed) {
   for (auto &n : sessions) if (n.used && n.user.id == changed.id) n.user = changed;
@@ -52,7 +54,7 @@ static uint16_t userListPages() {
 static void userList(Session &s) {
   s.state = USER_LIST; activity(s, "USER LIST"); uint16_t pages = showUserList(s);
   if (isSysop(s)) say(s, "[Z] User editor: levels, flags, limits and passwords");
-  prompt(s, pages > 1 ? "ENTER next, P previous, Q board: " : "Q returns to board: ");
+  prompt(s, pages > 1 ? "N next, P previous, Q board: " : "Q returns to board: ");
 }
 static void sysopMenu(Session &s) {
   s.state = SYSOP_MENU; activity(s, "SYSOP CONSOLE");
@@ -94,7 +96,7 @@ static void sysopLogs(Session &s, String filter) {
   if (rows.empty()) { say(s, filter.length() ? "No log lines match." : "The log is empty."); prompt(s, "SysOp command? "); return; }
   activity(s, "SYSOP LOGS");
   openRows(s, rows, filter.length() ? "Log: " + filter.substring(0, 16) : String("Event log"),
-           "SPACE page  B back  \x18\x19 line  G/< top  Q console", sysopMenuBack, nullptr, true);
+           "SPACE next  B back  Q back  X main  ? keys", sysopMenuBack, nullptr, true);
 }
 static void sysopDoors(Session &s) {
   s.state = SYSOP_DOORS;

@@ -2,6 +2,7 @@
 // Message reading, menus, login and node allocation.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
+static void keysHelp(Session &s);  // bbs/help.h: ? on any key screen
 static bool sysopOnline(const Session &s) {
   for (auto &n : sessions) if (n.used && &n != &s && isSysop(n)) return true;
   return false;
@@ -23,7 +24,7 @@ static void mainMenu(Session &s) {
   if (bulletins) items.push_back({"B", "Bulletins"});
   if (severalAreas(s.user)) items.push_back({"J", "Conferences"});
   items.push_back({"W", "Who is online"});
-  if (sysopOnline(s)) items.push_back({"P", "Page SysOp"});
+  if (sysopOnline(s)) items.push_back({"O", "Page SysOp"});
   items.push_back({"U", "User list"});
   items.push_back({"S", "System info"});
   items.push_back({"?", "Help"});
@@ -65,7 +66,7 @@ static void fileMenu(Session &s) {
   }
   if (!n) say(s, "  No file areas are open to you tonight.");
   say(s, "  \x1b[1;33m[Q]\x1b[0m Main Board");
-  prompt(s, "File area? ");
+  prompt(s, "File area #, then ENTER: ");
 }
 // The door table (doors/doors.h) is the list: a new door shows up by itself.
 static void doorMenu(Session &s) {
@@ -108,7 +109,7 @@ static void finishLogin(Session &s) {
   for (const auto &b : board.bulletins)
     if (b.mandatory && canSee(s.user, b.level, b.flag)) { showBulletin(s, b); shown = true; }
   if (!shown) say(s, "Welcome to " + board.name + ".");
-  s.state = BULLETIN; prompt(s, "Press ENTER for Main Board: ");
+  s.state = BULLETIN; prompt(s, "Press any key for the Main Board: ");
 }
 static void loginPrompt(Session &s) {
   s.state = LOGIN_CHOICE;

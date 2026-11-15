@@ -15,7 +15,9 @@ static void openArea(Session &s, uint8_t area) {
 
 static bool fileCommand(Session &s, String &line, const String &cmd) {
   if (s.state == ANSI_GALLERY) {
-    if (cmd == "Q" || !cmd.length()) { mainMenu(s); return true; }
+    if (cmd == "Q" || cmd == "X") { mainMenu(s); return true; }
+    if (cmd == "?") { keysHelp(s); return true; }
+    if (!cmd.length()) { ansiGallery(s); return true; }
     int gallery = galleryArea(s);
     if (cmd == "G" && gallery >= 0) { s.galleryCabinet = true; openArea(s, gallery); return true; }
     if (cmd == "A" && s.ansi) art(s, "/BBS/ANSI/LOGIN/WELCOME.ANS");
@@ -26,18 +28,32 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
   }
   if (s.state == FILE_MENU) {
     uint32_t n;
-    if (cmd == "Q" || !cmd.length()) { mainMenu(s); return true; }
+    if (cmd == "Q" || cmd == "X") { mainMenu(s); return true; }
+    if (cmd == "?") { keysHelp(s); return true; }
+    if (!cmd.length()) { fileMenu(s); return true; }
     int area = readNumber(cmd, n) ? menuArea(s, n) : -1;
     if (area >= 0) openArea(s, area);
-    else { say(s, "Choose an area number, or Q."); prompt(s, "File area? "); }
+    else { say(s, "Type an area number, then ENTER. Q goes back."); prompt(s, "File area #, then ENTER: "); }
     return true;
   }
   if (s.state == FILE_LIST) {
     uint32_t number;
-    if (cmd == "Q" || !cmd.length()) {
+    if (cmd == "Q") {
       if (s.filePath.length()) { leaveFolder(s); return true; }
       if (s.galleryCabinet) { s.galleryCabinet = false; ansiGallery(s); }
       else fileMenu(s);
+      return true;
+    }
+    if (cmd == "X") { s.galleryCabinet = false; mainMenu(s); return true; }
+    if (cmd == "?") { keysHelp(s); return true; }
+    if (!cmd.length()) {   // ENTER is the forward step: the next page, or the list again
+      if (s.moreFiles) s.fileOffset += FILES_PER_PAGE;
+      listArea(s);
+      return true;
+    }
+    if (cmd == "V" || (cmd == "D" && s.web && fileAreas[s.fileArea].downloads)) {   // the key alone asks for the number
+      s.askKey = cmd[0]; s.state = FILE_ASK;
+      prompt(s, String(cmd == "V" ? "View" : "Download") + " which file #, then ENTER (Q cancels at once): ");
       return true;
     }
     // A number alone opens it: a folder is entered, a file is viewed.
@@ -48,7 +64,7 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
       else openFileViewer(s, number);
       return true;
     }
-    if (tokenAt(cmd, 0) == "V") {
+    if (tokenAt(cmd, 0) == "V" && cmd.length() > 1) {
       if (!readNumber(afterTokens(line, 1), number) || !number || number > UINT16_MAX) prompt(s, "Use V <file number>: ");
       else openFileViewer(s, number);
       return true;
@@ -76,8 +92,19 @@ static bool fileCommand(Session &s, String &line, const String &cmd) {
       }
       prompt(s, "File command? "); return true;
     }
-    say(s, "Type a number to open it, or use the keys listed above.");
+    say(s, "Type a file number, then ENTER, to open it. ? lists the keys.");
     prompt(s, "File command? "); return true;
+  }
+  if (s.state == FILE_ASK) {
+    uint32_t number;
+    const char key = s.askKey;
+    s.askKey = 0;
+    if (cmd == "Q" || !line.length()) { listArea(s); return true; }
+    if (cmd == "X") { s.galleryCabinet = false; mainMenu(s); return true; }
+    if (!readNumber(cmd, number) || !number || number > UINT16_MAX) { say(s, "A file number, please."); listArea(s); return true; }
+    s.state = FILE_LIST;
+    String again = String(key) + " " + String((unsigned long)number);
+    return fileCommand(s, again, again);
   }
 
   return false;

@@ -4,7 +4,9 @@
 
 static bool sysopCommand(Session &s, String &line, const String &cmd) {
   if (s.state == SYSOP_MENU) {
-    if (cmd == "Q" || !cmd.length()) { mainMenu(s); return true; }
+    if (cmd == "Q" || cmd == "X") { mainMenu(s); return true; }
+    if (cmd == "?") { keysHelp(s); return true; }
+    if (!cmd.length()) { sysopMenu(s); return true; }
     if (cmd == "U") { sysopUsers(s); return true; }
     if (cmd == "D") { sysopDoors(s); return true; }
     if (cmd == "W") { nodeMonitor(s, SYSOP_MENU); return true; }

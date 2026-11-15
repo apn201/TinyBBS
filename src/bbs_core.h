@@ -42,5 +42,6 @@
 #include "bbs/cmd_files.h"
 #include "bbs/cmd_messages.h"
 #include "bbs/cmd_doors.h"
+#include "bbs/help.h"
 #include "bbs/commands.h"
 #include "bbs/runtime.h"
