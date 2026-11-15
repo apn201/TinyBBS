@@ -167,7 +167,9 @@ static void renderAnsi(Reader &r) {
       continue;
     }
     if (b == '\r') { x = 0; wrap = false; continue; }
-    if (b == '\n') { y++; wrap = false; continue; }
+    // A bare LF starts a new line at column 0 too: git stores the card's art with LF endings
+    // (text=auto), and the stream path never needed the CR.
+    if (b == '\n') { x = 0; y++; wrap = false; continue; }
     if (b == '\t') { x = min(79, (x / 8 + 1) * 8); continue; }
     if (b == 8) { if (x) x--; wrap = false; continue; }
     if (b == 0 || b == 7 || b == 127) continue;
