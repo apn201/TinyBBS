@@ -239,6 +239,14 @@ struct PlatformMutex {
   void unlock() { mutex.unlock(); }
 };
 
+#if defined(__linux__)
+// P49: a connection the server closes for a socket error says so in the server log (stderr), with the errno,
+// so a dropped caller can be told from a dropped tunnel. EINTR is never an error: the call is tried again.
+inline void netDrop(const char *where, int fd, long result, int err) {
+  fprintf(stderr, "[NET] drop fd=%d in %s result=%ld errno=%d (%s)\n", fd, where, result, err, strerror(err));
+}
+#endif
+
 class NetClient {
  public:
   NetClient() = default;
@@ -257,7 +265,7 @@ class NetClient {
     if (!state_ || state_->descriptor < 0) return false;
     char byte;
     int result = recv(state_->descriptor, &byte, 1, MSG_PEEK | MSG_DONTWAIT);
-    if (result == 0 || (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) { const_cast<NetClient *>(this)->stop(); return false; }
+    if (result == 0 || (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) { int err = errno; netDrop("connected", state_->descriptor, result, result == 0 ? 0 : err); const_cast<NetClient *>(this)->stop(); return false; }
     return true;
 #else
     return false;
@@ -276,7 +284,7 @@ class NetClient {
     if (!state_ || state_->descriptor < 0) return -1;
     uint8_t byte; int result = recv(state_->descriptor, &byte, 1, MSG_DONTWAIT);
     if (result == 1) return byte;
-    if (result == 0 || (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) stop();
+    if (result == 0 || (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) { int err = errno; netDrop("read", state_->descriptor, result, result == 0 ? 0 : err); stop(); }
 #endif
     return -1;
   }
@@ -287,7 +295,9 @@ class NetClient {
     while (sent < size) {
       ssize_t result = send(state_->descriptor, data + sent, size - sent, MSG_DONTWAIT | MSG_NOSIGNAL);
       if (result > 0) { sent += (size_t)result; continue; }
+      if (result < 0 && errno == EINTR) continue;
       if (result < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
+      { int err = errno; netDrop("write", state_->descriptor, (long)result, err); }
       stop(); break;
     }
     return sent;
