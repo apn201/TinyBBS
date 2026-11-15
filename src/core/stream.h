@@ -32,7 +32,9 @@ static bool anyKeyState(const Session &s) { return s.state == BULLETIN || s.stat
 // or pause it), 2 = the reader (every key goes to the board at once), 3 = a key
 // screen: every key goes to the board too, which echoes typed digits (the
 // browser does not turn pages on a tap there).
-static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == READER || s.state == FILE_IMAGE || s.state == FILE_MUSIC ? 2 : hotkeyState(s) ? 3 : 0; }
+// Chat stays a line in the browser: its draft is local and sent whole, and a lone Q line leaves
+// (bbs/chat.h). Only Telnet needs the hotkey there, for a lone Q.
+static uint8_t keyMode(const Session &s) { return streaming(s) ? 1 : s.state == READER || s.state == FILE_IMAGE || s.state == FILE_MUSIC ? 2 : hotkeyState(s) && s.state != CHAT ? 3 : 0; }
 static bool outputDone(const Session &s) { return s.jobs.empty() && !s.pending.length() && !s.output.length(); }
 
 // Append up to `want` bytes of the job's file to `out`. Returns true when the
