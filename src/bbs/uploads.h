@@ -143,7 +143,7 @@ static void uploadQueue(Session &s) {
     say(s, row);
     say(s, "     \x1b[0;37m" + (u.desc.length() ? u.desc.substring(0, 72) : String("(no description)")) + "\x1b[0m  \x1b[0;32m" + u.when + "\x1b[0m");
   }
-  prompt(s, list.empty() ? "[Q] Back: " : "[A #] Approve  [D #] Delete  [Q] Back: ");
+  prompt(s, list.empty() ? "[Q] Back  [X] Main: " : "A <#> approve, D <#> delete, then ENTER (Q back, X main): ");
 }
 static bool findWaiting(uint32_t id, Upload &out) {
   for (auto &u : waitingUploads()) if (u.id == id) { out = u; return true; }
@@ -191,7 +191,9 @@ static bool uploadCommand(Session &s, String &line, const String &cmd) {
   if (s.state == FILE_UPLOAD_WAIT) { cancelUpload(s); return true; }
   if (s.state != SYSOP_UPLOADS) return false;
   if (!isSysop(s)) { mainMenu(s); return true; }
-  if (cmd == "Q" || !cmd.length()) { sysopMenu(s); return true; }
+  if (cmd == "Q") { sysopMenu(s); return true; }
+  if (cmd == "X") { mainMenu(s); return true; }
+  if (!cmd.length() || cmd == "?") { uploadQueue(s); return true; }
   String verb = tokenAt(cmd, 0);
   uint32_t id = 0;
   Upload u;

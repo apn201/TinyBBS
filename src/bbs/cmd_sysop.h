@@ -11,7 +11,8 @@ static bool sysopCommand(Session &s, String &line, const String &cmd) {
     if (cmd == "D") { sysopDoors(s); return true; }
     if (cmd == "W") { nodeMonitor(s, SYSOP_MENU); return true; }
     if (cmd == "I") { uploadQueue(s); return true; }
-    if (tokenAt(cmd, 0) == "L") { sysopLogs(s, afterTokens(line, 1)); return true; }
+    if (cmd == "L") { s.state = SYSOP_LOG_ASK; prompt(s, "Show lines with this word, then ENTER (ENTER alone: all lines): "); return true; }
+    if (tokenAt(cmd, 0) == "L") { sysopLogs(s, afterTokens(line, 1)); return true; }   // C10: L <text> typed in one go
     if (cmd == "R" || cmd == "RELOAD") {
       say(s, "Settings reloaded: " + loadSettings() + ".");
       say(s, "Network settings take effect after a restart.");
@@ -24,11 +25,14 @@ static bool sysopCommand(Session &s, String &line, const String &cmd) {
     else if (cmd == "S") {
       say(s, "Calls: " + String(callers) + "  Users next #: " + String(nextUserId) + "  Messages: " + String(nextMessageId - 1));
       say(s, "Nodes: " + String(board.maxNodes) + "  SD: " + (sdReady ? "online" : "offline"));
-    } else say(s, s.web ? "Use U, D, W, I, L, S, R, F, or Q." : "Use U, D, W, I, L, S, R, or Q.");
+    } else say(s, "Not a key here. ? shows the keys.");
     prompt(s, "SysOp command? "); return true;
   }
+  if (s.state == SYSOP_LOG_ASK) { s.state = SYSOP_MENU; sysopLogs(s, line); return true; }
   if (s.state == SYSOP_DOORS) {
-    if (cmd == "Q" || !cmd.length()) { sysopMenu(s); return true; }
+    if (cmd == "Q") { sysopMenu(s); return true; }
+    if (cmd == "X") { mainMenu(s); return true; }
+    if (!cmd.length() || cmd == "?") { sysopDoors(s); return true; }
     String verb = tokenAt(cmd, 0), args = afterTokens(line, 1);
     int split = args.lastIndexOf(' ');
     uint32_t add = 0;
@@ -38,7 +42,7 @@ static bool sysopCommand(Session &s, String &line, const String &cmd) {
         return true;
       }
       args = args.substring(0, split);
-    } else if (verb != "V") { prompt(s, "Use F, V, or Q: "); return true; }
+    } else if (verb != "V") { say(s, "F <handle> <count> or V <handle>, then ENTER."); prompt(s, "Door settings command, then ENTER (Q back, X main): "); return true; }
     User target;
     if (!findUser(up(args), target)) { prompt(s, "No such caller. Door settings command? "); return true; }
     Session *live = nullptr;

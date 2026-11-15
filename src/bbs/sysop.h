@@ -22,11 +22,12 @@ static bool downloadAllowed(const User &u, size_t bytes, String &reason) {
 }
 static void sysopUsers(Session &s);  // bbs/user_editor.h
 static size_t uploadsWaiting();      // bbs/uploads.h
-// W for the SysOp: who is on, and a node number disconnects that caller.
+// W for the SysOp: who is on, and a node number disconnects that caller. A typed screen (words), like a line door.
+static const char *NODE_PROMPT = "Node # to disconnect, or M <node|ALL> <text>, then ENTER (Q back, X main): ";
 static void nodeMonitor(Session &s, State back) {
   who(s);
   s.nodesBack = back; s.state = SYSOP_NODES; activity(s, "NODE MONITOR");
-  prompt(s, "Node # to disconnect, M <node|ALL> <text> to message (ENTER = back): ");
+  prompt(s, NODE_PROMPT);
 }
 // The caller-facing user list: locked accounts are not shown.
 static constexpr uint8_t USER_LIST_PAGE = 10;
@@ -63,7 +64,7 @@ static void sysopMenu(Session &s) {
   say(s, "[W] Node monitor   [S] Board statistics   [R] Reload settings   [Q] Main Board");
   size_t waiting = uploadsWaiting();
   say(s, "[I] Incoming uploads" + (waiting ? " \x1b[1;35m(" + String(waiting) + " waiting)\x1b[0m" : String(" (none waiting)")));
-  say(s, "[L] Logs: logins and what callers do   L <text> shows only matching lines");
+  say(s, "[L] Logs: logins and what callers do, all or only lines with a word you give");
   if (s.web) say(s, "[F] File manager (opens a separate admin page)");
   prompt(s, "SysOp command? ");
 }
@@ -103,5 +104,5 @@ static void sysopDoors(Session &s) {
   activity(s, "SYSOP DOOR SETTINGS");
   say(s, "\x1b[1;35mLEGEND OF KOUVOLA // DOOR SETTINGS\x1b[0m");
   say(s, "[F handle count] Add forest fights (1-255)   [V handle] View fights");
-  prompt(s, "[Q] Return. Door settings command? ");
+  prompt(s, "Door settings command, then ENTER (Q back, X main): ");
 }

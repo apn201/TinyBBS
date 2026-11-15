@@ -64,8 +64,8 @@ static void sysopUsers(Session &s) {
   }
   if (users.empty()) say(s, "No accounts yet.");
   say(s, String("Type a \x1b[1;33m#\x1b[0m or a \x1b[1;33mhandle\x1b[0m to open it.  \x1b[1;33m[A]\x1b[0m Add user  ") +
-         (pages > 1 ? "\x1b[1;33m[ENTER]\x1b[0m Next page  \x1b[1;33m[P]\x1b[0m Previous  " : "") + "\x1b[1;33m[Q]\x1b[0m SysOp menu");
-  prompt(s, "User editor: ");
+         (pages > 1 ? "\x1b[1;33m[N]\x1b[0m Next page  \x1b[1;33m[P]\x1b[0m Previous  " : "") + "\x1b[1;33m[Q]\x1b[0m SysOp menu  \x1b[1;33m[X]\x1b[0m Main");
+  prompt(s, "User editor (#, handle or a key, then ENTER): ");
 }
 
 // ---------- the record -----------------------------------------------------------
@@ -97,8 +97,8 @@ static void showRecord(Session &s, const User &u) {
   fieldLine(s, 11, "Gold", String(q.gold) + " in the purse, " + q.bank + " banked (all doors)");
   say(s, "");
   say(s, String(" \x1b[1;33m[N]\x1b[0m Next user  \x1b[1;33m[P]\x1b[0m Previous  ") +
-         (u.id != s.user.id ? "\x1b[1;33m[D]\x1b[0m Delete  " : "") + "\x1b[1;33m[Q]\x1b[0m User list");
-  prompt(s, "Field # or command: ");
+         (u.id != s.user.id ? "\x1b[1;33m[D]\x1b[0m Delete  " : "") + "\x1b[1;33m[Q]\x1b[0m User list  \x1b[1;33m[X]\x1b[0m Main");
+  prompt(s, "Field #, then ENTER, or a key: ");
 }
 static void saveRecord(Session &s, User &u, const String &what) {
   if (touchUser(u)) {
@@ -224,7 +224,9 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
   if (s.state == SYSOP_NODES) {
     uint32_t n;
     auto back = [&]() { if (s.nodesBack == SYSOP_MENU) sysopMenu(s); else mainMenu(s); };
-    if (!cmd.length() || cmd == "Q") { back(); return true; }
+    if (cmd == "Q") { back(); return true; }
+    if (cmd == "X") { mainMenu(s); return true; }
+    if (!cmd.length() || cmd == "?") { nodeMonitor(s, s.nodesBack); return true; }   // ENTER draws the monitor again
     // M <node|ALL> <text>: a one-way message that pops up on the caller's screen.
     if (tokenAt(cmd, 0) == "M") {
       String to = tokenAt(cmd, 1), text = textLine(afterTokens(line, 2), 200);
@@ -241,11 +243,11 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
       }
       event("SYSOP_BROADCAST", (all ? String("ALL") : "node " + String(node)) + ": " + text);
       say(s, "Message sent to " + String(sent) + " caller" + (sent == 1 ? "" : "s") + ".");
-      prompt(s, "Node # to disconnect, M <node|ALL> <text> to message (ENTER = back): "); return true;
+      prompt(s, NODE_PROMPT); return true;
     }
     Session *t = readNumber(cmd, n) && n <= 255 ? sessionByNode(n) : nullptr;
-    if (!t) { prompt(s, "No caller on that node. Node # (ENTER = back): "); return true; }
-    if (t == &s) { prompt(s, "That is you. Node # (ENTER = back): "); return true; }
+    if (!t) { say(s, "No caller on that node."); prompt(s, NODE_PROMPT); return true; }
+    if (t == &s) { say(s, "That is you."); prompt(s, NODE_PROMPT); return true; }
     String who = t->user.handle.length() ? t->user.handle : String("a caller logging in");
     event("SYSOP_KICK", s.user.handle + " disconnected " + who + " on node " + t->node);
     t->hideInput = false;
@@ -258,7 +260,8 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
     User u;
     uint32_t n;
     if (cmd == "Q") { sysopMenu(s); return true; }
-    if (!cmd.length()) { s.userPage++; sysopUsers(s); return true; }
+    if (cmd == "X") { mainMenu(s); return true; }
+    if (!cmd.length() || cmd == "N") { s.userPage++; sysopUsers(s); return true; }
     if (cmd == "P") { if (s.userPage) s.userPage--; sysopUsers(s); return true; }
     if (cmd == "A") { s.state = SYSOP_ADD_HANDLE; prompt(s, "Handle for the new account (ENTER cancels): "); return true; }
     if ((readNumber(cmd, n) && findUserById(n, u)) || findUser(up(clean(line, 16, true)), u)) { showRecord(s, u); return true; }
@@ -268,7 +271,9 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
   if (s.state == SYSOP_USER_EDIT) {
     uint32_t n;
     User u;
-    if (cmd == "Q" || !cmd.length()) { sysopUsers(s); return true; }
+    if (cmd == "Q") { sysopUsers(s); return true; }
+    if (cmd == "X") { mainMenu(s); return true; }
+    if (!cmd.length() || cmd == "?") { if (findUserById(s.editId, u)) showRecord(s, u); else sysopUsers(s); return true; }   // ENTER draws the record again
     if (cmd == "N" || cmd == "P") {
       auto users = allUsers();
       size_t at = 0;
@@ -279,14 +284,14 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
     }
     if (cmd == "D") {
       if (!findUserById(s.editId, u)) { sysopUsers(s); return true; }
-      if (u.id == s.user.id) { say(s, "You cannot delete your own account."); prompt(s, "Field # or command: "); return true; }
+      if (u.id == s.user.id) { say(s, "You cannot delete your own account."); prompt(s, "Field #, then ENTER, or a key: "); return true; }
       s.state = SYSOP_DELETE_CONFIRM;
       say(s, "\x1b[1;31mDelete " + u.handle + " for good? Their messages stay.\x1b[0m");
-      prompt(s, "Type YES to delete: "); return true;
+      prompt(s, "Type YES, then ENTER, to delete (anything else keeps it): "); return true;
     }
     if (readNumber(cmd, n) && n >= 1 && n <= 11) { openField(s, n); return true; }
-    say(s, "Pick a field 1-11, or N, P, D, Q.");
-    prompt(s, "Field # or command: "); return true;
+    say(s, "Pick a field 1-11, then ENTER, or N, P, D, Q, X.");
+    prompt(s, "Field #, then ENTER, or a key: "); return true;
   }
   if (s.state == SYSOP_USER_FIELD) { fieldValue(s, line); return true; }
   if (s.state == SYSOP_DELETE_CONFIRM) {
