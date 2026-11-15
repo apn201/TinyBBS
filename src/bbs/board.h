@@ -31,6 +31,11 @@ static void mainMenu(Session &s) {
   items.push_back({"G", "Goodbye"});
   if (isSysop(s)) items.push_back({"Z", "SysOp console", "\x1b[1;35m"});
   showMenu(s, "MAIN", items, board.name + " // MAIN BOARD");
+  // P17: the one rule a new caller needs, once per call, under the first main menu.
+  if (!s.keyHint) {
+    s.keyHint = true;
+    say(s, s.ansi ? "\x1b[0;36mPress a letter. No ENTER needed. ? shows the keys, X comes back here.\x1b[0m" : "Press a letter. No ENTER needed. ? shows the keys, X comes back here.");
+  }
   prompt(s, "\x1b[1;33mMain Board Command? \x1b[0m");
 }
 // The gallery's G browses the first file area whose folder name has ANSI in it.

@@ -236,7 +236,7 @@ static bool userEditorCommand(Session &s, String &line, const String &cmd) {
       uint8_t sent = 0;
       for (auto &o : sessions) {
         if (!o.used || &o == &s || o.state == DEAD || o.state == GOODBYE || (!all && o.node != node)) continue;
-        say(o, "\r\n\x1b[1;33m*** Message from the SysOp: " + text + " ***\x1b[0m");
+        timedLine(o, "\x1b[1;33m*** Message from the SysOp: " + text + " ***\x1b[0m");
         sent++;
       }
       event("SYSOP_BROADCAST", (all ? String("ALL") : "node " + String(node)) + ": " + text);

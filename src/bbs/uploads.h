@@ -121,7 +121,7 @@ static void uploadArrived(Session &s, const String &part, const String &name, ui
     event("UPLOAD", s.user.handle + " " + name + " " + size);
     say(s, "\r\n\x1b[1;32mReceived " + name + " (" + sizeText(size) + ").\x1b[0m It waits for the SysOp to approve it.");
     for (auto &n : sessions)
-      if (n.used && &n != &s && isSysop(n)) say(n, "\r\n\x1b[1;35m*** New upload waiting: " + name + " from " + s.user.handle + "\x1b[0m");
+      if (n.used && &n != &s && isSysop(n)) timedLine(n, "\x1b[1;35m*** New upload waiting: " + name + " from " + s.user.handle + "\x1b[0m");
   }
   s.uploadTicket = "";
   s.fileArea = s.uploadArea; s.filePath = s.uploadPath;
@@ -174,7 +174,7 @@ static void approveUpload(Session &s, Upload u) {
     touchUser(who);
     refreshLiveUser(who);
     for (auto &n : sessions)
-      if (n.used && n.user.id == who.id && &n != &s) say(n, "\r\n\x1b[1;32m*** Your upload " + u.name + " was approved by the SysOp.\x1b[0m");
+      if (n.used && n.user.id == who.id && &n != &s) timedLine(n, "\x1b[1;32m*** Your upload " + u.name + " was approved by the SysOp.\x1b[0m");
   }
   event("UPLOAD_OK", s.user.handle + " " + u.name);
   say(s, "\x1b[1;32m" + u.name + " is now in " + fileAreas[area].name + ".\x1b[0m");

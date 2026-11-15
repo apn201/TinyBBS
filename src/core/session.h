@@ -104,6 +104,9 @@ struct Session {
   char hotKey = 0; uint32_t hotAt = 0;
   uint32_t eatEnterUntil = 0;  // a hotkey ran: the Enter a line-mode client sends after it (until then, in millis()) is not a line
   State helpBack = MAIN;  // the screen ? was pressed on (bbs/help.h)
+  String lastPrompt;      // the last prompt written, drawn again under a timed line (timedLine)
+  bool idleWarned = false;  // bbs/runtime.h: the line has been told it closes in 30 seconds
+  bool keyHint = false;   // the one-line key hint under the first main menu of the call was shown
   char askKey = 0;        // FILE_ASK: the key (V or D) that wants a file number
 };
 static Session sessions[MAX_NODES];
@@ -119,7 +122,15 @@ static void write(Session &s, const String &text) {
   if (dst.length() > 14000) dst.remove(0, dst.length() - 14000);
 }
 static void say(Session &s, const String &text = "") { write(s, text + "\r\n"); }
-static void prompt(Session &s, const String &text) { write(s, text); }
+static void prompt(Session &s, const String &text) { s.lastPrompt = text; write(s, text); }
+// C7: a line that arrives on its own (a page, a SysOp message, the idle warning) goes on a line of
+// its own, and the prompt and what the caller had typed are drawn again under it.
+static void timedLine(Session &s, const String &text) {
+  write(s, "\r\n" + text + "\r\n");
+  if (s.state == READER || s.state == FILE_IMAGE || s.state == FILE_MUSIC || s.state == GOODBYE || s.state == DEAD || s.reader.playing) return;
+  write(s, s.lastPrompt);
+  if (s.input.length()) { String shown = s.input; if (s.hideInput) for (size_t i = 0; i < shown.length(); ++i) shown[i] = '*'; write(s, shown); }
+}
 // What the caller is doing, for WHO and the node monitor. A change is also
 // written to the event log, so the SysOp can follow a caller's visit.
 static void activity(Session &s, const String &what) {

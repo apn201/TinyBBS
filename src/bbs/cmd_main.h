@@ -13,10 +13,10 @@ static void answerPage(Session &op, bool accept) {
   uint8_t node = op.pageNode; uint32_t uid = op.pageUser;
   for (auto &n : sessions) if (n.pageNode == node) { n.pageNode = 0; n.pageUser = 0; n.paged = false; }
   Session *caller = sessionByNode(node);
-  if (!caller || !caller->used || caller->user.id != uid) { say(op, "\r\nThe caller already hung up."); return; }
+  if (!caller || !caller->used || caller->user.id != uid) { timedLine(op, "The caller already hung up."); return; }
   if (!accept) {
-    say(*caller, "\r\n\x1b[1;31mThe SysOp is busy right now. Try again later.\x1b[0m");
-    say(op, "\r\nPage refused.");
+    timedLine(*caller, "\x1b[1;31mThe SysOp is busy right now. Try again later.\x1b[0m");
+    timedLine(op, "Page refused.");
     return;
   }
   event("SYSOP_CHAT", op.user.handle + " answered " + caller->user.handle);
@@ -82,8 +82,7 @@ static void pageSysop(Session &s) {
   bool sent = false;
   for (auto &n : sessions) {
     if (!n.used || &n == &s || !isSysop(n)) continue;
-    say(n, "\r\n\x1b[5;31m*** SYSOP PAGE from " + s.user.handle + " (node " + s.node + ") ***\x1b[0m");
-    say(n, "\x1b[1;33mType /A to answer and chat, or /R to refuse.\x1b[0m");
+    timedLine(n, "\x1b[5;31m*** SYSOP PAGE from " + s.user.handle + " (node " + s.node + ") ***\x1b[0m\r\n\x1b[1;33mType /A to answer and chat, or /R to refuse.\x1b[0m");
     n.paged = true; n.pageNode = s.node; n.pageUser = s.user.id; sent = true;
   }
   say(s, sent ? "Paging the SysOp... stay on the line." : "The SysOp is not online.");
