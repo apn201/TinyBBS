@@ -28,6 +28,7 @@ static void mainMenu(Session &s) {
   items.push_back({"U", "User list"});
   items.push_back({"S", "System info"});
   items.push_back({"?", "Help"});
+  if (!notesTable.empty()) items.push_back({"K", "Notebook"});   // only on a card with a notes table (core/notes.h)
   items.push_back({"G", "Goodbye"});
   if (isSysop(s)) items.push_back({"Z", "SysOp console", "\x1b[1;35m"});
   showMenu(s, "MAIN", items, board.name + " // MAIN BOARD");
@@ -107,13 +108,14 @@ static void finishLogin(Session &s) {
   s.user.calls++;
   if (!touchUser(s.user)) say(s, "\r\nWarning: user statistics were not saved. See Serial console.");
   if (repairedSysop) say(s, "\r\nPrimary SYSOP account normalized: level 255, SYSOP flag.");
-  callers++; loadPointer(s); event("LOGIN", s.user.handle + " node " + s.node); trace("LOGIN_OK", s.user.handle + " node " + s.node); activity(s, "BULLETINS");
+  callers++; loadPointer(s); loadUserNotes(s); event("LOGIN", s.user.handle + " node " + s.node); trace("LOGIN_OK", s.user.handle + " node " + s.node); activity(s, "BULLETINS");
   say(s, "\r\nCaller #" + String(callers) + "  Security: " + String(s.user.level) + "  Conference: " + confName(s.conference));
   // Mandatory bulletins from BULLETINS.INI are shown at every login.
   bool shown = false;
   for (const auto &b : board.bulletins)
     if (b.mandatory && canSee(s.user, b.level, b.flag)) { showBulletin(s, b); shown = true; }
   if (!shown) say(s, "Welcome to " + board.name + ".");
+  notesOn(s, NK_LOGIN, "");
   s.state = BULLETIN; prompt(s, "Press any key for the Main Board: ");
 }
 static void loginPrompt(Session &s) {

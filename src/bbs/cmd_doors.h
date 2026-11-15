@@ -9,7 +9,7 @@ static bool doorCommand(Session &s, String &line, const String &cmd) {
     if (!cmd.length()) { doorMenu(s); return true; }
     if (cmd.length() == 1)
       for (const Door &d : DOORS)
-        if (strchr(d.keys, cmd[0])) { d.enter(s); return true; }
+        if (strchr(d.keys, cmd[0])) { notesOn(s, NK_DOOR, String(d.keys[0])); d.enter(s); return true; }
     String keys;
     for (const Door &d : DOORS) { keys += d.keys[0]; keys += ", "; }
     say(s, "Keys: " + keys + "Q. ? lists them."); prompt(s, "Door command? "); return true;

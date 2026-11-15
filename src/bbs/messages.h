@@ -257,6 +257,8 @@ static void showMessage(Session &s, uint32_t id) {
   rows.push_back("");
   s.msgId = m.id;
   markRead(s, m.conference, m.id);
+  notesOn(s, NK_READ, String(msgNo(m.id)));
+  notesOn(s, NK_READ, "~" + m.subject.substring(0, 39));   // a note may name a message by its subject
   activity(s, "READING MESSAGES");
   showRows(s, rows, "Msg #" + String(msgNo(m.id)));
 }
@@ -290,6 +292,8 @@ static void showThread(Session &s) {
     if (!m.replyTo) rows.push_back("\x1b[1;37m" + m.subject + "\x1b[0m");
     bodyRows(rows, m.history ? historyBody(m.id) : m.body);
     rows.push_back("");
+    notesOn(s, NK_READ, String(msgNo(m.id)));
+    notesOn(s, NK_READ, "~" + m.subject.substring(0, 39));
     return ++shown < 40;
   }, true);
   showRows(s, rows, "Thread of #" + String(msgNo(root)));

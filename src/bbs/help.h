@@ -15,6 +15,7 @@ static void keysHelpBack(Session &s) {
     case USER_LIST: userList(s); break;
     case BULLETIN_LIST: bulletinMenu(s); break;
     case SYSOP_MENU: sysopMenu(s); break;
+    case NOTEBOOK: notebookBack(s); break;
     default: mainMenu(s); break;
   }
 }

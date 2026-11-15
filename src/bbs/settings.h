@@ -163,9 +163,10 @@ static String loadSettings() {
   String clock = startClock(epoch);
   String areas = loadFileAreas();
   String history = loadHistory();
+  String notebook = loadNotes();
   String syncDetail = clockSyncBrowser ? " (browser sync)" : (clockSyncSystem ? " (system sync)" : "");
   return areas + ", " + history + ", clock " + clock + syncDetail + ", " + String(board.conferences.size()) + " conferences, " + board.bulletins.size() + " bulletins, " +
-         board.maxNodes + " nodes, " + (board.baud ? String(board.baud) + " baud" : String("no speed limit"));
+         board.maxNodes + " nodes, " + (board.baud ? String(board.baud) + " baud" : String("no speed limit")) + ", " + notebook;
 }
 
 static void showBulletin(Session &s, const Bulletin &b) {

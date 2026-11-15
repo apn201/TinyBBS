@@ -66,6 +66,7 @@ static void openBulletin(Session &s, const Bulletin &b) {
   }
   activity(s, "BULLETINS");
   openReader(s, false);
+  notesOn(s, NK_SCREEN, "BULLETIN " + up(b.title));
 }
 static void bulletinMenu(Session &s) {
   activity(s, "BULLETINS");
@@ -107,7 +108,7 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
     String word = cmd.startsWith("/") ? cmd.substring(1) : cmd;
     if (cmd == "B") { bulletinMenu(s); }
     else if (cmd == "W" && isSysop(s)) { nodeMonitor(s, MAIN); }
-    else if (cmd == "W") { std::vector<String> rows; rows.push_back(""); whoRows(s, rows); rows.push_back(""); openRows(s, rows, "Who is online", "", mainMenu); }
+    else if (cmd == "W") { std::vector<String> rows; rows.push_back(""); whoRows(s, rows); rows.push_back(""); openRows(s, rows, "Who is online", "", mainMenu); notesOn(s, NK_SCREEN, "WHO"); }
     else if (cmd == "U") { s.userPage = 0; userList(s); }
     else if (cmd == "M") { messageArea(s); }
     else if (cmd == "N") { readNew(s); }
@@ -115,6 +116,7 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
     else if (cmd == "J" && severalAreas(s.user)) { areaList(s); }
     else if (cmd == "O" && sysopOnline(s)) { pageSysop(s); }
     else if (cmd == "S") { systemInfo(s); }
+    else if (cmd == "K" && notebookListed()) { notebookOpen(s); }
     else if (cmd == "A") { ansiGallery(s); }
     else if (cmd == "F") { s.galleryCabinet = false; fileMenu(s); }
     else if (cmd == "D") { doorMenu(s); }
@@ -149,6 +151,7 @@ static bool mainCommand(Session &s, String &line, const String &cmd) {
     else openBulletin(s, *b);
     return true;
   }
+  if (s.state == NOTEBOOK) { notebookCommand(s, cmd); return true; }
   if (s.state == CHAT) { chatCommand(s, line, cmd); return true; }
   return false;
 }

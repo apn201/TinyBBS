@@ -149,6 +149,8 @@ static bool openFileViewer(Session &s, uint16_t number, bool quiet = false) {
   else { r.kind = READER_TEXT; r.crop = artLike; indexText(r); }
   activity(s, (ansi ? "VIEWING " : "READING ") + clean(name, 30));
   openReader(s, ansi);
+  notesOn(s, NK_FILE, name);
+  if (ansi || upper.endsWith(".ASC")) notesOn(s, NK_ART, name);
   return true;
 }
 // N and P in the viewer: the next or previous file in the folder that can be viewed.

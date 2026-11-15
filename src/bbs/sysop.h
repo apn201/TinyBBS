@@ -54,6 +54,7 @@ static uint16_t userListPages() {
 }
 static void userList(Session &s) {
   s.state = USER_LIST; activity(s, "USER LIST"); uint16_t pages = showUserList(s);
+  notesOn(s, NK_SCREEN, "USERS");
   if (isSysop(s)) say(s, "[Z] User editor: levels, flags, limits and passwords");
   prompt(s, pages > 1 ? "N next, P previous, Q board: " : "Q returns to board: ");
 }
