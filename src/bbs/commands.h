@@ -79,7 +79,7 @@ static void input(Session &s, const String &bytes) {
 static constexpr uint32_t HOTKEY_MS = 120;
 static void hotkeyTick(uint32_t now) {
   for (auto &s : sessions) {
-    if (!s.used || !s.hotKey || now - s.hotAt < HOTKEY_MS) continue;
+    if (!s.used || !s.hotKey || msSince(now, s.hotAt) < HOTKEY_MS) continue;
     char c = s.hotKey; s.hotKey = 0;
     if (!hotkeyState(s) || s.input.length()) continue;
     s.eatEnterUntil = now + 700;

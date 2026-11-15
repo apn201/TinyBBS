@@ -3,6 +3,8 @@
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
 // ---------- small, intentionally boring helpers --------------------------------
+// P50: milliseconds from `at` to `now`, 0 if `at` is later. A key run in the same tick stamps millis() after the tick's `now`; plain unsigned `now - at` would wrap to about 49 days.
+static inline uint32_t msSince(uint32_t now, uint32_t at) { return (int32_t)(now - at) < 0 ? 0 : now - at; }
 static void trace(const char *tag, const String &detail = "") {
   Serial.printf("[TINYBBS %08lu] %s", (unsigned long)millis(), tag);
   if (detail.length()) Serial.printf(" :: %s", detail.c_str());

@@ -29,14 +29,14 @@ template <typename F> static void bbsTick(F transports) {
     // P43: thirty seconds before an idle line closes it says so once, on its own line, with the
     // prompt and what was typed drawn again under it. Any key keeps the line (input()).
     uint32_t idleLimit = s.authenticated ? SIGNED_IN_TIMEOUT_MS : LOGIN_TIMEOUT_MS;
-    // A key handled this tick (hotkeyTick) may have set lastAt after now was read: not idle.
-    uint32_t quiet = (int32_t)(now - s.lastAt) > 0 ? now - s.lastAt : 0;
+    // P50: a key handled this tick (hotkeyTick) sets lastAt after now was read: not idle.
+    uint32_t quiet = msSince(now, s.lastAt);   // P50: never now - lastAt, it wraps
     if (quiet + IDLE_WARN_MS < idleLimit) s.idleWarned = false;
     else if (!s.idleWarned && s.state != GOODBYE && !streaming(s)) {
       s.idleWarned = true;
       timedLine(s, "\x1b[0;33mStill there? The line closes in 30 seconds. Press any key to stay.\x1b[0m");
     }
-    if (quiet >= idleLimit || (s.web && now - s.lastPoll >= WEB_CARRIER_TIMEOUT_MS))
+    if (quiet >= idleLimit || (s.web && msSince(now, s.lastPoll) >= WEB_CARRIER_TIMEOUT_MS))
       closeSession(s);
   }
 }
