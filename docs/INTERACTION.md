@@ -75,4 +75,95 @@ names the key.
 
 ## Moved keys
 
-Filled in as the port goes on.
+| Screen | Old | New | Why |
+| --- | --- | --- | --- |
+| Main | P page the SysOp | O | P is previous everywhere else |
+| Message menu | P post | W | same; W is write |
+| Message menu | R read or list | L | R is reply |
+| Main, menus, doors, SysOp console | ENTER leaves | ENTER draws the screen again, Q leaves | ENTER never leaves a level |
+| Every screen | (none) | X main menu, ? keys | there was no way back to the top from deep inside |
+| All "Press ENTER" | ENTER | any key | C6 |
+| Yes or no | Y or N, then ENTER | one key | C5 |
+| File list | `V #`, `D #` | V and D ask for the number; a bare number still opens | a letter acts at once |
+| User list | ENTER next page | N (ENTER too) | N is next |
+| Chat | `/Q` only | `/Q`, a lone Q, QUIT or EXIT | C8 |
+| Legend, town and tavern | `C <name>` | C asks for the name | a letter acts at once |
+| Legend, shop | `W #`, `A #` | W and A ask for the tier | same |
+| Legend, bank | `D <gold>`, `W <gold>` | D and W ask for the amount | same |
+| Legend, results | ENTER town | any key town, F forest again | C6 |
+| SysOp user editor list | ENTER next page | N (ENTER too) | N is next |
+| SysOp console | `L <text>` | L asks for the word (`L <text>` in one go still works) | a letter acts at once |
+| Main (SysOp) | `RELOAD`, `USER` | also `/RELOAD`, `/USER` | a letter acts at once; a slash starts a typed word |
+| Main | (none) | K notebook, only on a card with `NOTES.INI` | K is kill only in the message reader, a different screen |
+
+Not moved, on purpose: D is the door menu on the main board and download in
+a file list; U is the user list on the main board and upload in a file list;
+S is system info on the main board and slow in the pager. The pairs never
+share a screen. SysOp tools that take handles or command words (user editor
+list, node monitor, door settings, upload queue) and VolaMUD stay line
+screens: they take Q, X and ?, and ENTER draws them again.
+
+## Before the port (audit, 14 Nov 2026)
+
+The engine came from TinyBBS, so Last Caller's audit
+(`../Last_Caller/docs/PLATFORM_UX.md`, section 1) holds here for the shared
+screens. The rows for what only Kouvosto has:
+
+| Screen | Input before | ENTER did | Q did | Leave by |
+| --- | --- | --- | --- | --- |
+| Legend, town | line | "Use F, H, ..." | door menu | Q |
+| Legend, tavern | line | back to town | back to town | Q or ENTER |
+| Legend, after a fight | line | back to town | back to town | ENTER |
+| Legend, shop and bank | line, `W 2`, `D 50` | back to town | back to town | Q or ENTER |
+| Legend, arena | line | asked again | retreat or decline | Q, R |
+| Dice cabinet | line, a bet | door menu | door menu | Q or ENTER |
+| VolaMUD | line, words | HELP | door menu | Q, QUIT, EXIT |
+| SysOp door settings, upload queue, node monitor | line | back | back | Q or ENTER |
+| SysOp user editor list | line | next page | console | Q |
+| SysOp user record | line | user list | user list | Q or ENTER |
+
+No door said on entry how to leave it, and none took X.
+
+## Port status
+
+The Last Caller port list (`../Last_Caller/docs/PLATFORM_UX.md`, section 4),
+P1 to P48, as it stands in TinyBBS. "Not needed" items are Last Caller story
+(HALCYON) or need its scene and trigger engine, which TinyBBS does not have.
+
+| # | Change | Here |
+| --- | --- | --- |
+| P1 | Contract and audit | This file |
+| P2 | Letters act at once (hotkey tick, browser key mode 3, Backspace) | Ported |
+| P3 | ENTER never leaves; Q, X, ?; one pager; O, W, L; FILE_ASK | Ported; doors, SysOp screens and Legend's typed commands added |
+| P4 | Manifest keys, shell leave words | Not needed (HALCYON) |
+| P5 | Story lint `check_keys` | Not needed: no story text names keys here |
+| P6 | W in a read-only area says why | Not needed: TinyBBS has no read-only areas |
+| P7 | e2e follows the new keys | Ported as `tools/test/telnet_walk.py` (TinyBBS had no e2e) |
+| P8 | Numbered scene choices act at once | Not needed (no scenes) |
+| P9 | Snake keys | Not needed (no Snake); the same rule given to Legend and the dice |
+| P10 | One-page texts drop the row counter | Ported |
+| P11 | Chat leaves with Q, QUIT, EXIT, /Q | Ported |
+| P12 | Reply save ends like a post | Ported |
+| P13 | Own posts are never new | Ported (no read-only login part) |
+| P14 | Front page puzzle hint | Not needed (HALCYON) |
+| P15 | A page draws the prompt again | Ported as `timedLine()`: pages, refusals, SysOp messages, upload notices |
+| P16 | A scene starts on a fresh line | Not needed (no scenes) |
+| P17 | Key hint under the first main menu | Ported |
+| P18 | Number prompts say Q goes back at once | Ported |
+| P19, P27 | C label | Kept "Node chat": there is no scene before the chat here |
+| P20 | UX tester agents | Not ported: they drive Last Caller's `bbs-caller` MCP tool and HALCYON staging; the Telnet walk covers the fixed task list |
+| P21 | Pager keys always fit in 79 columns | Ported |
+| P22 | X leaves a line door | Ported to VolaMUD, Legend and the dice |
+| P23 | Testers one at a time | Not needed (no `bbs-caller` tool) |
+| P24, P25, P32, P36, P38, P41, P44, P45, P48 | Scene and trigger timing, scene choices, replay, typed_else, type-ahead | Not needed (no scene or trigger engine) |
+| P26 | Password stars on Telnet | Ported |
+| P28 | Sign-up in a door logs in at once | Not needed: N)ew already logs in at once |
+| P29 | A door's yes or no is one key | Ported (Legend arena offer) |
+| P30 | Snake prompt says no ENTER | Not needed (no Snake) |
+| P31 | Chat echo order after a fast reply | Not changed: no scripted replies here; a SysOp reply clears the line and draws the prompt again (`broadcastChat`) |
+| P33, P34, P35, P37, P42 | Crew accounts, manifest notebook, story notes and their lint | Not needed (HALCYON) |
+| P39 | Notes table, collect on show | Ported: `/BBS/CONFIG/NOTES.INI`, `src/core/notes.h`; does nothing without the file |
+| P40 | Notebook screens | Ported: `src/bbs/notebook.h`, K on the main menu; no scene list or logins page (no scenes or crew logins here) |
+| P43 | Idle warning, any key keeps the line | Ported (no Login: after a sign-in here, so no 10-minute case) |
+| P46 | Digits in the reader redraw only the bar | Not needed: the TinyBBS reader takes no message number |
+| P47 | ? line names S | Ported as "S slow" |

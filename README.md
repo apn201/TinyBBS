@@ -45,6 +45,11 @@ board at the same time and see each other in WHO and chat.
   reload rejoins the same node, and the screen has 1000 lines of scrollback.
 - Telnet on port 23 for PuTTY, SyncTERM and friends. 80 columns.
 - Eight nodes, shared by browser and Telnet callers.
+- One way to work every screen, on Telnet and in the browser
+  ([docs/INTERACTION.md](docs/INTERACTION.md)): a letter acts at once, ENTER
+  only ends typed text and numbers, Q goes back one level, X to the main menu
+  from anywhere, ? shows the keys, and everything a caller reads opens in the
+  same pager. Doors and chat say how to leave them.
 - New-user signup, logins, security levels and flags.
 - Message areas read the 1990s way: one message at a time with next and
   previous, replies linked into threads, a thread view, a line editor, and
@@ -56,27 +61,31 @@ board at the same time and see each other in WHO and chat.
   text), ANSI gallery.
 - File areas made from the folders on the card, with sub-folders,
   descriptions from `FILES.BBS`, `DESCRIPT.ION` and `FILE_ID.DIZ`, file dates,
-  per-file download counts, ZIP contents listed with `V`, and browser
+  per-file download counts, ZIP contents listed by opening the ZIP, and browser
   downloads that check quota and ratio.
-- Tracker music (MOD, S3M, XM, IT) plays with `V` in the browser: a
+- Tracker music (MOD, S3M, XM, IT) plays in the browser when opened: a
   tracker-style screen with the live pattern and channel meters, played by
   libopenmpt from the card. Fifty modules from The Mod Archive to start with.
 - C64 SID tunes play the same way with jsSID, on a C64-style screen with the
   three voices live. Thirty HVSC classics to start with. The player shows each
   tune's description.
-- Pictures (GIF, JPG, PNG, BMP) open with `V` in a full-screen image viewer
+- Pictures (GIF, JPG, PNG, BMP) open in a full-screen image viewer
   in the browser; `N`/`P` step through the folder.
 - Uploads from the browser to areas that allow them, into a queue the SysOp
   approves from the console. Approved uploads earn ratio and credit.
 - Download credit: new accounts start with credit and a ratio from
   `SYSTEM.INI`, and posting messages earns more.
-- ANSI pictures opened with `V` scroll in at modem speed. Any key skips,
+- ANSI pictures opened in a file area scroll in at modem speed. Any key skips,
   space pauses, and the browser's SPEED button picks the baud rate.
 - An invented 1990s board clock that only runs while the stick has power.
 - SysOp tools: user editor, node monitor with disconnect and one-way
   messages, answering a page into chat, and a file manager page in the
   browser for the SD card.
-- Two native doors: Legend of Kouvola and VolaMUD.
+- Two native doors, Legend of Kouvola and VolaMUD, and the dice cabinet.
+- An optional notebook: a card with `CONFIG/NOTES.INI` writes down a short
+  note for each caller the moment it shows them a message, file, picture,
+  bulletin, door or screen the table names, and `K` on the main menu lists
+  what they have seen. Without the file there is no notebook and no `K`.
 - Optional dial-up sound in the browser, after you click for it.
 - A small LCD on the board shows the logo, SD state, IP and the last caller.
 
@@ -141,7 +150,9 @@ buffer.
 - **Telnet** uses a `WiFiServer` on port 23. A small IAC state machine strips
   option negotiation and answers WILL and DO with refusals, except ECHO and
   SUPPRESS-GO-AHEAD. CR, LF and CRLF all end a line, so PuTTY and raw
-  clients behave the same.
+  clients behave the same. At a key screen a letter that no other key follows
+  within 120 ms acts on its own, and the ENTER a line-mode client sends after
+  it is dropped; a word that arrives in one go is still read as a word.
 - **Browser** loads one page from flash. It draws an 80x25 terminal on a
   640x400 canvas with 8x16 cells, the 16-colour DOS palette and an ANSI
   parser in JavaScript. `POST /api/connect` returns a node number and a
@@ -316,8 +327,11 @@ Settings live in `sd/BBS/CONFIG`, each file explained in its comments:
   use is listed, so a new door or file area shows up without editing ANSI.
 - `FILES/<area>/AREA.INI`: name, level, flag, downloads and uploads for one
   file area. Optional.
+- `NOTES.INI`: the notebook's notes, one section each (what shows it, the
+  line kept, where it came from). Optional; the format is at the top of
+  `src/core/notes.h`. The repository's card has none.
 
-After editing (on the card, or in the SysOp file manager) type `RELOAD` as
+After editing (on the card, or in the SysOp file manager) type `/RELOAD` as
 SysOp, or `Z` then `R`. `NETWORK.INI` needs a restart.
 
 ## Flash and recovery
@@ -382,8 +396,9 @@ A level-255 account with the `SYSOP` flag gets `Z`, the SysOp console.
   flags (with what each flag opens), lock, download limit, credits, ratio,
   password, forest fights, real name and location. Sizes can be typed as
   `500K` or `2M`. `N` and `P` step through users.
-- **Node monitor** (`W`): who is on and doing what. A node number
+- **Node monitor** (`W`): who is on and doing what. A node number and ENTER
   disconnects that caller, `M <node|ALL> <text>` sends a one-way message.
+  `Q` goes back, ENTER draws the list again.
 - **Page answering**: when a caller pages, `/A` from any prompt pulls both
   into chat and `/R` refuses.
 - **Upload queue** (`Z` then `I`): uploads waiting for approval. `A #`
@@ -393,11 +408,12 @@ A level-255 account with the `SYSOP` flag gets `Z`, the SysOp console.
   pulling the card. `DATA` and `LOGS` are read-only there.
 - **Logs** (`Z` then `L`): the event log in the reader, newest last. Logins,
   failed logins, logoffs with minutes online, downloads, uploads, posts and
-  every change of what a caller is doing. `L <text>` shows only matching
-  lines, for example one caller's handle.
+  every change of what a caller is doing. `L` asks for a word and shows only
+  the lines with it, for example one caller's handle; ENTER alone shows all.
 - **Chat history** (`/H` in chat): chat is saved to `LOGS/CHAT.LOG`, and the
   SysOp sees the latest lines on entering chat.
-- **`RELOAD`** rereads the settings and file areas.
+- **`R`** in the console rereads the settings and file areas (`/RELOAD`
+  at the main menu does the same).
 
 ## Limits
 
