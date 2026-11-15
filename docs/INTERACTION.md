@@ -127,7 +127,7 @@ No door said on entry how to leave it, and none took X.
 ## Port status
 
 The Last Caller port list (`../Last_Caller/docs/PLATFORM_UX.md`, section 4),
-P1 to P48, as it stands in TinyBBS. "Not needed" items are Last Caller story
+P1 to P50, as it stands in TinyBBS. "Not needed" items are Last Caller story
 (HALCYON) or need its scene and trigger engine, which TinyBBS does not have.
 
 | # | Change | Here |
@@ -167,3 +167,5 @@ P1 to P48, as it stands in TinyBBS. "Not needed" items are Last Caller story
 | P43 | Idle warning, any key keeps the line | Ported (no Login: after a sign-in here, so no 10-minute case) |
 | P46 | Digits in the reader redraw only the bar | Not needed: the TinyBBS reader takes no message number |
 | P47 | ? line names S | Ported as "S slow" |
+| P49 | SPACE at "Press any key" is a key; Telnet keeps output a full send buffer did not take; LOGOFF says why the line closed; server retries EINTR | Ported (the powered console is HALCYON, not needed) |
+| P50 | Idle and timer checks use `msSince(now, at)` | Ported: idle check, web carrier check, hotkey delay, LOGOFF and the Telnet send timer. The other `millis()` subtractions take a fresh `millis()` or a stamp the same code just set |
