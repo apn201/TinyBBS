@@ -41,7 +41,8 @@ static void input(Session &s, const String &bytes) {
       else other = true;
     }
     if (!space && !other) return;
-    if (space && !other) s.paused = !s.paused;
+    // P49: at "Press any key" (a bulletin still drawing) SPACE is a key, not a pause: it skips to the end.
+    if (space && !other && s.state != BULLETIN) s.paused = !s.paused;
     else { if (bytes.indexOf('\r') >= 0) s.ignoreNextLf = true; skipStream(s); }
     return;
   }
@@ -64,7 +65,7 @@ static void input(Session &s, const String &bytes) {
     } else if (!s.input.length() && hotkeyState(s)) {
       if (c == ' ' && !anyKeyState(s)) continue;   // a tap or a stray space is not the start of a word
       if (s.state == CHAT) { if (c == 'q' || c == 'Q') { s.hotKey = c; s.hotAt = millis(); continue; } }   // a lone Q leaves; anything after it makes a line
-      else if (isalpha((unsigned char)c) || c == '?' || (anyKeyState(s) && c > ' ') || (s.state == NOTEBOOK && c >= '1' && c <= '9')) { s.hotKey = c; s.hotAt = millis(); continue; }
+      else if (isalpha((unsigned char)c) || c == '?' || (s.state == BULLETIN && c >= ' ') || (anyKeyState(s) && s.state != BULLETIN && c > ' ') || (s.state == NOTEBOOK && c >= '1' && c <= '9')) { s.hotKey = c; s.hotAt = millis(); continue; }
     }
     // CRLF is one Enter key.  Without this guard the LF becomes a phantom
     // handle/command in Telnet clients such as PuTTY.
