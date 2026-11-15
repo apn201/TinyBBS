@@ -173,3 +173,22 @@ in the shared code, run `pio run`, the server build and smoke test and the
 Telnet walk on helppox.com as before (no Docker), push to `origin main`
 when they pass, and end this file with a short report and a line starting
 `PORT 2 DONE`.
+
+
+## Report, Addition 1 (Kiro, 15 Nov 2026)
+
+Ported P49 and P50 from Last Caller Q22 (814b876, 1b09d29, 5334cec, e597dc4, d69d8bc, a2105d8, engine parts only).
+
+**Ported.** `msSince(now, at)` in `src/core/util.h`, used by the idle check, the web carrier check, the hotkey delay and the LOGOFF text. This tree already clamped the idle check by hand; the other three were plain unsigned subtractions. The other `millis()` subtractions in shared code (Telnet and WebSocket send timers, board clock, goodbye minutes, pacing) take a fresh `millis()` or a stamp set by the same code, so they cannot wrap. LOGOFF in the event log now says why the line closed and how long since the last key. Telnet keeps the part of the output a full send buffer did not take. The server platform retries EINTR on a socket and logs `[NET] drop ... errno=` to stderr. SPACE at the bulletin "Press any key" is a key, not a pause.
+
+**Skipped.** The powered console (`CONSOLE_ON`, maintenance login) and the scene keys notice: HALCYON.
+
+**Checks.**
+- `pio run`: passes. RAM 58612 bytes (unchanged), flash 1505827 bytes (+348 against the end of the first port).
+- Server build and `tinybbs-phase1-smoke` on a disposable copy on helppox.com (scratch folder, removed afterwards, user `lastcaller`, no Docker): pass, exit 0.
+- Telnet walk on disposable server card copies, with a test file area added to each copy: 0 failures in 4 runs. One further run found no server because I reused a port; it is not counted. The event log showed `goodbye (last key 0 s ago)` for each logoff and the server log held no `[NET]` drop lines.
+- Not run: the SPACE-at-banner key (the walk does not send SPACE at a drawing bulletin), a test on the Pocket-Dongle-S3, a browser session. `../Last_Caller` was read only.
+
+**Commits.** `383e449` to the `UX port:` commit after it (P50, LOGOFF, Telnet, server, SPACE, docs).
+
+PORT 2 DONE
