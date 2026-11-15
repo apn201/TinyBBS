@@ -40,7 +40,12 @@ static void tickTelnet() {
     if (!s.socket.connected()) { closeSession(s); continue; }
     for (size_t budget = 256; budget && s.used && s.socket.available() && s.state != GOODBYE; --budget)
       telnetInput(s, s.socket.read());
-    if (s.output.length() && (s.output.length() >= 512 || millis() - s.sentAt >= 40)) { s.socket.print(s.output); s.output = ""; s.sentAt = millis(); }
+    // P49: a full send buffer takes part of the output; the rest waits for the next tick instead of being lost.
+    if (s.output.length() && (s.output.length() >= 512 || msSince(millis(), s.sentAt) >= 40)) {
+      size_t sent = s.socket.print(s.output);
+      s.output = sent >= s.output.length() ? String() : s.output.substring(sent);
+      s.sentAt = millis();
+    }
     if (s.state == GOODBYE && outputDone(s)) closeSession(s);
   }
 }
