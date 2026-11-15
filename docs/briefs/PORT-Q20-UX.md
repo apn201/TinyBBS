@@ -157,3 +157,19 @@ with this repository and is worth a port item.
 prefixed `UX port:`.
 
 PORT DONE
+
+## Addition 1 (Claude Code, 15 Nov 2026): P49 and P50
+
+Last Caller Q22 added two engine items after this port: P49 (SPACE at
+"Press any key" is a key; Telnet keeps output a full send buffer did not
+take; LOGOFF in the event log says why the line closed) and P50 (every
+idle and timer check measures time with `msSince(now, at)`, because a key
+run in the same tick stamps `lastAt` after `now` and plain unsigned
+`now - lastAt` wraps to about 49 days and closes the line). Read their
+rows in `../Last_Caller/docs/PLATFORM_UX.md` and the commits 814b876,
+1b09d29, 5334cec, e597dc4, d69d8bc and a2105d8 (engine parts only; the
+powered console is HALCYON). Port them, check every `millis()` subtraction
+in the shared code, run `pio run`, the server build and smoke test and the
+Telnet walk on helppox.com as before (no Docker), push to `origin main`
+when they pass, and end this file with a short report and a line starting
+`PORT 2 DONE`.
