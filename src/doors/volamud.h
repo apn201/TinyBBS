@@ -253,6 +253,7 @@ static void mudMenu(Session &s, bool entering = false) {
   s.state = MUD_MENU;
   mudLook(s);
   say(s, "Commands: LOOK, N/S/E/W, GO <direction>, TALK, BUY/SELL, INV, WEAR, TASK, BANK, SAY <text>, FIGHT [NPC], WHO, STATS, HELP, QUIT");
+  if (entering) say(s, "\x1b[0;36mType a command, then ENTER. Q, QUIT or EXIT leaves for the door menu, X for the main menu.\x1b[0m");
   mudPrompt(s);
 }
 static void mudBroadcastRoom(Session &s, const String &text) {
@@ -529,6 +530,11 @@ static void handleMudInput(Session &s, const String &line) {
     doorMenu(s);
     return;
   }
+  if (cmd == "X") {   // C2: X is the main menu from anywhere, a line door too
+    mudBroadcastRoom(s, s.user.handle + " returns to the BBS.");
+    mainMenu(s);
+    return;
+  }
   if (cmd == "L" || cmd == "LOOK") { mudLook(s); mudPrompt(s); return; }
   if (cmd == "N" || cmd == "S" || cmd == "E" || cmd == "W" || cmd == "NORTH" || cmd == "SOUTH" || cmd == "EAST" || cmd == "WEST") { mudMove(s, cmd); return; }
   if (cmd == "GO") { mudMove(s, tokenAt(up(args), 0)); return; }
@@ -557,8 +563,8 @@ static void handleMudInput(Session &s, const String &line) {
     mudPrompt(s);
     return;
   }
-  if (cmd == "HELP" || !cmd.length()) {
-    say(s, "LOOK, N/S/E/W, GO <direction>, TALK, BUY/SELL, INV, WEAR, TASK, BANK, SAY <text>, FIGHT [NPC], WHO, STATS and QUIT.");
+  if (cmd == "HELP" || cmd == "?" || !cmd.length()) {
+    say(s, "LOOK, N/S/E/W, GO <direction>, TALK, BUY/SELL, INV, WEAR, TASK, BANK, SAY <text>, FIGHT [NPC], WHO, STATS and QUIT. X goes to the main menu.");
     mudPrompt(s);
     return;
   }

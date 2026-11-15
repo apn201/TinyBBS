@@ -19,10 +19,15 @@ static bool hotkeyState(const Session &s) {
     case LOGIN_CHOICE: case BULLETIN: case MAIN: case USER_LIST: case MSG_MENU: case MSG_READ: case MSG_VIEW: case MSG_KILL:
     case POST_PRIVATE: case JOIN_CONF: case BULLETIN_LIST: case DOOR_MENU: case ANSI_GALLERY: case FILE_MENU: case FILE_LIST: case SYSOP_MENU:
     case FILE_ASK: case FILE_UPLOAD_WAIT: case CHAT:
+    case QUEST_MENU: case QUEST_TAVERN: case QUEST_FIGHT: case QUEST_RESULT: case QUEST_BANK: case QUEST_SHOP:
+    case QUEST_DUEL_OFFER: case QUEST_DUEL_WAIT: case QUEST_DUEL: case QUEST_DUEL_RESULT: case DICE_BET:
       return true;
+    case QUEST_ASK: return s.askKey != 'C';   // a handle is typed; a tier or an amount is a number
     default: return false;
   }
 }
+// C6: screens where any key goes on (not only a letter).
+static bool anyKeyState(const Session &s) { return s.state == BULLETIN || s.state == MSG_VIEW || s.state == QUEST_RESULT || s.state == QUEST_DUEL_RESULT; }
 // Key mode for the browser: 0 = line input, 1 = a file is streaming (keys skip
 // or pause it), 2 = the reader (every key goes to the board at once), 3 = a key
 // screen: every key goes to the board too, which echoes typed digits (the

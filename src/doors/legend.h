@@ -106,7 +106,7 @@ static bool playingQuest(const Session &s) {
   return s.state == QUEST_MENU || s.state == QUEST_TAVERN || s.state == QUEST_FIGHT || s.state == QUEST_RESULT ||
          s.state == QUEST_BANK || s.state == QUEST_SHOP || s.state == DICE_BET ||
          s.state == QUEST_DUEL_OFFER || s.state == QUEST_DUEL_WAIT ||
-         s.state == QUEST_DUEL || s.state == QUEST_DUEL_RESULT;
+         s.state == QUEST_DUEL || s.state == QUEST_DUEL_RESULT || s.state == QUEST_ASK;
 }
 struct LeaderRow {
   String handle;
@@ -186,7 +186,8 @@ static void questMenu(Session &s, bool entering = false) {
           "  Slays: " + s.quest.kills + "  Fame: " + s.quest.fame);
   String rivals = duelRivals(s);
   say(s, String("[F]orest [H]ealer [B]ank [T]avern [M]aster [S]hop [L]egend board ") + (rivals.length() ? "[C]hallenge " : "") + "[Q]uit");
-  if (rivals.length()) say(s, "In town: " + rivals + ". C <name> challenges one to the arena.");
+  if (rivals.length()) say(s, "In town: " + rivals + ". C challenges one to the arena.");
+  if (entering) say(s, "\x1b[0;36mQ leaves the town for the door menu, X for the main menu.\x1b[0m");
   prompt(s, "Town command? ");
 }
 static void questTavern(Session &s, bool entering = false);
@@ -277,8 +278,8 @@ static void finishDuel(Session &winner, Session &loser) {
   winner.duelNode = winner.duelTurnNode = loser.duelNode = loser.duelTurnNode = 0;
   winner.state = loser.state = QUEST_DUEL_RESULT;
   winner.activity = "ARENA VICTORY"; loser.activity = "ARENA DEFEAT";
-  prompt(winner, "[ENTER] Return to town: ");
-  prompt(loser, "[ENTER] Return to town: ");
+  prompt(winner, "Press any key to return to town: ");
+  prompt(loser, "Press any key to return to town: ");
 }
 static void duelAttack(Session &s) {
   Session *other = sessionByNode(s.duelNode);
@@ -304,21 +305,26 @@ static void duelAttack(Session &s) {
   prompt(s, "Waiting for " + other->user.handle + "... ([R] retreats) ");
   prompt(*other, "Your move. [A]ttack  [R]etreat: ");
 }
+// C alone asks for the name (a letter acts at once); "C name" typed in one go still works.
+static void questAsk(Session &s, char key, const String &question) {
+  s.askKey = key; s.askBack = s.state; s.state = QUEST_ASK;
+  prompt(s, question + (key == 'C' ? ", then ENTER (an empty line cancels): " : ", then ENTER (Q cancels at once): "));
+}
 static void questChallenge(Session &s, const String &line) {
   String target = up(clean(line.substring(1), 16, true));
-  if (!target.length()) { prompt(s, "Use C <online adventurer>: "); return; }
+  if (!target.length()) { questAsk(s, 'C', "Challenge whom? Their handle"); return; }
   Session *other = nullptr;
   for (auto &candidate : sessions)
     if (&candidate != &s && candidate.used && candidate.authenticated &&
         candidate.user.normalized == target && duelLocation(candidate)) { other = &candidate; break; }
-  if (!other) { say(s, "That adventurer is not waiting in town."); prompt(s, "Use C <online adventurer>: "); return; }
+  if (!other) { say(s, "That adventurer is not waiting in town."); if (s.state == QUEST_TAVERN) questTavern(s); else questMenu(s); return; }
   s.duelNode = other->node; s.duelTurnNode = s.node; s.state = QUEST_DUEL_WAIT;
   other->duelNode = s.node; other->duelTurnNode = s.node; other->state = QUEST_DUEL_OFFER;
   activity(s, "WAITING FOR ARENA ACCEPT"); activity(*other, "ARENA CHALLENGE");
   say(s, "Challenge sent to " + other->user.handle + ". Awaiting their answer.");
-  prompt(s, "[Q] Cancel challenge: ");
+  prompt(s, "[Q] Cancel the challenge: ");
   say(*other, "\r\n\x1b[1;35m" + s.user.handle + " challenges you to an arena duel!\x1b[0m");
-  prompt(*other, "Accept? [Y]es / [N]o: ");
+  prompt(*other, "Accept? [Y/N]: ");
 }
 static void enterQuest(Session &s) {
   if (loadQuest(s)) questMenu(s, true);
@@ -360,7 +366,7 @@ static void fightResult(Session &s, const Quest &before, const String &report) {
   say(s, report);
   s.state = QUEST_RESULT;
   activity(s, "FOREST RESULT");
-  prompt(s, "[ENTER] Town  [F] Search the forest again: ");
+  prompt(s, "[F] Search the forest again, any other key: town ");
 }
 static void questAttack(Session &s) {
   const Quest before = s.quest;
@@ -422,12 +428,47 @@ static void questShop(Session &s) {
   for (uint8_t tier = 1; tier <= MAX_GEAR; ++tier)
     say(s, String("W ") + tier + " " + weapons[tier] + "   A " + tier + " " +
            armorNames[tier] + "   " + gearPrice[tier] + " gold each");
-  prompt(s, "[W #] Weapon  [A #] Armour  [Q] Town: ");
+  prompt(s, "[W] Weapon  [A] Armour  [Q] Town: ");
+}
+static void questBank(Session &s) {
+  s.state = QUEST_BANK; activity(s, "KOUVOLA BANK");
+  say(s, "Bank holds " + String(s.quest.bank) + " gold, your purse " + String(s.quest.gold) + ".");
+  prompt(s, "[D] Deposit  [W] Withdraw  [Q] Town: ");
+}
+// Leaving the door from anywhere in it; a duel is called off and the other fighter told first.
+static void questLeave(Session &s, bool toMain) {
+  if (s.duelNode) {
+    Session *other = sessionByNode(s.duelNode);
+    if (other && other != &s) {
+      other->duelNode = other->duelTurnNode = 0;
+      say(*other, "\r\n\x1b[1;31mThe arena closes: " + s.user.handle + " left the town.\x1b[0m");
+      questMenu(*other);
+    }
+    s.duelNode = s.duelTurnNode = 0;
+  }
+  if (toMain) mainMenu(s); else doorMenu(s);
 }
 
+// The keys of each Legend screen in one line, for ? (docs/INTERACTION.md, C2).
+static void questKeys(Session &s, const char *keys, const char *again) { say(s, String("\x1b[0;36mKeys: ") + keys + " X main menu.\x1b[0m"); prompt(s, again); }
 static bool legendCommand(Session &s, String &line, const String &cmd) {
+  // C2: X is the main menu from anywhere in the door (a duel is called off first).
+  if (cmd == "X" && s.state != QUEST_ASK) { questLeave(s, true); return true; }
+  if (s.state == QUEST_ASK) {
+    const char key = s.askKey;
+    s.askKey = 0; s.state = s.askBack;
+    if (cmd == "X") { questLeave(s, true); return true; }
+    if (cmd == "Q" || !line.length()) {
+      if (s.state == QUEST_SHOP) questShop(s); else if (s.state == QUEST_BANK) questBank(s); else if (s.state == QUEST_TAVERN) questTavern(s); else questMenu(s);
+      return true;
+    }
+    String again = String(key) + " " + line;
+    return legendCommand(s, again, up(again));
+  }
   if (s.state == QUEST_MENU) {
-    if (cmd == "Q") { doorMenu(s); return true; }
+    if (cmd == "Q") { questLeave(s, false); return true; }
+    if (!cmd.length()) { questMenu(s); return true; }
+    if (cmd == "?") { questKeys(s, duelRivals(s).length() ? "F forest, H healer, B bank, T tavern, M master, S shop, L legend board, C challenge, Q door menu," : "F forest, H healer, B bank, T tavern, M master, S shop, L legend board, Q door menu,", "Town command? "); return true; }
     if (cmd == "F") { enterForest(s); return true; }
     if (cmd == "M") { questTrain(s); return true; }
     if (cmd == "S") { questShop(s); return true; }
@@ -451,17 +492,19 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
       questMenu(s);
       return true;
     }
-    if (cmd == "B") { s.state=QUEST_BANK; activity(s,"KOUVOLA BANK"); say(s,"Bank holds "+String(s.quest.bank)+" gold. Use D <amount>, W <amount>, or Q."); prompt(s,"Bank command? "); return true; }
-    say(s, duelRivals(s).length() ? "Use F, H, B, T, M, S, L, C <name>, or Q." : "Use F, H, B, T, M, S, L, or Q."); prompt(s,"Town command? "); return true;
+    if (cmd == "B") { questBank(s); return true; }
+    say(s, "Not a key in town. ? shows the keys."); prompt(s,"Town command? "); return true;
   }
   if (s.state == QUEST_TAVERN) {
-    if (cmd == "Q" || !cmd.length()) { questMenu(s); return true; }
+    if (cmd == "Q") { questMenu(s); return true; }
+    if (!cmd.length()) { questTavern(s); return true; }
+    if (cmd == "?") { questKeys(s, duelRivals(s).length() ? "R rumor, W who is in town, L legend board, C challenge, M meal, Q town," : "R rumor, W who is in town, L legend board, M meal, Q town,", "Tavern command? "); return true; }
     if (cmd == "R") { tavernRumor(s); return true; }
     if (cmd == "W") { tavernWho(s); return true; }
     if (cmd == "L") { questLeaderboard(s); questTavern(s); return true; }
     if (cmd == "M") { questMeal(s); return true; }
     if (cmd == "C" || cmd.startsWith("C ")) { questChallenge(s, line); return true; }
-    say(s, duelRivals(s).length() ? "Use R, W, L, C <name>, M, or Q." : "Use R, W, L, M, or Q."); prompt(s, "Tavern command? "); return true;
+    say(s, "Not a key in the tavern. ? shows the keys."); prompt(s, "Tavern command? "); return true;
   }
   if (s.state == QUEST_DUEL_WAIT) {
     if (cmd == "Q") duelCancel(s, "you withdrew the challenge");
@@ -480,42 +523,41 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
       prompt(s, "Waiting for " + other->user.handle + "... ([R] retreats) ");
       prompt(*other, "[A]ttack  [R]etreat: ");
     } else if (cmd == "N" || cmd == "NO" || cmd == "Q") duelCancel(s, "the challenge was declined");
-    else prompt(s, "Accept? [Y]es / [N]o: ");
+    else prompt(s, "Accept? [Y/N]: ");
     return true;
   }
   if (s.state == QUEST_DUEL) {
-    if (cmd == "R") { duelCancel(s, s.user.handle + " retreated"); return true; }
+    if (cmd == "R" || cmd == "Q") { duelCancel(s, s.user.handle + " retreated"); return true; }
     if (cmd == "A") duelAttack(s);
     else prompt(s, s.node == s.duelTurnNode ? "[A]ttack  [R]etreat: " : "Wait for your initiative... ([R] retreats) ");
     return true;
   }
-  if (s.state == QUEST_DUEL_RESULT) {
-    if (!cmd.length() || cmd == "Q") questMenu(s);
-    else prompt(s, "[ENTER] Return to town: ");
-    return true;
-  }
+  if (s.state == QUEST_DUEL_RESULT) { questMenu(s); return true; }   // C6: any key
   if (s.state == QUEST_FIGHT) {
     if (cmd == "A") { questAttack(s); return true; }
-    if (cmd == "R" && saveQuest(s)) {
+    if ((cmd == "R" || cmd == "Q") && saveQuest(s)) {
       say(s, "You escape with " + String(s.quest.hp) + " HP. The forest keeps the turn.");
       s.state = QUEST_RESULT;
-      prompt(s, "[ENTER] Town  [F] Search the forest again: ");
+      prompt(s, "[F] Search the forest again, any other key: town ");
       return true;
     }
+    if (cmd == "?") { questKeys(s, "A attack, R or Q run,", "[A]ttack  [R]un? "); return true; }
     prompt(s, "[A]ttack  [R]un? "); return true;
   }
-  if (s.state == QUEST_RESULT) {
+  if (s.state == QUEST_RESULT) {   // C6: any key goes back to town, F searches again
     if (cmd == "F" && s.quest.fights) enterForest(s);
-    else if (!cmd.length() || cmd == "Q") questMenu(s);
-    else prompt(s, s.quest.fights ? "[ENTER] Town  [F] Search again: " : "No fights left. [ENTER] Town: ");
+    else questMenu(s);
     return true;
   }
   if (s.state == QUEST_SHOP) {
-    if (cmd == "Q" || !cmd.length()) { questMenu(s); return true; }
+    if (cmd == "Q") { questMenu(s); return true; }
+    if (!cmd.length()) { questShop(s); return true; }
+    if (cmd == "?") { questKeys(s, "W weapon, A armour (then the tier), Q town,", "[W] Weapon  [A] Armour  [Q] Town: "); return true; }
+    if (cmd == "W" || cmd == "A") { questAsk(s, cmd[0], String(cmd == "W" ? "Which weapon" : "Which armour") + ", tier 1-3"); return true; }
     String verb = tokenAt(cmd, 0);
     uint32_t tier;
     if ((verb != "W" && verb != "A") || !readNumber(afterTokens(line, 1), tier) || tier < 1 || tier > MAX_GEAR) {
-      prompt(s, "Use W 1-3, A 1-3, or Q: "); return true;
+      say(s, "W or A, then a tier from 1 to 3."); prompt(s, "[W] Weapon  [A] Armour  [Q] Town: "); return true;
     }
     Quest purchase = s.quest;
     uint8_t &equipped = verb == "W" ? purchase.weapon : purchase.armor;
@@ -530,14 +572,17 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
                ". Gold: " + s.quest.gold);
       } else say(s, "Purchase could not be saved.");
     }
-    prompt(s, "[W #] Weapon  [A #] Armour  [Q] Town: "); return true;
+    prompt(s, "[W] Weapon  [A] Armour  [Q] Town: "); return true;
   }
   if (s.state == QUEST_BANK) {
-    if (cmd == "Q" || !cmd.length()) { questMenu(s); return true; }
+    if (cmd == "Q") { questMenu(s); return true; }
+    if (!cmd.length()) { questBank(s); return true; }
+    if (cmd == "?") { questKeys(s, "D deposit, W withdraw (then the gold), Q town,", "[D] Deposit  [W] Withdraw  [Q] Town: "); return true; }
+    if (cmd == "D" || cmd == "W") { questAsk(s, cmd[0], String(cmd == "D" ? "Deposit" : "Withdraw") + " how much gold"); return true; }
     String verb = tokenAt(cmd, 0);
     uint32_t amount;
     if ((verb != "D" && verb != "W") || !readNumber(afterTokens(line, 1), amount) || !amount) {
-      prompt(s, "Use D <amount>, W <amount>, or Q: "); return true;
+      say(s, "D or W, then an amount of gold."); prompt(s, "[D] Deposit  [W] Withdraw  [Q] Town: "); return true;
     }
     Quest updated = s.quest;
     uint32_t &from = verb == "D" ? updated.gold : updated.bank;
@@ -551,11 +596,10 @@ static bool legendCommand(Session &s, String &line, const String &cmd) {
         say(s, "Purse: " + String(updated.gold) + "  Bank: " + updated.bank);
       } else say(s, "Transfer could not be saved.");
     }
-    prompt(s, "Bank command? "); return true;
+    prompt(s, "[D] Deposit  [W] Withdraw  [Q] Town: "); return true;
   }
   return false;
 }
-
 // Door interface hooks.
 static bool ownsLegend(const Session &s) { return playingQuest(s) && s.state != DICE_BET; }
 static void handleLegend(Session &s, String &line, const String &cmd) { legendCommand(s, line, cmd); }

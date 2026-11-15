@@ -62,9 +62,9 @@ static void input(Session &s, const String &bytes) {
       if (!s.hideInput) write(s, String(h));
       s.input += h;
     } else if (!s.input.length() && hotkeyState(s)) {
-      if (c == ' ' && s.state != BULLETIN && s.state != MSG_VIEW) continue;   // a tap or a stray space is not the start of a word
+      if (c == ' ' && !anyKeyState(s)) continue;   // a tap or a stray space is not the start of a word
       if (s.state == CHAT) { if (c == 'q' || c == 'Q') { s.hotKey = c; s.hotAt = millis(); continue; } }   // a lone Q leaves; anything after it makes a line
-      else if (isalpha((unsigned char)c) || c == '?' || ((s.state == BULLETIN || s.state == MSG_VIEW) && c > ' ')) { s.hotKey = c; s.hotAt = millis(); continue; }
+      else if (isalpha((unsigned char)c) || c == '?' || (anyKeyState(s) && c > ' ')) { s.hotKey = c; s.hotAt = millis(); continue; }
     }
     // CRLF is one Enter key.  Without this guard the LF becomes a phantom
     // handle/command in Telnet clients such as PuTTY.

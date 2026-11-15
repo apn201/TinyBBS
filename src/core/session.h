@@ -2,7 +2,7 @@
 // Caller state machine, node pool and output helpers.
 // Part of the single TinyBBS translation unit: included in order from main.cpp.
 
-enum State : uint8_t { DEAD, LOGIN_CHOICE, LOGIN_HANDLE, LOGIN_PASSWORD, NEW_HANDLE, NEW_PASSWORD, NEW_REAL, NEW_LOCATION, BULLETIN, MAIN, USER_LIST, MSG_MENU, MSG_READ, POST_TO, POST_SUBJECT, POST_BODY, JOIN_CONF, CHAT, SYSOP_MENU, SYSOP_USERS, SYSOP_DOORS, SYSOP_ADD_PASSWORD, SYSOP_DELETE_CONFIRM, ANSI_GALLERY, FILE_MENU, FILE_LIST, DOOR_MENU, QUEST_MENU, QUEST_TAVERN, QUEST_FIGHT, QUEST_RESULT, QUEST_BANK, QUEST_SHOP, DICE_BET, QUEST_DUEL_OFFER, QUEST_DUEL_WAIT, QUEST_DUEL, QUEST_DUEL_RESULT, MUD_MENU, BULLETIN_LIST, MSG_VIEW, POST_PRIVATE, SYSOP_USER_EDIT, SYSOP_USER_FIELD, SYSOP_ADD_HANDLE, SYSOP_NODES, READER, MSG_KILL, FILE_IMAGE, FILE_MUSIC, FILE_UPLOAD_DESC, FILE_UPLOAD_WAIT, SYSOP_UPLOADS, GOODBYE, FILE_ASK };
+enum State : uint8_t { DEAD, LOGIN_CHOICE, LOGIN_HANDLE, LOGIN_PASSWORD, NEW_HANDLE, NEW_PASSWORD, NEW_REAL, NEW_LOCATION, BULLETIN, MAIN, USER_LIST, MSG_MENU, MSG_READ, POST_TO, POST_SUBJECT, POST_BODY, JOIN_CONF, CHAT, SYSOP_MENU, SYSOP_USERS, SYSOP_DOORS, SYSOP_ADD_PASSWORD, SYSOP_DELETE_CONFIRM, ANSI_GALLERY, FILE_MENU, FILE_LIST, DOOR_MENU, QUEST_MENU, QUEST_TAVERN, QUEST_FIGHT, QUEST_RESULT, QUEST_BANK, QUEST_SHOP, DICE_BET, QUEST_DUEL_OFFER, QUEST_DUEL_WAIT, QUEST_DUEL, QUEST_DUEL_RESULT, MUD_MENU, BULLETIN_LIST, MSG_VIEW, POST_PRIVATE, SYSOP_USER_EDIT, SYSOP_USER_FIELD, SYSOP_ADD_HANDLE, SYSOP_NODES, READER, MSG_KILL, FILE_IMAGE, FILE_MUSIC, FILE_UPLOAD_DESC, FILE_UPLOAD_WAIT, SYSOP_UPLOADS, GOODBYE, FILE_ASK, QUEST_ASK };
 struct Quest {
   uint32_t id = 0, gold = 35, bank = 0, exp = 0;
   uint16_t hp = 30, maxHp = 30, monsterHp = 0;
@@ -107,7 +107,8 @@ struct Session {
   String lastPrompt;      // the last prompt written, drawn again under a timed line (timedLine)
   bool idleWarned = false;  // bbs/runtime.h: the line has been told it closes in 30 seconds
   bool keyHint = false;   // the one-line key hint under the first main menu of the call was shown
-  char askKey = 0;        // FILE_ASK: the key (V or D) that wants a file number
+  char askKey = 0;        // FILE_ASK: the key (V or D) that wants a file number; QUEST_ASK: the Legend key that wants a name, tier or amount
+  State askBack = MAIN;   // QUEST_ASK: the Legend screen the question was asked on
 };
 static Session sessions[MAX_NODES];
 static Session *sessionByNode(uint8_t node) {
