@@ -62,6 +62,11 @@ through every menu and door on that server copy: log in, read and post a
 message, files, every door in and out, chat in and out, `?` and `X` from
 deep inside, log off. Never claim a check passed if it did not run.
 
+No Docker or WSL on this PC: do not start Docker. The Linux server build
+runs where Linux is; if none is reachable from this run, say in the report
+that the server build and Telnet walk did not run here and will run at
+deploy. `pio run` must pass here.
+
 ## Done when
 
 Every engine item on the port list is ported or recorded as not needed,
@@ -69,3 +74,79 @@ all checks pass, and `docs/briefs/PORT-Q20-UX.md` ends with a short report:
 what was ported, what was skipped and why, RAM and flash before and after,
 the commit range. Push to `origin main` only when all checks pass.
 Redeploying Kouvosto is Juha's step, not part of this item.
+
+## Report (Kiro, 15 Nov 2026)
+
+Ported the engine part of the Last Caller port list, P1 to P48 (P48 was
+added by Q22 while this ran; it needs the scene engine and is not needed
+here). The full item-by-item table is in `docs/INTERACTION.md`, "Port
+status"; the moved keys are in the same file.
+
+**Ported.** Letters act at once at every menu, list, pager and yes/no, on
+Telnet and in the browser (key mode 3, Backspace), with a typed word still
+read as a word when it arrives in one go (P2). ENTER never leaves a level; Q
+back, X main menu and ? keys on every key screen; one pager for messages,
+threads, bulletins, WHO, system info and the key help; O pages the SysOp, W
+writes, L lists; V and D ask for the file number; Y/N and "Press any key" are
+one key (P3). One-page texts drop the row counter, the pager's keys always fit
+79 columns, ? names S slow (P10, P21, P47). Chat leaves with a lone Q, QUIT,
+EXIT or /Q and says so (P11). A reply ends like a post (P12); own posts are
+never new (P13). The key hint under the first main menu (P17), number prompts
+that say Q goes back at once (P18), password stars on Telnet (P26). Pages,
+refusals, SysOp messages and upload notices arrive on their own line with the
+prompt drawn again (P15), and the idle warning 30 s before the line closes
+(P43). The notebook engine: `/BBS/CONFIG/NOTES.INI`, collected on show,
+K on the main menu; it does nothing and shows nothing without the file, and
+the repository's card has none (P39, P40). A Telnet walk,
+`tools/test/telnet_walk.py`, stands in for Last Caller's e2e (P7).
+
+**Doors and Kouvosto screens given the contract.** Legend of Kouvola: letters
+at once, Q one level up, X main menu from any screen (a duel is called off and
+the other fighter told), ? lists the keys, C, W/A (shop) and D/W (bank) ask
+for the name, tier or amount, the results and the arena offer take one key.
+The dice cabinet: letters at once, ENTER no longer leaves. VolaMUD stays a
+line door (it reads words): it says on entry that Q, QUIT or EXIT leave and X
+goes to the main menu, and takes X and ?. SysOp screens: ENTER draws the
+screen again instead of leaving; the user record takes N, P, D, Q, X at once;
+L asks for the log word. The FidoNet history and the music areas are read
+through the shared pager and file list, so they follow it without changes.
+Every door follows the contract; none was left out.
+
+**Skipped, and why.** Last Caller story (HALCYON) items: P4, P14, P33 to P35,
+P37, P42. Items that need its scene and trigger engine, which TinyBBS does not
+have: P8, P16, P24, P25, P32, P36, P38, P41, P44, P45, P48. Snake (P9, P30):
+TinyBBS has no Snake. P6: no read-only areas here. P46: the reader here takes
+no message number. P28: N)ew already logs in at once. P20 and P23 (tester
+agents and their MCP tool) drive Last Caller's staging; the Telnet walk covers
+their task list. P19/P27: the C label stays "Node chat". P31 needed no change.
+No text on `sd/BBS/` named a key that moved (`MENUS/DOORS_V2.ANS` lists only
+door keys, which did not move).
+
+**Bug found by the walk and fixed.** A key run by the hotkey tick set
+`lastAt` after the tick had read the time, so the idle check saw hours of
+silence and hung up a line now and then (`src/bbs/runtime.h`).
+
+**Checks.**
+- `pio run`: passes. Before: RAM 58156 bytes, flash 1482319 bytes. After:
+  RAM 58612 bytes (+456), flash 1505479 bytes (+23160).
+- Server build (`cmake -S server -B server/build`, `cmake --build server/build`)
+  and `tinybbs-phase1-smoke` on a disposable copied card: pass (exit 0, and
+  `LOGIN OK: SYSOP` with the account the walk made). Run on the Rocky host
+  `helppox.com` in a scratch folder, since this PC has no Linux; Docker was
+  not used.
+- Telnet walk on a disposable server card copy (loopback ports): 0 failures,
+  six runs in a row after the idle fix. It signs up a SysOp and a caller, reads,
+  posts and replies, opens a file area, goes into and out of every door
+  (Legend town, tavern, shop, bank, forest; dice; VolaMUD), chat in and out on
+  both nodes, a SysOp page and its refusal, ? and X from inside a message, a
+  file list, a door and the SysOp console, the user editor and node monitor,
+  and logs off. A notebook check on another copy with a test `NOTES.INI`
+  (not committed) and the idle warning on a line not signed in: pass.
+- Not run: a test on the Pocket-Dongle-S3 itself (the firmware was built, not
+  flashed) and a browser session; the browser part (key mode 3) is covered only
+  by the same board code the walk drives.
+
+**Commits.** `6027bd5` to the commit that adds this report, all prefixed
+`UX port:`.
+
+PORT DONE
